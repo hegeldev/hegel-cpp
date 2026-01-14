@@ -21,74 +21,67 @@ endif()
 # Hegel Python package installation
 # =============================================================================
 
+# Source for hegel Python package (uses SSH for private repo access)
+# Can be overridden with -DHEGEL_SOURCE=... to use:
+#   - A specific branch: git+ssh://git@github.com/antithesishq/hegel.git@main
+#   - A specific tag: git+ssh://git@github.com/antithesishq/hegel.git@v1.0.0
+#   - Local path: /path/to/local/hegel
+set(HEGEL_SOURCE "git+ssh://git@github.com/antithesishq/hegel.git"
+    CACHE STRING "Source for hegel Python package (git URL or local path)")
+
 # First check if hegel is already on PATH
 find_program(HEGEL_EXECUTABLE hegel)
 
 if(NOT HEGEL_EXECUTABLE)
-  # Try to install from local source directory
-  # This path can be overridden with -DHEGEL_SOURCE_DIR=...
-  if(NOT DEFINED HEGEL_SOURCE_DIR)
-    set(HEGEL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../hegel")
-  endif()
+  # Find or install uv
+  find_program(UV_EXECUTABLE uv)
 
-  if(EXISTS "${HEGEL_SOURCE_DIR}/pyproject.toml")
-    message(STATUS "Found local hegel source at: ${HEGEL_SOURCE_DIR}")
+  if(NOT UV_EXECUTABLE)
+    message(STATUS "uv not found, downloading via install script...")
 
-    # Find or install uv
-    find_program(UV_EXECUTABLE uv)
+    set(UV_DIR "${CMAKE_BINARY_DIR}/_deps/uv")
 
-    if(NOT UV_EXECUTABLE)
-      message(STATUS "uv not found, downloading via install script...")
-
-      set(UV_DIR "${CMAKE_BINARY_DIR}/_deps/uv")
-
-      execute_process(
-        COMMAND sh -c "curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=${UV_DIR} sh"
-        RESULT_VARIABLE UV_INSTALL_RESULT
-      )
-      if(NOT UV_INSTALL_RESULT EQUAL 0)
-        message(FATAL_ERROR "Failed to install uv")
-      endif()
-
-      set(UV_EXECUTABLE "${UV_DIR}/bin/uv")
+    execute_process(
+      COMMAND sh -c "curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=${UV_DIR} sh"
+      RESULT_VARIABLE UV_INSTALL_RESULT
+    )
+    if(NOT UV_INSTALL_RESULT EQUAL 0)
+      message(FATAL_ERROR "Failed to install uv")
     endif()
 
-    message(STATUS "Using uv: ${UV_EXECUTABLE}")
+    set(UV_EXECUTABLE "${UV_DIR}/bin/uv")
+  endif()
 
-    # Create venv with Python 3.13
-    set(HEGEL_VENV_DIR "${CMAKE_BINARY_DIR}/_deps/hegel-venv")
+  message(STATUS "Using uv: ${UV_EXECUTABLE}")
 
-    if(NOT EXISTS "${HEGEL_VENV_DIR}/bin/hegel")
-      message(STATUS "Creating hegel venv...")
+  # Create venv with Python 3.13
+  set(HEGEL_VENV_DIR "${CMAKE_BINARY_DIR}/_deps/hegel-venv")
 
-      execute_process(
-        COMMAND ${UV_EXECUTABLE} venv --python 3.13 ${HEGEL_VENV_DIR}
-        RESULT_VARIABLE UV_VENV_RESULT
-      )
-      if(NOT UV_VENV_RESULT EQUAL 0)
-        message(FATAL_ERROR "Failed to create venv")
-      endif()
+  if(NOT EXISTS "${HEGEL_VENV_DIR}/bin/hegel")
+    message(STATUS "Creating hegel venv...")
 
-      # Install hegel from local path
-      message(STATUS "Installing hegel from ${HEGEL_SOURCE_DIR}...")
-
-      execute_process(
-        COMMAND ${UV_EXECUTABLE} pip install ${HEGEL_SOURCE_DIR}
-                --python ${HEGEL_VENV_DIR}/bin/python
-        RESULT_VARIABLE UV_INSTALL_RESULT
-      )
-      if(NOT UV_INSTALL_RESULT EQUAL 0)
-        message(FATAL_ERROR "Failed to install hegel from ${HEGEL_SOURCE_DIR}")
-      endif()
+    execute_process(
+      COMMAND ${UV_EXECUTABLE} venv --python 3.13 ${HEGEL_VENV_DIR}
+      RESULT_VARIABLE UV_VENV_RESULT
+    )
+    if(NOT UV_VENV_RESULT EQUAL 0)
+      message(FATAL_ERROR "Failed to create venv")
     endif()
 
-    set(HEGEL_BINARY_PATH "${HEGEL_VENV_DIR}/bin/hegel")
-  else()
-    message(WARNING "hegel CLI not found on PATH and local source not found at ${HEGEL_SOURCE_DIR}")
-    message(WARNING "Tests and examples will not work without hegel.")
-    message(WARNING "Either install hegel or set -DHEGEL_SOURCE_DIR=/path/to/hegel")
-    set(HEGEL_BINARY_PATH "hegel")
+    # Install hegel from configured source
+    message(STATUS "Installing hegel from ${HEGEL_SOURCE}...")
+
+    execute_process(
+      COMMAND ${UV_EXECUTABLE} pip install ${HEGEL_SOURCE}
+              --python ${HEGEL_VENV_DIR}/bin/python
+      RESULT_VARIABLE UV_INSTALL_RESULT
+    )
+    if(NOT UV_INSTALL_RESULT EQUAL 0)
+      message(FATAL_ERROR "Failed to install hegel from ${HEGEL_SOURCE}. If using GitHub, ensure you have SSH access to the repository.")
+    endif()
   endif()
+
+  set(HEGEL_BINARY_PATH "${HEGEL_VENV_DIR}/bin/hegel")
 else()
   set(HEGEL_BINARY_PATH "${HEGEL_EXECUTABLE}")
   message(STATUS "Found hegel on PATH: ${HEGEL_BINARY_PATH}")
