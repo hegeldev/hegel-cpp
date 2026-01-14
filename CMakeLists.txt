@@ -8,7 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Options
 option(HEGEL_BUILD_EXAMPLES "Build example executables" ON)
 option(HEGEL_BUILD_TESTS "Build unit tests" ON)
-option(HEGEL_BUILD_SUTS "Build systems under test" ON)
+option(HEGEL_BUILD_CONFORMANCE "Build conformance test binary" ON)
 option(HEGEL_COVERAGE "Build with coverage instrumentation" OFF)
 
 # Coverage flags
@@ -142,11 +142,7 @@ target_compile_definitions(hegel PUBLIC
 # =============================================================================
 
 if(HEGEL_BUILD_EXAMPLES)
-    add_executable(hegel_workout examples/hegel_workout.cpp)
-    target_link_libraries(hegel_workout PRIVATE hegel)
-
-    add_executable(example_usage examples/example_usage.cpp)
-    target_link_libraries(example_usage PRIVATE hegel)
+    add_subdirectory(examples)
 endif()
 
 # =============================================================================
@@ -180,9 +176,9 @@ if(HEGEL_BUILD_TESTS)
 endif()
 
 # =============================================================================
-# Systems Under Test (SUTs)
+# Conformance Tests
 # =============================================================================
 
-if(HEGEL_BUILD_SUTS)
-    add_subdirectory(suts)
+if(HEGEL_BUILD_CONFORMANCE)
+    add_subdirectory(tests/conformance)
 endif()
