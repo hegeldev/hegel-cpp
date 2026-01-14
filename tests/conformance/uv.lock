@@ -47,7 +47,7 @@ wheels = [
 [[package]]
 name = "hegel"
 version = "0.1.0"
-source = { git = "ssh://git@github.com/antithesishq/hegel#ec912153ee190273ab36f78adcdbfc7c8b5ff447" }
+source = { git = "ssh://git@github.com/antithesishq/hegel#abc37aacd60c9e919beefbf27df434d1c73e5bdc" }
 dependencies = [
     { name = "click" },
     { name = "hypothesis" },
