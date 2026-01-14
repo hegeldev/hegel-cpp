@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# reflect-cpp is required
+find_dependency(reflectcpp)
+
+include("${CMAKE_CURRENT_LIST_DIR}/hegelTargets.cmake")
+
+check_required_components(hegel)
