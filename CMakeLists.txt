@@ -169,6 +169,14 @@ if(HEGEL_BUILD_TESTS)
 
     include(GoogleTest)
     gtest_discover_tests(property_tests)
+
+    add_executable(gtest_failure_test tests/gtest_failure_test.cpp)
+    target_link_libraries(gtest_failure_test PRIVATE hegel GTest::gtest)
+
+    add_test(NAME gtest_failure_test COMMAND gtest_failure_test)
+    set_tests_properties(gtest_failure_test PROPERTIES
+        PASS_REGULAR_EXPRESSION "actual:"
+    )
 endif()
 
 # =============================================================================

@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.compiler }} ${{ matrix.stdlib && format('({0})', matrix.stdlib) || '' }}
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # GCC (uses libstdc++ by default)
+          - compiler: g++
+            cc: gcc
+            cxx: g++
+
+          # Clang with libstdc++ (default on Linux)
+          - compiler: clang++-18
+            cc: clang-18
+            cxx: clang++-18
+            packages: clang-18
+
+          # Clang with libc++
+          - compiler: clang++-18
+            cc: clang-18
+            cxx: clang++-18
+            stdlib: libc++
+            packages: clang-18 libc++-18-dev libc++abi-18-dev
+            cmake_flags: -DCMAKE_CXX_FLAGS="-stdlib=libc++"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install compiler
+        if: matrix.packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install hegel
+        run: |
+          pip install git+https://github.com/antithesishq/hegel.git
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            ${{ matrix.cmake_flags }}
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Run property tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run hegel workout
+        run: |
+          hegel ./build/hegel_workout --test-cases 50 --no-tui
+
+  # Test with older compilers for broader compatibility
+  compatibility:
+    name: Compatibility (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install hegel
+        run: |
+          pip install git+https://github.com/antithesishq/hegel.git
+
+      - name: Configure and build
+        run: |
+          cmake -B build
+          cmake --build build -j$(nproc)
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
