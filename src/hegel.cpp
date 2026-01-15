@@ -2,8 +2,20 @@
  * hegel.cpp - Implementation of non-template functions
  */
 
-#include <hegel/hegel.hpp>
+#include <hegel/core.hpp>
+#include <hegel/detail.hpp>
+#include <hegel/generators.hpp>
+#include <hegel/grouping.hpp>
+#include <hegel/strategies.hpp>
+
 #include <nlohmann/json.hpp>
+
+#include <iostream>
+
+// POSIX headers
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
 
 namespace hegel {
 
