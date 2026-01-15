@@ -1,9 +1,10 @@
-#include "lru_cache.hpp"
 #include <hegel/hegel.hpp>
 #include <iostream>
 #include <map>
 #include <set>
 #include <variant>
+
+#include "lru_cache.hpp"
 
 using namespace hegel::st;
 
@@ -23,14 +24,13 @@ int main() {
 
   // Generate operations with small key space to ensure collisions
   auto ops_gen = vectors(
-      variant_(tuples(integers<int>({.min_value = 0, .max_value = 6}),
-                      integers<int>({.min_value = 0, .max_value = 100}))
-                   .map([](auto t) {
-                     return Put{std::get<0>(t), std::get<1>(t)};
-                   }),
-               integers<int>({.min_value = 0, .max_value = 6}).map([](int k) {
-                 return Get{k};
-               })),
+      variant_(
+          tuples(integers<int>({.min_value = 0, .max_value = 6}),
+                 integers<int>({.min_value = 0, .max_value = 100}))
+              .map([](auto t) { return Put{std::get<0>(t), std::get<1>(t)}; }),
+          integers<int>({.min_value = 0, .max_value = 6}).map([](int k) {
+            return Get{k};
+          })),
       {.min_size = 5, .max_size = 30});
   auto ops = ops_gen.generate();
   std::cerr << "operations: " << ops.size() << std::endl;
@@ -38,7 +38,7 @@ int main() {
   // Model: track what should be in cache and access order
   // We use a map for values and a list for LRU order
   std::map<int, int> model_data;
-  std::list<int> model_order; // front = most recent
+  std::list<int> model_order;  // front = most recent
 
   auto model_touch = [&](int key) {
     model_order.remove(key);
@@ -55,7 +55,7 @@ int main() {
 
   LRUCache<int, int> cache(cap);
 
-  for (const auto &op : ops) {
+  for (const auto& op : ops) {
     if (std::holds_alternative<Put>(op)) {
       auto [key, value] = std::get<Put>(op);
       std::cerr << "Put(" << key << ", " << value << ")" << std::endl;
@@ -116,7 +116,7 @@ int main() {
       return 1;
     }
 
-    for (const auto &[k, v] : model_data) {
+    for (const auto& [k, v] : model_data) {
       if (!cache.contains(k)) {
         std::cerr << "Cache missing key " << k << " that model has"
                   << std::endl;

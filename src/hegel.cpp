@@ -33,7 +33,7 @@ void clear_embedded_connection() {
 
 int get_embedded_fd() { return embedded_fd_; }
 
-std::string &get_embedded_read_buffer() { return embedded_read_buffer_; }
+std::string& get_embedded_read_buffer() { return embedded_read_buffer_; }
 
 std::string read_line(int fd) {
   std::string line;
@@ -47,7 +47,7 @@ std::string read_line(int fd) {
   return line;
 }
 
-void write_line(int fd, const std::string &line) {
+void write_line(int fd, const std::string& line) {
   std::string msg = line + "\n";
   size_t total = 0;
   while (total < msg.size()) {
@@ -60,12 +60,12 @@ void write_line(int fd, const std::string &line) {
   }
 }
 
-} // namespace detail
+}  // namespace detail
 
 Mode current_mode() { return detail::current_mode_; }
 bool is_last_run() { return detail::is_last_run_; }
 
-void note(const std::string &message) {
+void note(const std::string& message) {
   if (detail::current_mode_ == Mode::Standalone) {
     std::cerr << message << std::endl;
   } else if (detail::is_last_run_) {
@@ -85,7 +85,7 @@ void note(const std::string &message) {
   std::exit(detail::get_reject_code());
 }
 
-[[noreturn]] void reject(const std::string &message) {
+[[noreturn]] void reject(const std::string& message) {
   if (detail::current_mode_ == Mode::Embedded) {
     throw HegelReject(message);
   }
@@ -96,7 +96,7 @@ void note(const std::string &message) {
 namespace detail {
 
 int get_reject_code() {
-  const char *env = std::getenv("HEGEL_REJECT_CODE");
+  const char* env = std::getenv("HEGEL_REJECT_CODE");
   if (!env) {
     std::cerr << "hegel: HEGEL_REJECT_CODE environment variable not set\n";
     std::exit(ASSERTION_FAILURE_EXIT_CODE);
@@ -110,7 +110,7 @@ int get_reject_code() {
 }
 
 std::string get_socket_path() {
-  const char *env = std::getenv("HEGEL_SOCKET");
+  const char* env = std::getenv("HEGEL_SOCKET");
   if (!env) {
     std::cerr << "hegel: HEGEL_SOCKET environment variable not set\n";
     std::exit(ASSERTION_FAILURE_EXIT_CODE);
@@ -150,7 +150,7 @@ void open_connection() {
     std::exit(ASSERTION_FAILURE_EXIT_CODE);
   }
 
-  struct sockaddr_un addr {};
+  struct sockaddr_un addr{};
   addr.sun_family = AF_UNIX;
   if (socket_path.size() >= sizeof(addr.sun_path)) {
     close(sock);
@@ -159,7 +159,7 @@ void open_connection() {
   }
   std::copy(socket_path.begin(), socket_path.end(), addr.sun_path);
 
-  if (connect(sock, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr)) <
+  if (connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) <
       0) {
     close(sock);
     std::cerr << "hegel: failed to connect to socket at " << socket_path
@@ -198,8 +198,8 @@ void decrement_span_depth() {
   connection_state.span_depth--;
 }
 
-nlohmann::json send_request(const std::string &command,
-                            const nlohmann::json &payload) {
+nlohmann::json send_request(const std::string& command,
+                            const nlohmann::json& payload) {
   if (connection_state.socket_fd < 0) {
     std::cerr << "hegel: send_request called without active connection\n";
     std::exit(ASSERTION_FAILURE_EXIT_CODE);
@@ -231,7 +231,7 @@ nlohmann::json send_request(const std::string &command,
   }
 
   // Read the response until newline (checking buffer first)
-  std::string &buffer = connection_state.read_buffer;
+  std::string& buffer = connection_state.read_buffer;
   while (buffer.find('\n') == std::string::npos) {
     char read_buf[4096];
     ssize_t n = read(sock, read_buf, sizeof(read_buf));
@@ -268,7 +268,7 @@ nlohmann::json send_request(const std::string &command,
   return parsed;
 }
 
-std::string communicate_with_socket(const std::string &schema) {
+std::string communicate_with_socket(const std::string& schema) {
   nlohmann::json payload = nlohmann::json::parse(schema);
 
   // In embedded mode, use the embedded connection directly
@@ -303,7 +303,7 @@ std::string communicate_with_socket(const std::string &schema) {
     }
 
     // Read response
-    std::string &buffer = get_embedded_read_buffer();
+    std::string& buffer = get_embedded_read_buffer();
     while (true) {
       size_t newline = buffer.find('\n');
       if (newline != std::string::npos) {
@@ -316,8 +316,9 @@ std::string communicate_with_socket(const std::string &schema) {
 
         auto response = nlohmann::json::parse(line);
         if (response.contains("reject")) {
-          // Rejection: hypothesis stopped this test case (e.g., buffer exhausted).
-          // Just stop the test - hegel already knows it's a rejection.
+          // Rejection: hypothesis stopped this test case (e.g., buffer
+          // exhausted). Just stop the test - hegel already knows it's a
+          // rejection.
           stop_test();
         }
         if (response.contains("error")) {
@@ -361,7 +362,7 @@ std::string communicate_with_socket(const std::string &schema) {
   return response.dump();
 }
 
-} // namespace detail
+}  // namespace detail
 
 // =============================================================================
 // Span management
@@ -406,15 +407,13 @@ Generator<bool> booleans() {
 Generator<std::string> text(TextParams params) {
   nlohmann::json schema = {{"type", "string"}};
 
-  if (params.min_size > 0)
-    schema["minLength"] = params.min_size;
-  if (params.max_size)
-    schema["maxLength"] = *params.max_size;
+  if (params.min_size > 0) schema["minLength"] = params.min_size;
+  if (params.max_size) schema["maxLength"] = *params.max_size;
 
   return from_schema<std::string>(schema.dump());
 }
 
-Generator<std::string> from_regex(const std::string &pattern) {
+Generator<std::string> from_regex(const std::string& pattern) {
   // Ensure pattern is anchored for full-string matching
   std::string anchored = pattern;
   if (anchored.empty() || anchored.front() != '^') {
@@ -473,6 +472,6 @@ Generator<std::string> datetimes() {
   return from_schema<std::string>(schema.dump());
 }
 
-} // namespace st
+}  // namespace st
 
-} // namespace hegel
+}  // namespace hegel

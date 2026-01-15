@@ -1,7 +1,6 @@
 #include <iostream>
-#include <vector>
-
 #include <nlohmann/json.hpp>
+#include <vector>
 
 #include "hegel/hegel.hpp"
 #include "metrics.hpp"

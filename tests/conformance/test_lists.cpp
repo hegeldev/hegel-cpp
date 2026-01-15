@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <iostream>
-
 #include <nlohmann/json.hpp>
 
 #include "hegel/hegel.hpp"

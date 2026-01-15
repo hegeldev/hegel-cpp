@@ -3,10 +3,10 @@
 // Each test is a separate function that generates values and validates them.
 // The main function uses sampled_from to pick which test to run.
 
-#include <hegel/hegel.hpp>
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <hegel/hegel.hpp>
 #include <iostream>
 #include <regex>
 
@@ -17,20 +17,19 @@ using namespace hegel::st;
 // Test helper
 // =============================================================================
 
-#define TEST_ASSERT(cond, msg)                                                 \
-  do {                                                                         \
-    if (!(cond)) {                                                             \
-      std::cerr << "FAILED: " << msg << "\n";                                  \
-      std::cerr << "Assertion failed: " #cond "\n";                            \
-      std::exit(1);                                                            \
-    }                                                                          \
+#define TEST_ASSERT(cond, msg)                      \
+  do {                                              \
+    if (!(cond)) {                                  \
+      std::cerr << "FAILED: " << msg << "\n";       \
+      std::cerr << "Assertion failed: " #cond "\n"; \
+      std::exit(1);                                 \
+    }                                               \
   } while (0)
 
 // Check if string contains only ASCII characters (all bytes < 128)
-bool is_ascii(const std::string &s) {
+bool is_ascii(const std::string& s) {
   for (unsigned char c : s) {
-    if (c >= 128)
-      return false;
+    if (c >= 128) return false;
   }
   return true;
 }
@@ -38,7 +37,7 @@ bool is_ascii(const std::string &s) {
 // Count UTF-8 codepoints in a string
 // UTF-8 encoding: continuation bytes start with 10xxxxxx (0x80-0xBF)
 // So we count bytes that are NOT continuation bytes
-size_t utf8_length(const std::string &s) {
+size_t utf8_length(const std::string& s) {
   size_t count = 0;
   for (unsigned char c : s) {
     // Count if not a continuation byte (0x80-0xBF)
@@ -365,8 +364,7 @@ void test_vectors_bounded() {
   }
   std::cout << "vectors({3,5}): [";
   for (size_t i = 0; i < value.size(); ++i) {
-    if (i > 0)
-      std::cout << ", ";
+    if (i > 0) std::cout << ", ";
     std::cout << value[i];
   }
   std::cout << "]\n";
@@ -400,9 +398,8 @@ void test_dictionaries() {
               "dictionaries(1,3) size must be in [1,3]");
   std::cout << "dictionaries({1,3}): {";
   bool first = true;
-  for (const auto &[k, v] : value) {
-    if (!first)
-      std::cout << ", ";
+  for (const auto& [k, v] : value) {
+    if (!first) std::cout << ", ";
     std::cout << "\"" << k << "\": " << v;
     first = false;
   }
@@ -443,9 +440,9 @@ void test_sampled_from_strings() {
 void test_sampled_from_ints() {
   auto gen = sampled_from({10, 20, 30, 40, 50});
   int value = gen.generate();
-  TEST_ASSERT(value == 10 || value == 20 || value == 30 || value == 40 ||
-                  value == 50,
-              "sampled_from must return one of the options");
+  TEST_ASSERT(
+      value == 10 || value == 20 || value == 30 || value == 40 || value == 50,
+      "sampled_from must return one of the options");
   std::cout << "sampled_from(ints): " << value << "\n";
 }
 
@@ -463,7 +460,7 @@ void test_variant() {
   std::variant<std::string, int> value = gen.generate();
 
   std::visit(
-      [](auto &&v) {
+      [](auto&& v) {
         using T = std::decay_t<decltype(v)>;
         if constexpr (std::is_same_v<T, std::string>) {
           std::cout << "variant(string, int): string \"" << v << "\"\n";
@@ -651,7 +648,7 @@ int main() {
   // Build vector of test names for sampled_from
   std::vector<std::string> test_names;
   test_names.reserve(NUM_TESTS);
-  for (const auto &test : ALL_TESTS) {
+  for (const auto& test : ALL_TESTS) {
     test_names.push_back(test.name);
   }
 
@@ -663,7 +660,7 @@ int main() {
   std::cout << "----------------------------------------\n";
 
   // Find and run the selected test
-  for (const auto &test : ALL_TESTS) {
+  for (const auto& test : ALL_TESTS) {
     if (test.name == selected) {
       test.func();
       std::cout << "----------------------------------------\n";

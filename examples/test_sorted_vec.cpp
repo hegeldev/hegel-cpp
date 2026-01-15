@@ -1,8 +1,9 @@
-#include "sorted_vec.hpp"
 #include <hegel/hegel.hpp>
 #include <iostream>
 #include <set>
 #include <variant>
+
+#include "sorted_vec.hpp"
 
 using namespace hegel::st;
 
@@ -33,7 +34,7 @@ int main() {
   std::multiset<int> model;
   SortedVec<int> sv;
 
-  for (const auto &op : ops) {
+  for (const auto& op : ops) {
     if (std::holds_alternative<Insert>(op)) {
       int val = std::get<Insert>(op).value;
       std::cerr << "Insert(" << val << ")" << std::endl;
@@ -54,7 +55,7 @@ int main() {
       auto model_it = model.find(val);
       bool model_had = (model_it != model.end());
       if (model_had) {
-        model.erase(model_it); // Erase only one copy
+        model.erase(model_it);  // Erase only one copy
       }
 
       bool sv_removed = sv.remove(val);

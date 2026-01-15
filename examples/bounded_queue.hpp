@@ -5,8 +5,9 @@
 #include <vector>
 
 // A bounded circular queue with a subtle off-by-one bug
-template <typename T> class BoundedQueue {
-public:
+template <typename T>
+class BoundedQueue {
+ public:
   explicit BoundedQueue(size_t capacity)
       : buffer_(capacity), capacity_(capacity), head_(0), tail_(0), size_(0) {
     if (capacity == 0) {
@@ -14,7 +15,7 @@ public:
     }
   }
 
-  bool push(const T &value) {
+  bool push(const T& value) {
     if (is_full()) {
       return false;
     }
@@ -50,7 +51,7 @@ public:
   size_t size() const { return size_; }
   size_t capacity() const { return capacity_; }
 
-private:
+ private:
   std::vector<T> buffer_;
   size_t capacity_;
   size_t head_;

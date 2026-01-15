@@ -1,7 +1,8 @@
-#include "bounded_queue.hpp"
 #include <hegel/hegel.hpp>
 #include <iostream>
 #include <variant>
+
+#include "bounded_queue.hpp"
 
 using namespace hegel::st;
 
@@ -17,11 +18,13 @@ int main() {
   std::cerr << "capacity: " << cap << std::endl;
 
   // Generate a sequence of operations
-  auto ops_gen =
-      vectors(variant_(integers<int>({.min_value = -100, .max_value = 100})
-                           .map([](int v) { return Push{v}; }),
-                       just(Pop{})),
-              {.min_size = 1, .max_size = 20});
+  auto ops_gen = vectors(
+      variant_(
+          integers<int>({.min_value = -100, .max_value = 100}).map([](int v) {
+            return Push{v};
+          }),
+          just(Pop{})),
+      {.min_size = 1, .max_size = 20});
   auto ops = ops_gen.generate();
   std::cerr << "operations: " << ops.size() << std::endl;
 
@@ -29,7 +32,7 @@ int main() {
   std::vector<int> model;
   BoundedQueue<int> queue(cap);
 
-  for (const auto &op : ops) {
+  for (const auto& op : ops) {
     if (std::holds_alternative<Push>(op)) {
       int val = std::get<Push>(op).value;
       std::cerr << "Push(" << val << ")" << std::endl;

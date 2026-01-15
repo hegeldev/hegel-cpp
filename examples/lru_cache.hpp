@@ -6,15 +6,16 @@
 #include <unordered_map>
 
 // An LRU cache with a bug: get() doesn't update access order
-template <typename K, typename V> class LRUCache {
-public:
+template <typename K, typename V>
+class LRUCache {
+ public:
   explicit LRUCache(size_t capacity) : capacity_(capacity) {
     if (capacity == 0) {
       throw std::invalid_argument("capacity must be positive");
     }
   }
 
-  void put(const K &key, const V &value) {
+  void put(const K& key, const V& value) {
     auto it = map_.find(key);
     if (it != map_.end()) {
       // Update existing: move to front and update value
@@ -34,7 +35,7 @@ public:
     }
   }
 
-  std::optional<V> get(const K &key) {
+  std::optional<V> get(const K& key) {
     auto it = map_.find(key);
     if (it == map_.end()) {
       return std::nullopt;
@@ -49,18 +50,18 @@ public:
     return it->second.value;
   }
 
-  bool contains(const K &key) const { return map_.find(key) != map_.end(); }
+  bool contains(const K& key) const { return map_.find(key) != map_.end(); }
 
   size_t size() const { return map_.size(); }
   size_t capacity() const { return capacity_; }
 
-private:
+ private:
   struct Entry {
     V value;
     typename std::list<K>::iterator order_it;
   };
 
   size_t capacity_;
-  std::list<K> order_; // front = most recent, back = least recent
+  std::list<K> order_;  // front = most recent, back = least recent
   std::unordered_map<K, Entry> map_;
 };

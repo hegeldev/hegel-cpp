@@ -1,6 +1,7 @@
-#include "run_length.hpp"
 #include <hegel/hegel.hpp>
 #include <iostream>
+
+#include "run_length.hpp"
 
 using namespace hegel::st;
 
@@ -15,8 +16,7 @@ int main() {
   {
     std::cerr << "data: [";
     for (size_t i = 0; i < data.size(); ++i) {
-      if (i > 0)
-        std::cerr << ", ";
+      if (i > 0) std::cerr << ", ";
       std::cerr << (int)data[i];
     }
     std::cerr << "]" << std::endl;

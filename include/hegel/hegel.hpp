@@ -91,7 +91,7 @@ bool is_last_run();
 /// Print a note message.
 /// In standalone mode, always prints to stderr.
 /// In embedded mode, only prints on the last run.
-void note(const std::string &message);
+void note(const std::string& message);
 
 // =============================================================================
 // Embedded Mode Options
@@ -100,7 +100,7 @@ void note(const std::string &message);
 struct HegelOptions {
   std::optional<uint64_t> test_cases;
   bool debug = false;
-  std::optional<std::string> hegel_path; // Default: "hegel"
+  std::optional<std::string> hegel_path;  // Default: "hegel"
 };
 
 // =============================================================================
@@ -111,17 +111,19 @@ struct HegelOptions {
 class HegelReject : public std::exception {
   std::string message_;
 
-public:
-  explicit HegelReject(const std::string &msg) : message_(msg) {}
-  const char *what() const noexcept override { return message_.c_str(); }
+ public:
+  explicit HegelReject(const std::string& msg) : message_(msg) {}
+  const char* what() const noexcept override { return message_.c_str(); }
 };
 
 // =============================================================================
 // Forward declarations
 // =============================================================================
 
-template <typename T> class Generator;
-template <typename T> class DefaultGenerator;
+template <typename T>
+class Generator;
+template <typename T>
+class DefaultGenerator;
 
 // =============================================================================
 // Non-template function declarations (implemented in hegel.cpp)
@@ -134,7 +136,7 @@ template <typename T> class DefaultGenerator;
 
 /// Reject the current test case with a message.
 /// Prints the message (in standalone mode or last run) and stops the test.
-[[noreturn]] void reject(const std::string &message);
+[[noreturn]] void reject(const std::string& message);
 
 // =============================================================================
 // Internal detail namespace
@@ -152,11 +154,11 @@ void close_connection();
 size_t get_span_depth();
 void increment_span_depth();
 void decrement_span_depth();
-nlohmann::json send_request(const std::string &command,
-                            const nlohmann::json &payload);
-std::string communicate_with_socket(const std::string &schema);
+nlohmann::json send_request(const std::string& command,
+                            const nlohmann::json& payload);
+std::string communicate_with_socket(const std::string& schema);
 
-} // namespace detail
+}  // namespace detail
 
 // =============================================================================
 // Grouped Generation
@@ -170,7 +172,8 @@ void stop_span(bool discard = false);
 ///
 /// Groups related generation calls together, which helps the testing engine
 /// understand the structure of generated data and improve shrinking.
-template <typename F> auto group(uint64_t label, F &&f) -> decltype(f()) {
+template <typename F>
+auto group(uint64_t label, F&& f) -> decltype(f()) {
   start_span(label);
   auto result = f();
   stop_span(false);
@@ -181,7 +184,7 @@ template <typename F> auto group(uint64_t label, F &&f) -> decltype(f()) {
 ///
 /// Useful for filter-like operations where rejected values should be discarded.
 template <typename F>
-auto discardable_group(uint64_t label, F &&f) -> decltype(f()) {
+auto discardable_group(uint64_t label, F&& f) -> decltype(f()) {
   start_span(label);
   auto result = f();
   stop_span(!result.has_value());
@@ -201,13 +204,14 @@ constexpr uint64_t OPTIONAL = 9;
 constexpr uint64_t FIXED_DICT = 10;
 constexpr uint64_t FLAT_MAP = 11;
 constexpr uint64_t FILTER = 12;
-} // namespace labels
+}  // namespace labels
 
 // =============================================================================
 // Response wrapper for socket communication
 // =============================================================================
 
-template <typename T> struct Response {
+template <typename T>
+struct Response {
   std::optional<T> result;
   std::optional<std::string> error;
 };
@@ -216,23 +220,24 @@ template <typename T> struct Response {
 // Generator class template
 // =============================================================================
 
-template <typename T> class Generator {
-private:
+template <typename T>
+class Generator {
+ private:
   std::function<T()> gen_fn_;
   std::optional<std::string> schema_;
 
-public:
+ public:
   explicit Generator(std::function<T()> fn) : gen_fn_(std::move(fn)) {}
 
   Generator(std::function<T()> fn, std::string schema)
       : gen_fn_(std::move(fn)), schema_(std::move(schema)) {}
 
-  const std::optional<std::string> &schema() const { return schema_; }
+  const std::optional<std::string>& schema() const { return schema_; }
 
   T generate() const { return gen_fn_(); }
 
   template <typename F>
-  auto map(F &&f) const -> Generator<std::invoke_result_t<F, T>> {
+  auto map(F&& f) const -> Generator<std::invoke_result_t<F, T>> {
     using U = std::invoke_result_t<F, T>;
     auto inner = gen_fn_;
     return Generator<U>(
@@ -240,7 +245,7 @@ public:
   }
 
   template <typename F>
-  auto flatmap(F &&f) const -> std::invoke_result_t<F, T> {
+  auto flatmap(F&& f) const -> std::invoke_result_t<F, T> {
     using ResultGen = std::invoke_result_t<F, T>;
     using U = decltype(std::declval<ResultGen>().generate());
     auto inner = gen_fn_;
@@ -249,7 +254,7 @@ public:
     });
   }
 
-  Generator<T> filter(std::function<bool(const T &)> pred,
+  Generator<T> filter(std::function<bool(const T&)> pred,
                       int max_attempts = 3) const {
     auto inner = gen_fn_;
     return Generator<T>([inner, pred, max_attempts]() -> T {
@@ -269,8 +274,9 @@ public:
 // DefaultGenerator class template
 // =============================================================================
 
-template <typename T> class DefaultGenerator {
-private:
+template <typename T>
+class DefaultGenerator {
+ private:
   std::string schema_;
 
   T generate_impl() const {
@@ -281,7 +287,7 @@ private:
       reject("hegel: failed to parse response: " + parse_result.error().what());
     }
 
-    const Response<T> &response = parse_result.value();
+    const Response<T>& response = parse_result.value();
 
     if (response.error) {
       reject(*response.error);
@@ -294,11 +300,11 @@ private:
     return *response.result;
   }
 
-public:
+ public:
   DefaultGenerator() : schema_(rfl::json::to_schema<T>()) {}
 
-  std::string &schema() { return schema_; }
-  const std::string &schema() const { return schema_; }
+  std::string& schema() { return schema_; }
+  const std::string& schema() const { return schema_; }
 
   T generate() const { return generate_impl(); }
 
@@ -313,7 +319,7 @@ public:
                parse_result.error().what());
       }
 
-      const Response<T> &response = parse_result.value();
+      const Response<T>& response = parse_result.value();
 
       if (response.error) {
         reject(*response.error);
@@ -330,16 +336,16 @@ public:
   operator Generator<T>() const { return to_generator(); }
 
   template <typename F>
-  auto map(F &&f) const -> Generator<std::invoke_result_t<F, T>> {
+  auto map(F&& f) const -> Generator<std::invoke_result_t<F, T>> {
     return to_generator().map(std::forward<F>(f));
   }
 
   template <typename F>
-  auto flatmap(F &&f) const -> std::invoke_result_t<F, T> {
+  auto flatmap(F&& f) const -> std::invoke_result_t<F, T> {
     return to_generator().flatmap(std::forward<F>(f));
   }
 
-  Generator<T> filter(std::function<bool(const T &)> pred) const {
+  Generator<T> filter(std::function<bool(const T&)> pred) const {
     return to_generator().filter(std::move(pred));
   }
 };
@@ -348,11 +354,13 @@ public:
 // Factory functions
 // =============================================================================
 
-template <typename T> DefaultGenerator<T> default_generator() {
+template <typename T>
+DefaultGenerator<T> default_generator() {
   return DefaultGenerator<T>();
 }
 
-template <typename T> Generator<T> from_schema(std::string schema) {
+template <typename T>
+Generator<T> from_schema(std::string schema) {
   return Generator<T>(
       [schema]() -> T {
         std::string response_json = detail::communicate_with_socket(schema);
@@ -363,7 +371,7 @@ template <typename T> Generator<T> from_schema(std::string schema) {
                  parse_result.error().what());
         }
 
-        const Response<T> &response = parse_result.value();
+        const Response<T>& response = parse_result.value();
 
         if (response.error) {
           reject(*response.error);
@@ -388,12 +396,14 @@ namespace st {
 // Parameter structs
 // =============================================================================
 
-template <typename T> struct IntegersParams {
+template <typename T>
+struct IntegersParams {
   std::optional<T> min_value;
   std::optional<T> max_value;
 };
 
-template <typename T> struct FloatsParams {
+template <typename T>
+struct FloatsParams {
   std::optional<T> min_value;
   std::optional<T> max_value;
   bool exclude_min = false;
@@ -410,7 +420,7 @@ struct DomainsParams {
 };
 
 struct IpAddressesParams {
-  std::optional<int> v; // 4 or 6, or nullopt for both
+  std::optional<int> v;  // 4 or 6, or nullopt for both
 };
 
 struct VectorsParams {
@@ -436,7 +446,7 @@ struct DictionariesParams {
 Generator<std::monostate> nulls();
 Generator<bool> booleans();
 Generator<std::string> text(TextParams params = {});
-Generator<std::string> from_regex(const std::string &pattern);
+Generator<std::string> from_regex(const std::string& pattern);
 Generator<std::string> emails();
 Generator<std::string> domains(DomainsParams params = {});
 Generator<std::string> urls();
@@ -450,7 +460,8 @@ Generator<std::string> datetimes();
 // =============================================================================
 
 // just(value) - generates exactly this value
-template <typename T> Generator<T> just(T value) {
+template <typename T>
+Generator<T> just(T value) {
   nlohmann::json schema;
 
   if constexpr (std::is_same_v<T, bool> || std::is_same_v<T, std::nullptr_t> ||
@@ -462,14 +473,14 @@ template <typename T> Generator<T> just(T value) {
   }
 }
 
-inline Generator<std::string> just(const char *value) {
+inline Generator<std::string> just(const char* value) {
   return just(std::string(value));
 }
 
 // integers<T>() - generates integers of type T
 template <typename T = int64_t>
-requires std::is_integral_v<T> Generator<T>
-integers(IntegersParams<T> params = {}) {
+  requires std::is_integral_v<T>
+Generator<T> integers(IntegersParams<T> params = {}) {
   nlohmann::json schema = {{"type", "integer"}};
 
   T min_val = params.min_value.value_or(std::numeric_limits<T>::min());
@@ -483,8 +494,8 @@ integers(IntegersParams<T> params = {}) {
 
 // floats<T>() - generates floating point numbers
 template <typename T = double>
-requires std::is_floating_point_v<T> Generator<T>
-floats(FloatsParams<T> params = {}) {
+  requires std::is_floating_point_v<T>
+Generator<T> floats(FloatsParams<T> params = {}) {
   nlohmann::json schema = {{"type", "number"}};
 
   if (params.min_value) {
@@ -514,12 +525,9 @@ Generator<std::vector<T>> vectors(Generator<T> elements,
     nlohmann::json elem_schema = nlohmann::json::parse(*elements.schema());
     nlohmann::json schema = {{"type", "array"}, {"items", elem_schema}};
 
-    if (params.min_size > 0)
-      schema["minItems"] = params.min_size;
-    if (params.max_size)
-      schema["maxItems"] = *params.max_size;
-    if (params.unique)
-      schema["uniqueItems"] = true;
+    if (params.min_size > 0) schema["minItems"] = params.min_size;
+    if (params.max_size) schema["maxItems"] = *params.max_size;
+    if (params.unique) schema["uniqueItems"] = true;
 
     return from_schema<std::vector<T>>(schema.dump());
   }
@@ -550,10 +558,8 @@ Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
     nlohmann::json schema = {
         {"type", "array"}, {"items", elem_schema}, {"uniqueItems", true}};
 
-    if (params.min_size > 0)
-      schema["minItems"] = params.min_size;
-    if (params.max_size)
-      schema["maxItems"] = *params.max_size;
+    if (params.min_size > 0) schema["minItems"] = params.min_size;
+    if (params.max_size) schema["maxItems"] = *params.max_size;
 
     auto vec_gen = from_schema<std::vector<T>>(schema.dump());
 
@@ -583,18 +589,16 @@ Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
 
 // dictionaries(keys, values) - generates maps with string keys
 template <typename K, typename V>
-requires std::is_same_v<K, std::string> Generator<std::map<K, V>>
-dictionaries(Generator<K> keys, Generator<V> values,
-             DictionariesParams params = {}) {
+  requires std::is_same_v<K, std::string>
+Generator<std::map<K, V>> dictionaries(Generator<K> keys, Generator<V> values,
+                                       DictionariesParams params = {}) {
   if (values.schema()) {
     nlohmann::json schema = {
         {"type", "object"},
         {"additionalProperties", nlohmann::json::parse(*values.schema())}};
 
-    if (params.min_size > 0)
-      schema["minProperties"] = params.min_size;
-    if (params.max_size)
-      schema["maxProperties"] = *params.max_size;
+    if (params.min_size > 0) schema["minProperties"] = params.min_size;
+    if (params.max_size) schema["maxProperties"] = *params.max_size;
 
     return from_schema<std::map<K, V>>(schema.dump());
   }
@@ -621,10 +625,9 @@ dictionaries(Generator<K> keys, Generator<V> values,
 namespace detail {
 
 template <typename... Gens>
-auto make_tuple_schema(const Gens &...gens) -> std::optional<std::string> {
+auto make_tuple_schema(const Gens&... gens) -> std::optional<std::string> {
   bool all_have_schemas = (gens.schema().has_value() && ...);
-  if (!all_have_schemas)
-    return std::nullopt;
+  if (!all_have_schemas) return std::nullopt;
 
   nlohmann::json prefix_items = nlohmann::json::array();
   (prefix_items.push_back(nlohmann::json::parse(*gens.schema())), ...);
@@ -639,11 +642,11 @@ auto make_tuple_schema(const Gens &...gens) -> std::optional<std::string> {
 }
 
 template <typename Tuple, typename GenTuple, size_t... Is>
-Tuple generate_tuple_impl(const GenTuple &gens, std::index_sequence<Is...>) {
+Tuple generate_tuple_impl(const GenTuple& gens, std::index_sequence<Is...>) {
   return Tuple{std::get<Is>(gens).generate()...};
 }
 
-} // namespace detail
+}  // namespace detail
 
 template <typename... Ts>
 Generator<std::tuple<Ts...>> tuples(Generator<Ts>... gens) {
@@ -664,7 +667,8 @@ Generator<std::tuple<Ts...>> tuples(Generator<Ts>... gens) {
 }
 
 // sampled_from(elements) - picks from a fixed set
-template <typename T> Generator<T> sampled_from(std::vector<T> elements) {
+template <typename T>
+Generator<T> sampled_from(std::vector<T> elements) {
   if (elements.empty()) {
     reject("sampled_from: cannot sample from empty collection");
   }
@@ -689,11 +693,11 @@ Generator<T> sampled_from(std::initializer_list<T> elements) {
   return sampled_from(std::vector<T>(elements));
 }
 
-inline Generator<std::string>
-sampled_from(std::initializer_list<const char *> elements) {
+inline Generator<std::string> sampled_from(
+    std::initializer_list<const char*> elements) {
   std::vector<std::string> strings;
   strings.reserve(elements.size());
-  for (const char *s : elements) {
+  for (const char* s : elements) {
     strings.push_back(s);
   }
   return sampled_from(std::move(strings));
@@ -703,15 +707,14 @@ sampled_from(std::initializer_list<const char *> elements) {
 namespace detail {
 
 template <typename T>
-auto make_one_of_schema(const std::vector<Generator<T>> &gens)
+auto make_one_of_schema(const std::vector<Generator<T>>& gens)
     -> std::optional<std::string> {
-  for (const auto &gen : gens) {
-    if (!gen.schema())
-      return std::nullopt;
+  for (const auto& gen : gens) {
+    if (!gen.schema()) return std::nullopt;
   }
 
   nlohmann::json any_of = nlohmann::json::array();
-  for (const auto &gen : gens) {
+  for (const auto& gen : gens) {
     any_of.push_back(nlohmann::json::parse(*gen.schema()));
   }
 
@@ -719,9 +722,10 @@ auto make_one_of_schema(const std::vector<Generator<T>> &gens)
   return schema.dump();
 }
 
-} // namespace detail
+}  // namespace detail
 
-template <typename T> Generator<T> one_of(std::vector<Generator<T>> gens) {
+template <typename T>
+Generator<T> one_of(std::vector<Generator<T>> gens) {
   if (gens.empty()) {
     reject("one_of: cannot choose from empty collection");
   }
@@ -750,7 +754,7 @@ Generator<T> one_of(std::initializer_list<Generator<T>> gens) {
 namespace detail {
 
 template <typename Variant, typename GenTuple, size_t I = 0>
-Variant generate_variant_impl(const GenTuple &gens, size_t idx) {
+Variant generate_variant_impl(const GenTuple& gens, size_t idx) {
   if constexpr (I < std::tuple_size_v<GenTuple>) {
     if (idx == I) {
       return std::get<I>(gens).generate();
@@ -761,7 +765,7 @@ Variant generate_variant_impl(const GenTuple &gens, size_t idx) {
   }
 }
 
-} // namespace detail
+}  // namespace detail
 
 template <typename... Ts>
 Generator<std::variant<Ts...>> variant_(Generator<Ts>... gens) {
@@ -779,7 +783,8 @@ Generator<std::variant<Ts...>> variant_(Generator<Ts>... gens) {
 }
 
 // optional_(gen) - generates std::optional<T>
-template <typename T> Generator<std::optional<T>> optional_(Generator<T> gen) {
+template <typename T>
+Generator<std::optional<T>> optional_(Generator<T> gen) {
   auto bool_gen = booleans();
 
   return Generator<std::optional<T>>([gen, bool_gen]() -> std::optional<T> {
@@ -792,21 +797,24 @@ template <typename T> Generator<std::optional<T>> optional_(Generator<T> gen) {
 }
 
 // builds<T>(gens...) - constructs T from generators (positional)
-template <typename T, typename... Gens> Generator<T> builds(Gens... gens) {
+template <typename T, typename... Gens>
+Generator<T> builds(Gens... gens) {
   auto gen_tuple = std::make_tuple(std::move(gens)...);
 
   return Generator<T>([gen_tuple]() {
-    return std::apply([](auto &...g) { return T(g.generate()...); }, gen_tuple);
+    return std::apply([](auto&... g) { return T(g.generate()...); }, gen_tuple);
   });
 }
 
 // field<&T::member>(gen) - for named aggregate initialization
-template <auto MemberPtr, typename Gen> struct Field {
+template <auto MemberPtr, typename Gen>
+struct Field {
   static constexpr auto member_ptr = MemberPtr;
   Gen generator;
 };
 
-template <auto MemberPtr, typename Gen> Field<MemberPtr, Gen> field(Gen gen) {
+template <auto MemberPtr, typename Gen>
+Field<MemberPtr, Gen> field(Gen gen) {
   return Field<MemberPtr, Gen>{std::move(gen)};
 }
 
@@ -820,7 +828,7 @@ Generator<T> builds_agg(Fields... fields) {
   return Generator<T>([gen_tuple]() mutable {
     T result{};
     std::apply(
-        [&result](auto &...fs) {
+        [&result](auto&... fs) {
           ((result.*(std::remove_reference_t<decltype(fs)>::member_ptr) =
                 fs.generator.generate()),
            ...);
@@ -830,7 +838,7 @@ Generator<T> builds_agg(Fields... fields) {
   });
 }
 
-} // namespace st
+}  // namespace st
 
 // =============================================================================
 // Embedded Mode Implementation
@@ -844,9 +852,9 @@ void set_is_last_run(bool v);
 void set_embedded_connection(int fd);
 void clear_embedded_connection();
 std::string read_line(int fd);
-void write_line(int fd, const std::string &line);
+void write_line(int fd, const std::string& line);
 
-} // namespace detail
+}  // namespace detail
 
 /// Run property-based tests using Hegel in embedded mode.
 ///
@@ -857,7 +865,8 @@ void write_line(int fd, const std::string &line);
 /// 4. Runs the test function for each test case
 /// 5. Reports results back to hegel
 /// 6. Throws std::runtime_error if any test case fails
-template <typename F> void hegel(F &&test_fn, HegelOptions options = {}) {
+template <typename F>
+void hegel(F&& test_fn, HegelOptions options = {}) {
   // Create temp directory with socket
   std::string temp_dir = "/tmp/hegel_" + std::to_string(getpid());
   std::filesystem::create_directories(temp_dir);
@@ -869,12 +878,12 @@ template <typename F> void hegel(F &&test_fn, HegelOptions options = {}) {
     throw std::runtime_error("Failed to create socket");
   }
 
-  struct sockaddr_un addr {};
+  struct sockaddr_un addr{};
   addr.sun_family = AF_UNIX;
   std::copy(socket_path.begin(), socket_path.end(), addr.sun_path);
 
-  if (bind(server_fd, reinterpret_cast<struct sockaddr *>(&addr),
-           sizeof(addr)) < 0) {
+  if (bind(server_fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) <
+      0) {
     close(server_fd);
     throw std::runtime_error("Failed to bind socket");
   }
@@ -905,9 +914,9 @@ template <typename F> void hegel(F &&test_fn, HegelOptions options = {}) {
 
   if (pid == 0) {
     // Child: exec hegel
-    std::vector<char *> argv;
-    for (auto &a : args) {
-      argv.push_back(const_cast<char *>(a.c_str()));
+    std::vector<char*> argv;
+    for (auto& a : args) {
+      argv.push_back(const_cast<char*>(a.c_str()));
     }
     argv.push_back(nullptr);
     execvp(argv[0], argv.data());
@@ -922,7 +931,7 @@ template <typename F> void hegel(F &&test_fn, HegelOptions options = {}) {
     FD_ZERO(&fds);
     FD_SET(server_fd, &fds);
     tv.tv_sec = 0;
-    tv.tv_usec = 100000; // 100ms
+    tv.tv_usec = 100000;  // 100ms
 
     int ready = select(server_fd + 1, &fds, nullptr, nullptr, &tv);
 
@@ -934,8 +943,7 @@ template <typename F> void hegel(F &&test_fn, HegelOptions options = {}) {
           // Read handshake
           std::string line = detail::read_line(client_fd);
           auto handshake = nlohmann::json::parse(line);
-          bool is_last =
-              handshake.value("is_last_run", false);
+          bool is_last = handshake.value("is_last_run", false);
 
           // Set thread-local state
           detail::set_mode(Mode::Embedded);
@@ -950,10 +958,10 @@ template <typename F> void hegel(F &&test_fn, HegelOptions options = {}) {
           std::string error_message;
           try {
             test_fn();
-          } catch (const HegelReject &e) {
+          } catch (const HegelReject& e) {
             result_type = "reject";
             error_message = e.what();
-          } catch (const std::exception &e) {
+          } catch (const std::exception& e) {
             result_type = "fail";
             error_message = e.what();
           } catch (...) {
@@ -1000,6 +1008,6 @@ template <typename F> void hegel(F &&test_fn, HegelOptions options = {}) {
   std::filesystem::remove_all(temp_dir);
 }
 
-} // namespace hegel
+}  // namespace hegel
 
-#endif // HEGEL_HPP
+#endif  // HEGEL_HPP
