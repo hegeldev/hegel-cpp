@@ -5,9 +5,8 @@ A C++20 SDK for property-based testing with Hegel. Provides a Hypothesis-like st
 ## Dependencies
 
 - C++20 compiler
-- [reflect-cpp](https://github.com/getml/reflect-cpp) v0.22.0 - automatic JSON schema derivation
-- [nlohmann/json](https://github.com/nlohmann/json) v3.12.0 - schema manipulation
-- POSIX sockets
+- [reflect-cpp](https://github.com/getml/reflect-cpp) v0.22.0
+- [nlohmann/json](https://github.com/nlohmann/json) v3.12.0
 
 Dependencies are automatically fetched via CMake FetchContent.
 
@@ -17,6 +16,20 @@ Dependencies are automatically fetched via CMake FetchContent.
 mkdir -p build && cd build
 cmake ..
 make
+```
+
+## Development
+
+Prerequisites:
+
+- [CMake](https://cmake.org/) 3.14+
+- [just](https://github.com/casey/just)
+- [clang-format](https://clang.llvm.org/docs/ClangFormat.html)
+
+Commands:
+```bash
+just test
+just format
 ```
 
 ## Quick Start
@@ -42,14 +55,6 @@ int main() {
 
     return 0;
 }
-```
-
-## Running with Hegel
-
-The SDK requires the Hegel backend to be running. Tests are executed via the `hegel` command:
-
-```bash
-hegel ./my_test_binary --test-cases=100
 ```
 
 ## API Reference

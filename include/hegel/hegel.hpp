@@ -749,12 +749,16 @@ Generator<T> one_of(std::initializer_list<Generator<T>> gens) {
 // variant_(gens...) - generates std::variant from heterogeneous generators
 namespace detail {
 
-template <typename Variant, typename GenTuple, size_t... Is>
-Variant generate_variant_impl(const GenTuple &gens, size_t idx,
-                              std::index_sequence<Is...>) {
-  Variant result;
-  ((idx == Is ? (result = std::get<Is>(gens).generate(), true) : false) || ...);
-  return result;
+template <typename Variant, typename GenTuple, size_t I = 0>
+Variant generate_variant_impl(const GenTuple &gens, size_t idx) {
+  if constexpr (I < std::tuple_size_v<GenTuple>) {
+    if (idx == I) {
+      return std::get<I>(gens).generate();
+    }
+    return generate_variant_impl<Variant, GenTuple, I + 1>(gens, idx);
+  } else {
+    return Variant{};
+  }
 }
 
 } // namespace detail
@@ -769,8 +773,8 @@ Generator<std::variant<Ts...>> variant_(Generator<Ts>... gens) {
 
   return Generator<ResultVariant>([gen_tuple, index_gen]() {
     size_t idx = index_gen.generate();
-    return detail::generate_variant_impl<ResultVariant>(
-        gen_tuple, idx, std::index_sequence_for<Ts...>{});
+    return detail::generate_variant_impl<ResultVariant, decltype(gen_tuple)>(
+        gen_tuple, idx);
   });
 }
 
