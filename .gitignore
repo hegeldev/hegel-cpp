@@ -2,3 +2,4 @@ build/
 .hypothesis
 .hegel
 __pycache__
+.claude/settings.local.json
