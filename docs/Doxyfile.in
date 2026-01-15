@@ -1,0 +1,25 @@
+# Doxyfile for hegel-cpp
+
+# Project
+PROJECT_NAME           = "Hegel C++ SDK"
+PROJECT_BRIEF          = "Property-based testing for C++"
+PROJECT_NUMBER         = @PROJECT_VERSION@
+OUTPUT_DIRECTORY       = @DOXYGEN_OUTPUT_DIR@
+
+# Input
+INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/include @CMAKE_CURRENT_SOURCE_DIR@/src
+FILE_PATTERNS          = *.hpp *.cpp
+RECURSIVE              = YES
+EXTRACT_ALL            = YES
+
+# Output
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_OUTPUT            = html
+
+# Doxygen Awesome theme
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+HTML_COLORSTYLE        = LIGHT
+HTML_EXTRA_STYLESHEET  = @DOXYGEN_AWESOME_CSS_DIR@/doxygen-awesome.css

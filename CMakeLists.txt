@@ -9,6 +9,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(HEGEL_BUILD_EXAMPLES "Build example executables" ON)
 option(HEGEL_BUILD_TESTS "Build unit tests" ON)
 option(HEGEL_BUILD_CONFORMANCE "Build conformance test binary" ON)
+option(HEGEL_BUILD_DOCS "Build documentation" OFF)
 option(HEGEL_COVERAGE "Build with coverage instrumentation" OFF)
 
 # Coverage flags
@@ -181,4 +182,32 @@ endif()
 
 if(HEGEL_BUILD_CONFORMANCE)
     add_subdirectory(tests/conformance/cpp)
+endif()
+
+# =============================================================================
+# Documentation
+# =============================================================================
+
+if(HEGEL_BUILD_DOCS)
+    find_package(Doxygen REQUIRED)
+
+    FetchContent_Declare(
+        doxygen-awesome-css
+        URL https://github.com/jothepro/doxygen-awesome-css/archive/refs/tags/v2.3.4.zip
+    )
+    FetchContent_MakeAvailable(doxygen-awesome-css)
+    FetchContent_GetProperties(doxygen-awesome-css SOURCE_DIR DOXYGEN_AWESOME_CSS_DIR)
+
+    set(DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs")
+    set(DOXYFILE_IN "${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile.in")
+    set(DOXYFILE_OUT "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile")
+
+    configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
+
+    add_custom_target(docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_OUT}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Generating documentation with Doxygen"
+        VERBATIM
+    )
 endif()
