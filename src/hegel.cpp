@@ -80,17 +80,15 @@ void note(const std::string& message) {
 
 [[noreturn]] void stop_test() {
   if (detail::current_mode_ == Mode::Embedded) {
-    throw HegelReject("");
+    throw HegelReject();
   }
   std::exit(detail::get_reject_code());
 }
 
-[[noreturn]] void reject(const std::string& message) {
-  if (detail::current_mode_ == Mode::Embedded) {
-    throw HegelReject(message);
+void assume(bool condition) {
+  if (!condition) {
+    stop_test();
   }
-  std::cerr << message << "\n";
-  stop_test();
 }
 
 namespace detail {

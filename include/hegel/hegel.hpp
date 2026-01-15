@@ -10,7 +10,7 @@
  *
  * Environment variables:
  *   - HEGEL_SOCKET: Path to the Unix socket for generation requests
- *   - HEGEL_REJECT_CODE: Exit code to use when reject() is called
+ *   - HEGEL_REJECT_CODE: Exit code to use when assume(false) is called
  *   - HEGEL_DEBUG: If set, also print REQUEST/RESPONSE JSON to stderr
  *
  * Usage:
@@ -107,13 +107,10 @@ struct HegelOptions {
 // Embedded Mode Exception
 // =============================================================================
 
-/// Exception thrown by reject() in embedded mode
+/// Exception thrown by assume(false) in embedded mode
 class HegelReject : public std::exception {
-  std::string message_;
-
  public:
-  explicit HegelReject(const std::string& msg) : message_(msg) {}
-  const char* what() const noexcept override { return message_.c_str(); }
+  const char* what() const noexcept override { return "assume failed"; }
 };
 
 // =============================================================================
@@ -134,9 +131,9 @@ class DefaultGenerator;
 /// In standalone mode, exits with HEGEL_REJECT_CODE.
 [[noreturn]] void stop_test();
 
-/// Reject the current test case with a message.
-/// Prints the message (in standalone mode or last run) and stops the test.
-[[noreturn]] void reject(const std::string& message);
+/// Assume a condition is true. If false, reject the current test case.
+/// This signals to Hegel that the input is invalid, not a test failure.
+void assume(bool condition);
 
 // =============================================================================
 // Internal detail namespace
@@ -260,8 +257,8 @@ class Generator {
           return value;
         }
       }
-      reject("filter: failed to generate a value satisfying predicate after " +
-             std::to_string(max_attempts) + " attempts");
+      assume(false);
+      std::abort();  // Unreachable, but needed for return type
     });
   }
 };
@@ -279,19 +276,12 @@ class DefaultGenerator {
     std::string response_json = detail::communicate_with_socket(schema_);
 
     auto parse_result = rfl::json::read<Response<T>>(response_json);
-    if (!parse_result) {
-      reject("hegel: failed to parse response: " + parse_result.error().what());
-    }
+    assume(parse_result.has_value());
 
     const Response<T>& response = parse_result.value();
 
-    if (response.error) {
-      reject(*response.error);
-    }
-
-    if (!response.result) {
-      reject("hegel: response contained neither result nor error");
-    }
+    assume(!response.error);
+    assume(response.result.has_value());
 
     return *response.result;
   }
@@ -310,19 +300,12 @@ class DefaultGenerator {
       std::string response_json = detail::communicate_with_socket(schema_copy);
 
       auto parse_result = rfl::json::read<Response<T>>(response_json);
-      if (!parse_result) {
-        reject("hegel: failed to parse response: " + parse_result.error().what());
-      }
+      assume(parse_result.has_value());
 
       const Response<T>& response = parse_result.value();
 
-      if (response.error) {
-        reject(*response.error);
-      }
-
-      if (!response.result) {
-        reject("hegel: response contained neither result nor error");
-      }
+      assume(!response.error);
+      assume(response.result.has_value());
 
       return *response.result;
     });
@@ -361,19 +344,12 @@ Generator<T> from_schema(std::string schema) {
         std::string response_json = detail::communicate_with_socket(schema);
 
         auto parse_result = rfl::json::read<Response<T>>(response_json);
-        if (!parse_result) {
-          reject("hegel: failed to parse response: " + parse_result.error().what());
-        }
+        assume(parse_result.has_value());
 
         const Response<T>& response = parse_result.value();
 
-        if (response.error) {
-          reject(*response.error);
-        }
-
-        if (!response.result) {
-          reject("hegel: response contained neither result nor error");
-        }
+        assume(!response.error);
+        assume(response.result.has_value());
 
         return *response.result;
       },
@@ -662,9 +638,7 @@ Generator<std::tuple<Ts...>> tuples(Generator<Ts>... gens) {
 // sampled_from(elements) - picks from a fixed set
 template <typename T>
 Generator<T> sampled_from(std::vector<T> elements) {
-  if (elements.empty()) {
-    reject("sampled_from: cannot sample from empty collection");
-  }
+  assume(!elements.empty());
 
   if constexpr (std::is_same_v<T, bool> || std::is_same_v<T, std::nullptr_t> ||
                 std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
@@ -719,9 +693,7 @@ auto make_one_of_schema(const std::vector<Generator<T>>& gens)
 
 template <typename T>
 Generator<T> one_of(std::vector<Generator<T>> gens) {
-  if (gens.empty()) {
-    reject("one_of: cannot choose from empty collection");
-  }
+  assume(!gens.empty());
 
   auto maybe_schema = detail::make_one_of_schema(gens);
 

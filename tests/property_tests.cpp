@@ -18,8 +18,8 @@
 #include <sstream>
 
 using namespace hegel::st;
+using hegel::assume;
 using hegel::note;
-using hegel::reject;
 
 // =============================================================================
 // Algebraic Properties
@@ -172,9 +172,7 @@ TEST(StringProperties, ConcatenationLengthIsSum) {
 TEST(StringProperties, SubstringIsContained) {
   hegel::hegel([] {
     auto s = text({.min_size = 5, .max_size = 100}).generate();
-    if (s.size() < 5) {
-      reject("String too short after null byte truncation");
-    }
+    assume(s.size() >= 5);
 
     auto start =
         integers<size_t>({.min_value = 0, .max_value = s.size() - 1}).generate();
@@ -259,9 +257,7 @@ TEST(NumericProperties, AbsoluteValueIsNonNegative) {
   hegel::hegel([] {
     auto x = integers<int32_t>().generate();
     // Avoid INT_MIN which has no positive counterpart
-    if (x == std::numeric_limits<int32_t>::min()) {
-      reject("Skipping INT_MIN");
-    }
+    assume(x != std::numeric_limits<int32_t>::min());
     note("Testing abs(" + std::to_string(x) + ")");
 
     ASSERT_GE(std::abs(x), 0) << "Absolute value should be non-negative";

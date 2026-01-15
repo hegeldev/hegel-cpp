@@ -199,9 +199,7 @@ void test_from_regex() {
   auto gen = from_regex(R"([a-z]{3}-[0-9]{3})");
   std::string value = gen.generate();
 
-  if (!is_ascii(value)) {
-    reject("from_regex produced non-ASCII string");
-  }
+  assume(is_ascii(value));
 
   std::regex pattern(R"([a-z]{3}-[0-9]{3})");
   TEST_ASSERT(std::regex_match(value, pattern),
@@ -217,9 +215,7 @@ void test_emails() {
   auto gen = emails();
   std::string value = gen.generate();
 
-  if (!is_ascii(value)) {
-    reject("email produced non-ASCII string");
-  }
+  assume(is_ascii(value));
 
   TEST_ASSERT(value.find('@') != std::string::npos, "email must contain @");
   std::cout << "emails(): \"" << value << "\"\n";
@@ -229,9 +225,7 @@ void test_urls() {
   auto gen = urls();
   std::string value = gen.generate();
 
-  if (!is_ascii(value)) {
-    reject("url produced non-ASCII string");
-  }
+  assume(is_ascii(value));
 
   TEST_ASSERT(value.find("://") != std::string::npos, "url must contain ://");
   std::cout << "urls(): \"" << value << "\"\n";
@@ -241,9 +235,7 @@ void test_domains() {
   auto gen = domains();
   std::string value = gen.generate();
 
-  if (!is_ascii(value)) {
-    reject("domain produced non-ASCII string");
-  }
+  assume(is_ascii(value));
 
   // NOTE: Cannot check non-empty due to reflect-cpp null byte truncation bug
   TEST_ASSERT(utf8_length(value) <= 255, "domain must be <= 255 codepoints");
@@ -254,9 +246,7 @@ void test_ip_addresses_v4() {
   auto gen = ip_addresses({.v = 4});
   std::string value = gen.generate();
 
-  if (!is_ascii(value)) {
-    reject("ipv4 produced non-ASCII string");
-  }
+  assume(is_ascii(value));
 
   std::regex ipv4_pattern(R"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})");
   TEST_ASSERT(std::regex_match(value, ipv4_pattern),
@@ -268,9 +258,7 @@ void test_ip_addresses_v6() {
   auto gen = ip_addresses({.v = 6});
   std::string value = gen.generate();
 
-  if (!is_ascii(value)) {
-    reject("ipv6 produced non-ASCII string");
-  }
+  assume(is_ascii(value));
 
   TEST_ASSERT(value.find(':') != std::string::npos, "ipv6 must contain colons");
   std::cout << "ip_addresses({v=6}): \"" << value << "\"\n";
@@ -280,9 +268,7 @@ void test_ip_addresses_any() {
   auto gen = ip_addresses();
   std::string value = gen.generate();
 
-  if (!is_ascii(value)) {
-    reject("ip address produced non-ASCII string");
-  }
+  assume(is_ascii(value));
 
   bool is_v4 = value.find('.') != std::string::npos;
   bool is_v6 = value.find(':') != std::string::npos;
@@ -298,9 +284,7 @@ void test_dates() {
   auto gen = dates();
   std::string value = gen.generate();
 
-  if (!is_ascii(value)) {
-    reject("date produced non-ASCII string");
-  }
+  assume(is_ascii(value));
 
   // ISO date: YYYY-MM-DD
   std::regex date_pattern(R"(\d{4}-\d{2}-\d{2})");
@@ -312,9 +296,7 @@ void test_times() {
   auto gen = times();
   std::string value = gen.generate();
 
-  if (!is_ascii(value)) {
-    reject("time produced non-ASCII string");
-  }
+  assume(is_ascii(value));
 
   // Should contain colons for HH:MM:SS
   TEST_ASSERT(value.find(':') != std::string::npos, "time must contain colons");
@@ -325,9 +307,7 @@ void test_datetimes() {
   auto gen = datetimes();
   std::string value = gen.generate();
 
-  if (!is_ascii(value)) {
-    reject("datetime produced non-ASCII string");
-  }
+  assume(is_ascii(value));
 
   // Should contain both date and time components
   TEST_ASSERT(value.find('-') != std::string::npos, "datetime must contain date part");

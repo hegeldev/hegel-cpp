@@ -227,15 +227,13 @@ auto rect_gen2 = builds_agg<Rectangle>(
 );
 ```
 
-### Rejecting Invalid Inputs
+### Assumptions
 
-Use `reject()` when generated data doesn't meet preconditions:
+Use `assume()` when generated data doesn't meet preconditions:
 
 ```cpp
 auto person = person_gen.generate();
-if (person.age < 18) {
-    hegel::reject("Person must be an adult");
-}
+hegel::assume(person.age >= 18);
 ```
 
 This tells Hegel to try different input data rather than counting as a test failure.
