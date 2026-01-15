@@ -1,11 +1,10 @@
-"""Conformance tests for hegel-cpp SDK."""
-
 from pathlib import Path
 
 from hegel.conformance import run_conformance_tests
 
-# Path to the conformance binaries (relative to this file)
-BUILD_DIR = Path(__file__).parent.parent.parent / "build" / "tests" / "conformance"
+BUILD_DIR = (
+    Path(__file__).parent.parent.parent / "build" / "tests" / "conformance" / "cpp"
+)
 
 
 def test_conformance():
@@ -23,12 +22,5 @@ def test_conformance():
         "sampled_from": BUILD_DIR / "test_sampled_from",
     }
 
-    # Check that all binaries exist
-    missing = [name for name, path in binaries.items() if not path.exists()]
-    if missing:
-        raise FileNotFoundError(
-            f"Conformance binaries not found: {missing}. "
-            f"Please build the project first with: cmake --build build"
-        )
-
+    assert all(path.exists() for path in binaries.values())
     run_conformance_tests(binaries)

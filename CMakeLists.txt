@@ -180,5 +180,5 @@ endif()
 # =============================================================================
 
 if(HEGEL_BUILD_CONFORMANCE)
-    add_subdirectory(tests/conformance)
+    add_subdirectory(tests/conformance/cpp)
 endif()
