@@ -1,21 +1,21 @@
 # Hegel C++ SDK
 
-A C++20 SDK for property-based testing with Hegel. Provides a Hypothesis-like strategies API for generating test data via JSON Schema.
+Hypothesis-like testing for C++20.
 
-## Dependencies
+## Installation
 
-- C++20 compiler
-- [reflect-cpp](https://github.com/getml/reflect-cpp) v0.22.0
-- [nlohmann/json](https://github.com/nlohmann/json) v3.12.0
+To install, add the following to your `CMakeLists.txt`:
 
-Dependencies are automatically fetched via CMake FetchContent.
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+    hegel
+    GIT_REPOSITORY https://github.com/antithesishq/hegel-cpp.git
+    GIT_TAG main
+)
+FetchContent_MakeAvailable(hegel)
 
-## Building
-
-```bash
-mkdir -p build && cd build
-cmake ..
-make
+target_link_libraries(your_target PRIVATE hegel)
 ```
 
 ## Development
@@ -25,6 +25,11 @@ Prerequisites:
 - [CMake](https://cmake.org/) 3.14+
 - [just](https://github.com/casey/just)
 - [clang-format](https://clang.llvm.org/docs/ClangFormat.html)
+
+Dependencies:
+- C++20 compiler
+- [reflect-cpp](https://github.com/getml/reflect-cpp) v0.22.0
+- [nlohmann/json](https://github.com/nlohmann/json) v3.12.0
 
 Commands:
 ```bash
@@ -71,21 +76,6 @@ struct Point {
 
 auto gen = hegel::default_generator<Point>();
 Point p = gen.generate();
-```
-
-You can also override the schema for more control:
-
-```cpp
-auto gen = hegel::default_generator<Point>();
-gen.schema() = R"json({
-    "type": "object",
-    "properties": {
-        "x": {"type": "number", "minimum": -100, "maximum": 100},
-        "y": {"type": "number", "minimum": -100, "maximum": 100}
-    },
-    "required": ["x", "y"],
-    "additionalProperties": false
-})json";
 ```
 
 ### Strategies
@@ -249,48 +239,3 @@ if (person.age < 18) {
 ```
 
 This tells Hegel to try different input data rather than counting as a test failure.
-
-## Environment Variables
-
-- `HEGEL_SOCKET` - Path to Unix socket (set by hegel)
-- `HEGEL_REJECT_CODE` - Exit code for `reject()` calls (set by hegel)
-- `HEGEL_DEBUG` - Enable debug logging of requests/responses
-
-## Complete Example
-
-```cpp
-#include "hegel.hpp"
-#include <iostream>
-#include <vector>
-
-struct Team {
-    std::string name;
-    std::vector<std::string> members;
-};
-
-int main() {
-    using namespace hegel::st;
-
-    // Build a team generator with constraints
-    auto team_gen = builds_agg<Team>(
-        field<&Team::name>(text({.min_size = 1, .max_size = 50})),
-        field<&Team::members>(vectors(
-            text({.min_size = 1, .max_size = 30}),
-            {.min_size = 2, .max_size = 10}
-        ))
-    );
-
-    Team team = team_gen.generate();
-
-    // Validate business rules
-    if (team.members.size() < 2) {
-        hegel::reject("Team must have at least 2 members");
-    }
-
-    // Test logic here...
-    std::cout << "Team: " << team.name << " with "
-              << team.members.size() << " members" << std::endl;
-
-    return 0;  // Test passed
-}
-```
