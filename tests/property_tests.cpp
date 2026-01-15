@@ -93,8 +93,7 @@ TEST(AlgebraicProperties, OneIsMultiplicativeIdentity) {
 
 TEST(SortingInvariants, SortedOutputIsSorted) {
   hegel::hegel([] {
-    auto v =
-        vectors(integers<int>(), {.min_size = 0, .max_size = 100}).generate();
+    auto v = vectors(integers<int>(), {.min_size = 0, .max_size = 100}).generate();
     note("Testing vector of size " + std::to_string(v.size()));
 
     std::vector<int> sorted = v;
@@ -107,21 +106,18 @@ TEST(SortingInvariants, SortedOutputIsSorted) {
 
 TEST(SortingInvariants, SortPreservesLength) {
   hegel::hegel([] {
-    auto v =
-        vectors(integers<int>(), {.min_size = 0, .max_size = 100}).generate();
+    auto v = vectors(integers<int>(), {.min_size = 0, .max_size = 100}).generate();
     size_t original_size = v.size();
 
     std::sort(v.begin(), v.end());
 
-    ASSERT_EQ(v.size(), original_size)
-        << "Sorting should preserve vector length";
+    ASSERT_EQ(v.size(), original_size) << "Sorting should preserve vector length";
   });
 }
 
 TEST(SortingInvariants, SortPreservesElements) {
   hegel::hegel([] {
-    auto v =
-        vectors(integers<int>(), {.min_size = 0, .max_size = 50}).generate();
+    auto v = vectors(integers<int>(), {.min_size = 0, .max_size = 50}).generate();
     std::multiset<int> original(v.begin(), v.end());
 
     std::sort(v.begin(), v.end());
@@ -133,8 +129,7 @@ TEST(SortingInvariants, SortPreservesElements) {
 
 TEST(SortingInvariants, SortIsIdempotent) {
   hegel::hegel([] {
-    auto v =
-        vectors(integers<int>(), {.min_size = 0, .max_size = 50}).generate();
+    auto v = vectors(integers<int>(), {.min_size = 0, .max_size = 50}).generate();
 
     std::sort(v.begin(), v.end());
     std::vector<int> once_sorted = v;
@@ -181,10 +176,10 @@ TEST(StringProperties, SubstringIsContained) {
       reject("String too short after null byte truncation");
     }
 
-    auto start = integers<size_t>({.min_value = 0, .max_value = s.size() - 1})
-                     .generate();
-    auto len = integers<size_t>({.min_value = 1, .max_value = s.size() - start})
-                   .generate();
+    auto start =
+        integers<size_t>({.min_value = 0, .max_value = s.size() - 1}).generate();
+    auto len =
+        integers<size_t>({.min_value = 1, .max_value = s.size() - start}).generate();
 
     std::string sub = s.substr(start, len);
 
@@ -206,8 +201,7 @@ TEST(CollectionProperties, SetHasNoDuplicates) {
     std::vector<int> elements(s.begin(), s.end());
     std::set<int> unique(elements.begin(), elements.end());
 
-    ASSERT_EQ(elements.size(), unique.size())
-        << "Set should have no duplicates";
+    ASSERT_EQ(elements.size(), unique.size()) << "Set should have no duplicates";
   });
 }
 
@@ -219,15 +213,14 @@ TEST(CollectionProperties, UniqueVectorHasNoDuplicates) {
 
     std::set<int> unique(v.begin(), v.end());
 
-    ASSERT_EQ(v.size(), unique.size())
-        << "Unique vector should have no duplicates";
+    ASSERT_EQ(v.size(), unique.size()) << "Unique vector should have no duplicates";
   });
 }
 
 TEST(CollectionProperties, MapKeysAreUnique) {
   hegel::hegel([] {
-    auto m = dictionaries(text({.min_size = 1, .max_size = 20}),
-                          integers<int>(), {.min_size = 0, .max_size = 20})
+    auto m = dictionaries(text({.min_size = 1, .max_size = 20}), integers<int>(),
+                          {.min_size = 0, .max_size = 20})
                  .generate();
 
     std::vector<std::string> keys;
@@ -252,8 +245,7 @@ TEST(CollectionProperties, VectorSumIsOrderIndependent) {
     std::sort(shuffled.begin(), shuffled.end());
     std::reverse(shuffled.begin(), shuffled.end());
 
-    int64_t sum2 =
-        std::accumulate(shuffled.begin(), shuffled.end(), int64_t{0});
+    int64_t sum2 = std::accumulate(shuffled.begin(), shuffled.end(), int64_t{0});
 
     ASSERT_EQ(sum1, sum2) << "Sum should be order-independent";
   });
@@ -357,8 +349,7 @@ TEST(RoundTrip, DoubleToStringToDouble) {
     // Allow small relative error due to floating point representation
     if (x != 0.0) {
       double rel_error = std::abs((y - x) / x);
-      ASSERT_LT(rel_error, 1e-14)
-          << "Double round-trip should have minimal error";
+      ASSERT_LT(rel_error, 1e-14) << "Double round-trip should have minimal error";
     } else {
       ASSERT_EQ(y, 0.0) << "Zero should round-trip exactly";
     }
@@ -376,15 +367,13 @@ struct Point {
 
 TEST(DataStructureProperties, PointDistanceIsNonNegative) {
   hegel::hegel([] {
-    auto gen =
-        builds<Point>(integers<int>({.min_value = -1000, .max_value = 1000}),
-                      integers<int>({.min_value = -1000, .max_value = 1000}));
+    auto gen = builds<Point>(integers<int>({.min_value = -1000, .max_value = 1000}),
+                             integers<int>({.min_value = -1000, .max_value = 1000}));
     auto p = gen.generate();
-    note("Testing point (" + std::to_string(p.x) + ", " + std::to_string(p.y) +
-         ")");
+    note("Testing point (" + std::to_string(p.x) + ", " + std::to_string(p.y) + ")");
 
-    double dist = std::sqrt(static_cast<double>(p.x) * p.x +
-                            static_cast<double>(p.y) * p.y);
+    double dist =
+        std::sqrt(static_cast<double>(p.x) * p.x + static_cast<double>(p.y) * p.y);
 
     ASSERT_GE(dist, 0.0) << "Distance from origin should be non-negative";
   });
@@ -412,10 +401,9 @@ TEST(DataStructureProperties, OptionalHasValueOrNot) {
 
 TEST(FilterMapProperties, FilteredValuesMatchPredicate) {
   hegel::hegel([] {
-    auto gen =
-        integers<int>({.min_value = 0, .max_value = 100}).filter([](int x) {
-          return x % 2 == 0;
-        });
+    auto gen = integers<int>({.min_value = 0, .max_value = 100}).filter([](int x) {
+      return x % 2 == 0;
+    });
     auto x = gen.generate();
 
     ASSERT_EQ(x % 2, 0) << "Filtered values should be even";

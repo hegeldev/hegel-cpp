@@ -154,8 +154,7 @@ void close_connection();
 size_t get_span_depth();
 void increment_span_depth();
 void decrement_span_depth();
-nlohmann::json send_request(const std::string& command,
-                            const nlohmann::json& payload);
+nlohmann::json send_request(const std::string& command, const nlohmann::json& payload);
 std::string communicate_with_socket(const std::string& schema);
 
 }  // namespace detail
@@ -240,8 +239,7 @@ class Generator {
   auto map(F&& f) const -> Generator<std::invoke_result_t<F, T>> {
     using U = std::invoke_result_t<F, T>;
     auto inner = gen_fn_;
-    return Generator<U>(
-        [inner, f = std::forward<F>(f)]() -> U { return f(inner()); });
+    return Generator<U>([inner, f = std::forward<F>(f)]() -> U { return f(inner()); });
   }
 
   template <typename F>
@@ -249,13 +247,11 @@ class Generator {
     using ResultGen = std::invoke_result_t<F, T>;
     using U = decltype(std::declval<ResultGen>().generate());
     auto inner = gen_fn_;
-    return Generator<U>([inner, f = std::forward<F>(f)]() -> U {
-      return f(inner()).generate();
-    });
+    return Generator<U>(
+        [inner, f = std::forward<F>(f)]() -> U { return f(inner()).generate(); });
   }
 
-  Generator<T> filter(std::function<bool(const T&)> pred,
-                      int max_attempts = 3) const {
+  Generator<T> filter(std::function<bool(const T&)> pred, int max_attempts = 3) const {
     auto inner = gen_fn_;
     return Generator<T>([inner, pred, max_attempts]() -> T {
       for (int i = 0; i < max_attempts; ++i) {
@@ -315,8 +311,7 @@ class DefaultGenerator {
 
       auto parse_result = rfl::json::read<Response<T>>(response_json);
       if (!parse_result) {
-        reject("hegel: failed to parse response: " +
-               parse_result.error().what());
+        reject("hegel: failed to parse response: " + parse_result.error().what());
       }
 
       const Response<T>& response = parse_result.value();
@@ -367,8 +362,7 @@ Generator<T> from_schema(std::string schema) {
 
         auto parse_result = rfl::json::read<Response<T>>(response_json);
         if (!parse_result) {
-          reject("hegel: failed to parse response: " +
-                 parse_result.error().what());
+          reject("hegel: failed to parse response: " + parse_result.error().what());
         }
 
         const Response<T>& response = parse_result.value();
@@ -519,8 +513,7 @@ Generator<T> floats(FloatsParams<T> params = {}) {
 
 // vectors(elements) - generates vectors
 template <typename T>
-Generator<std::vector<T>> vectors(Generator<T> elements,
-                                  VectorsParams params = {}) {
+Generator<std::vector<T>> vectors(Generator<T> elements, VectorsParams params = {}) {
   if (elements.schema()) {
     nlohmann::json elem_schema = nlohmann::json::parse(*elements.schema());
     nlohmann::json schema = {{"type", "array"}, {"items", elem_schema}};
@@ -661,8 +654,8 @@ Generator<std::tuple<Ts...>> tuples(Generator<Ts>... gens) {
   auto gen_tuple = std::make_tuple(std::move(gens)...);
 
   return Generator<ResultTuple>([gen_tuple]() {
-    return detail::generate_tuple_impl<ResultTuple>(
-        gen_tuple, std::index_sequence_for<Ts...>{});
+    return detail::generate_tuple_impl<ResultTuple>(gen_tuple,
+                                                    std::index_sequence_for<Ts...>{});
   });
 }
 
@@ -736,8 +729,7 @@ Generator<T> one_of(std::vector<Generator<T>> gens) {
     return from_schema<T>(*maybe_schema);
   }
 
-  auto index_gen =
-      integers<size_t>({.min_value = 0, .max_value = gens.size() - 1});
+  auto index_gen = integers<size_t>({.min_value = 0, .max_value = gens.size() - 1});
 
   return Generator<T>([gens, index_gen]() {
     size_t idx = index_gen.generate();
@@ -777,8 +769,8 @@ Generator<std::variant<Ts...>> variant_(Generator<Ts>... gens) {
 
   return Generator<ResultVariant>([gen_tuple, index_gen]() {
     size_t idx = index_gen.generate();
-    return detail::generate_variant_impl<ResultVariant, decltype(gen_tuple)>(
-        gen_tuple, idx);
+    return detail::generate_variant_impl<ResultVariant, decltype(gen_tuple)>(gen_tuple,
+                                                                             idx);
   });
 }
 
@@ -882,8 +874,7 @@ void hegel(F&& test_fn, HegelOptions options = {}) {
   addr.sun_family = AF_UNIX;
   std::copy(socket_path.begin(), socket_path.end(), addr.sun_path);
 
-  if (bind(server_fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) <
-      0) {
+  if (bind(server_fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
     close(server_fd);
     throw std::runtime_error("Failed to bind socket");
   }
@@ -973,8 +964,7 @@ void hegel(F&& test_fn, HegelOptions options = {}) {
           detail::clear_embedded_connection();
 
           // Send result
-          nlohmann::json result = {{"type", "test_result"},
-                                   {"result", result_type}};
+          nlohmann::json result = {{"type", "test_result"}, {"result", result_type}};
           if (!error_message.empty()) {
             result["message"] = error_message;
           }

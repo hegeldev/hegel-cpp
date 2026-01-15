@@ -7,8 +7,7 @@
 // A rational number class with a bug in normalization of negative denominators
 class Fraction {
  public:
-  Fraction(int numerator, int denominator)
-      : num_(numerator), den_(denominator) {
+  Fraction(int numerator, int denominator) : num_(numerator), den_(denominator) {
     if (denominator == 0) {
       throw std::invalid_argument("denominator cannot be zero");
     }

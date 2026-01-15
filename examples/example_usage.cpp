@@ -64,8 +64,8 @@ int main() {
 
   for (auto member : team.members) {
     if (member.age < 18) {
-      std::cerr << "Member \"" << member.name
-                << "\" is too young with an age of " << member.age << std::endl;
+      std::cerr << "Member \"" << member.name << "\" is too young with an age of "
+                << member.age << std::endl;
       exit(1);
     }
   }

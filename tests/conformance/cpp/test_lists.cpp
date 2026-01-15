@@ -21,8 +21,7 @@ int main(int argc, char* argv[]) {
   hegel::hegel(
       [=]() {
         auto gen = hegel::st::vectors(
-            hegel::st::integers<int>(
-                {.min_value = min_value, .max_value = max_value}),
+            hegel::st::integers<int>({.min_value = min_value, .max_value = max_value}),
             {.min_size = static_cast<size_t>(min_size),
              .max_size = static_cast<size_t>(max_size)});
 

@@ -19,11 +19,10 @@ int main() {
 
   // Generate a sequence of operations
   auto ops_gen = vectors(
-      variant_(
-          integers<int>({.min_value = -100, .max_value = 100}).map([](int v) {
-            return Push{v};
-          }),
-          just(Pop{})),
+      variant_(integers<int>({.min_value = -100, .max_value = 100}).map([](int v) {
+        return Push{v};
+      }),
+               just(Pop{})),
       {.min_size = 1, .max_size = 20});
   auto ops = ops_gen.generate();
   std::cerr << "operations: " << ops.size() << std::endl;
@@ -78,8 +77,8 @@ int main() {
 
     // Invariant: sizes should match
     if (queue.size() != model.size()) {
-      std::cerr << "Size mismatch: queue=" << queue.size()
-                << " model=" << model.size() << std::endl;
+      std::cerr << "Size mismatch: queue=" << queue.size() << " model=" << model.size()
+                << std::endl;
       return 1;
     }
   }

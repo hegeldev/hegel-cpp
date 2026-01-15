@@ -17,8 +17,8 @@ int main(int argc, char* argv[]) {
 
   hegel::hegel(
       [=]() {
-        auto gen = hegel::st::integers<int>(
-            {.min_value = min_value, .max_value = max_value});
+        auto gen =
+            hegel::st::integers<int>({.min_value = min_value, .max_value = max_value});
         auto value = gen.generate();
         conformance::write_metrics({{"value", value}});
       },

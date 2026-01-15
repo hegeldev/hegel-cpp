@@ -123,8 +123,7 @@ void test_integers_uint8() {
 void test_integers_negative_range() {
   auto gen = integers<int>({.min_value = -50, .max_value = -10});
   int value = gen.generate();
-  TEST_ASSERT(value >= -50 && value <= -10,
-              "integers(-50,-10) must be in [-50,-10]");
+  TEST_ASSERT(value >= -50 && value <= -10, "integers(-50,-10) must be in [-50,-10]");
   std::cout << "integers<int>({-50,-10}): " << value << "\n";
 }
 
@@ -146,13 +145,10 @@ void test_floats_bounded() {
 }
 
 void test_floats_exclusive() {
-  auto gen = floats<double>({.min_value = 0.0,
-                             .max_value = 1.0,
-                             .exclude_min = true,
-                             .exclude_max = true});
+  auto gen = floats<double>(
+      {.min_value = 0.0, .max_value = 1.0, .exclude_min = true, .exclude_max = true});
   double value = gen.generate();
-  TEST_ASSERT(value > 0.0 && value < 1.0,
-              "floats exclusive (0,1) must be in (0,1)");
+  TEST_ASSERT(value > 0.0 && value < 1.0, "floats exclusive (0,1) must be in (0,1)");
   std::cout << "floats<double>(exclusive {0,1}): " << value << "\n";
 }
 
@@ -194,8 +190,7 @@ void test_text_exact_min() {
   std::string value = gen.generate();
   size_t len = utf8_length(value);
   // NOTE: Cannot check min length due to reflect-cpp null byte truncation bug
-  std::cout << "text({min=3}): \"" << value << "\" (codepoints=" << len
-            << ")\n";
+  std::cout << "text({min=3}): \"" << value << "\" (codepoints=" << len << ")\n";
 }
 
 void test_from_regex() {
@@ -309,8 +304,7 @@ void test_dates() {
 
   // ISO date: YYYY-MM-DD
   std::regex date_pattern(R"(\d{4}-\d{2}-\d{2})");
-  TEST_ASSERT(std::regex_match(value, date_pattern),
-              "date must match YYYY-MM-DD");
+  TEST_ASSERT(std::regex_match(value, date_pattern), "date must match YYYY-MM-DD");
   std::cout << "dates(): \"" << value << "\"\n";
 }
 
@@ -336,10 +330,8 @@ void test_datetimes() {
   }
 
   // Should contain both date and time components
-  TEST_ASSERT(value.find('-') != std::string::npos,
-              "datetime must contain date part");
-  TEST_ASSERT(value.find(':') != std::string::npos,
-              "datetime must contain time part");
+  TEST_ASSERT(value.find('-') != std::string::npos, "datetime must contain date part");
+  TEST_ASSERT(value.find(':') != std::string::npos, "datetime must contain time part");
   std::cout << "datetimes(): \"" << value << "\"\n";
 }
 
@@ -390,8 +382,8 @@ void test_sets() {
 }
 
 void test_dictionaries() {
-  auto gen = dictionaries(text({.min_size = 1, .max_size = 10}),
-                          integers<int>(), {.min_size = 1, .max_size = 3});
+  auto gen = dictionaries(text({.min_size = 1, .max_size = 10}), integers<int>(),
+                          {.min_size = 1, .max_size = 3});
   std::map<std::string, int> value = gen.generate();
 
   TEST_ASSERT(value.size() >= 1 && value.size() <= 3,
@@ -417,12 +409,10 @@ void test_tuples_pair() {
 }
 
 void test_tuples_triple() {
-  auto gen =
-      tuples(booleans(), integers<int>({.min_value = 0}), floats<double>());
+  auto gen = tuples(booleans(), integers<int>({.min_value = 0}), floats<double>());
   auto [b, i, f] = gen.generate();
   TEST_ASSERT(i >= 0, "tuple int element must be >= 0");
-  std::cout << "tuples(bool, int, double): (" << b << ", " << i << ", " << f
-            << ")\n";
+  std::cout << "tuples(bool, int, double): (" << b << ", " << i << ", " << f << ")\n";
 }
 
 // =============================================================================
@@ -440,9 +430,8 @@ void test_sampled_from_strings() {
 void test_sampled_from_ints() {
   auto gen = sampled_from({10, 20, 30, 40, 50});
   int value = gen.generate();
-  TEST_ASSERT(
-      value == 10 || value == 20 || value == 30 || value == 40 || value == 50,
-      "sampled_from must return one of the options");
+  TEST_ASSERT(value == 10 || value == 20 || value == 30 || value == 40 || value == 50,
+              "sampled_from must return one of the options");
   std::cout << "sampled_from(ints): " << value << "\n";
 }
 
@@ -475,8 +464,7 @@ void test_optional() {
   auto gen = optional_(integers<int>({.min_value = 0, .max_value = 100}));
   std::optional<int> value = gen.generate();
   if (value) {
-    TEST_ASSERT(*value >= 0 && *value <= 100,
-                "optional value must be in range");
+    TEST_ASSERT(*value >= 0 && *value <= 100, "optional value must be in range");
     std::cout << "optional(int): " << *value << "\n";
   } else {
     std::cout << "optional(int): nullopt\n";
@@ -498,9 +486,8 @@ struct Person {
 };
 
 void test_builds_positional() {
-  auto gen =
-      builds<Point>(integers<int>({.min_value = -100, .max_value = 100}),
-                    integers<int>({.min_value = -100, .max_value = 100}));
+  auto gen = builds<Point>(integers<int>({.min_value = -100, .max_value = 100}),
+                           integers<int>({.min_value = -100, .max_value = 100}));
   Point p = gen.generate();
   TEST_ASSERT(p.x >= -100 && p.x <= 100, "point.x must be in range");
   TEST_ASSERT(p.y >= -100 && p.y <= 100, "point.y must be in range");
@@ -516,8 +503,7 @@ void test_builds_agg() {
   // NOTE: Cannot check min length due to reflect-cpp null byte truncation bug
   TEST_ASSERT(name_len <= 20, "person.name must be <= 20 codepoints");
   TEST_ASSERT(p.age >= 0 && p.age <= 120, "person.age must be in [0,120]");
-  std::cout << "builds_agg<Person>: {name=\"" << p.name << "\", age=" << p.age
-            << "}\n";
+  std::cout << "builds_agg<Person>: {name=\"" << p.name << "\", age=" << p.age << "}\n";
 }
 
 // =============================================================================
@@ -525,9 +511,8 @@ void test_builds_agg() {
 // =============================================================================
 
 void test_map() {
-  auto gen = integers<int>({.min_value = 1, .max_value = 10}).map([](int x) {
-    return x * x;
-  });
+  auto gen =
+      integers<int>({.min_value = 1, .max_value = 10}).map([](int x) { return x * x; });
   int value = gen.generate();
   // Should be a perfect square between 1 and 100
   int root = static_cast<int>(std::sqrt(value));
@@ -537,10 +522,9 @@ void test_map() {
 }
 
 void test_filter() {
-  auto gen =
-      integers<int>({.min_value = 0, .max_value = 100}).filter([](int x) {
-        return x % 2 == 0;
-      });
+  auto gen = integers<int>({.min_value = 0, .max_value = 100}).filter([](int x) {
+    return x % 2 == 0;
+  });
   int value = gen.generate();
   TEST_ASSERT(value % 2 == 0, "filtered value must be even");
   TEST_ASSERT(value >= 0 && value <= 100, "filtered value must be in range");
@@ -549,10 +533,9 @@ void test_filter() {
 
 void test_flatmap() {
   // Generate a length, then generate a string of that length
-  auto gen = integers<size_t>({.min_value = 3, .max_value = 8})
-                 .flatmap([](size_t len) {
-                   return text({.min_size = len, .max_size = len});
-                 });
+  auto gen = integers<size_t>({.min_value = 3, .max_value = 8}).flatmap([](size_t len) {
+    return text({.min_size = len, .max_size = len});
+  });
   std::string value = gen.generate();
   size_t len = utf8_length(value);
   // NOTE: Cannot check min length due to reflect-cpp null byte truncation bug

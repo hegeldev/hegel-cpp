@@ -8,10 +8,9 @@ using namespace hegel::st;
 
 int main() {
   // Generate non-zero integers for fractions
-  auto nonzero =
-      integers<int>({.min_value = -100, .max_value = 100}).filter([](int x) {
-        return x != 0;
-      });
+  auto nonzero = integers<int>({.min_value = -100, .max_value = 100}).filter([](int x) {
+    return x != 0;
+  });
 
   auto num1 = integers<int>({.min_value = -100, .max_value = 100}).generate();
   std::cerr << "num1: " << num1 << std::endl;
@@ -41,10 +40,8 @@ int main() {
     std::cerr << "Addition not commutative" << std::endl;
     std::cerr << "a = " << a.numerator() << "/" << a.denominator() << std::endl;
     std::cerr << "b = " << b.numerator() << "/" << b.denominator() << std::endl;
-    std::cerr << "a+b = " << sum1.numerator() << "/" << sum1.denominator()
-              << std::endl;
-    std::cerr << "b+a = " << sum2.numerator() << "/" << sum2.denominator()
-              << std::endl;
+    std::cerr << "a+b = " << sum1.numerator() << "/" << sum1.denominator() << std::endl;
+    std::cerr << "b+a = " << sum2.numerator() << "/" << sum2.denominator() << std::endl;
     return 1;
   }
 
@@ -64,8 +61,8 @@ int main() {
 
   // Property 4: Denominator should always be positive after normalization
   if (a.denominator() <= 0) {
-    std::cerr << "Denominator not positive: " << a.numerator() << "/"
-              << a.denominator() << std::endl;
+    std::cerr << "Denominator not positive: " << a.numerator() << "/" << a.denominator()
+              << std::endl;
     std::cerr << "Input was: " << num1 << "/" << den1 << std::endl;
     return 1;
   }
@@ -74,8 +71,8 @@ int main() {
   double expected = static_cast<double>(num1) / static_cast<double>(den1);
   double actual = a.to_double();
   if (std::abs(expected - actual) > 1e-9) {
-    std::cerr << "Double conversion wrong: expected " << expected << " got "
-              << actual << std::endl;
+    std::cerr << "Double conversion wrong: expected " << expected << " got " << actual
+              << std::endl;
     return 1;
   }
 

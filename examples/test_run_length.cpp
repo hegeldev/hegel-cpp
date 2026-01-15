@@ -38,8 +38,8 @@ int main() {
     size_t min_size = std::min(data.size(), decoded.size());
     for (size_t i = 0; i < min_size; ++i) {
       if (data[i] != decoded[i]) {
-        std::cerr << "First difference at index " << i << ": expected "
-                  << (int)data[i] << " got " << (int)decoded[i] << std::endl;
+        std::cerr << "First difference at index " << i << ": expected " << (int)data[i]
+                  << " got " << (int)decoded[i] << std::endl;
         break;
       }
     }

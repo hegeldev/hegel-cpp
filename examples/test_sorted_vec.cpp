@@ -22,11 +22,10 @@ int main() {
   // Generate operations
   auto value_gen = integers<int>({.min_value = -50, .max_value = 50});
 
-  auto ops_gen =
-      vectors(variant_(value_gen.map([](int v) { return Insert{v}; }),
-                       value_gen.map([](int v) { return Remove{v}; }),
-                       value_gen.map([](int v) { return Contains{v}; })),
-              {.min_size = 1, .max_size = 30});
+  auto ops_gen = vectors(variant_(value_gen.map([](int v) { return Insert{v}; }),
+                                  value_gen.map([](int v) { return Remove{v}; }),
+                                  value_gen.map([](int v) { return Contains{v}; })),
+                         {.min_size = 1, .max_size = 30});
   auto ops = ops_gen.generate();
   std::cerr << "operations: " << ops.size() << std::endl;
 
@@ -43,8 +42,7 @@ int main() {
 
       // Property: should remain sorted after insert
       if (!sv.is_sorted()) {
-        std::cerr << "SortedVec not sorted after inserting " << val
-                  << std::endl;
+        std::cerr << "SortedVec not sorted after inserting " << val << std::endl;
         return 1;
       }
 
@@ -62,9 +60,8 @@ int main() {
 
       // Property: remove should agree with model
       if (model_had != sv_removed) {
-        std::cerr << "Remove disagreement for " << val
-                  << ": model_had=" << model_had << " sv_removed=" << sv_removed
-                  << std::endl;
+        std::cerr << "Remove disagreement for " << val << ": model_had=" << model_had
+                  << " sv_removed=" << sv_removed << std::endl;
         return 1;
       }
 
@@ -77,8 +74,8 @@ int main() {
 
       // Property: contains should agree with model
       if (model_has != sv_has) {
-        std::cerr << "Contains disagreement for " << val
-                  << ": model=" << model_has << " sv=" << sv_has << std::endl;
+        std::cerr << "Contains disagreement for " << val << ": model=" << model_has
+                  << " sv=" << sv_has << std::endl;
         std::cerr << "SortedVec contents: ";
         for (size_t i = 0; i < sv.size(); ++i) {
           std::cerr << sv[i] << " ";
@@ -90,8 +87,8 @@ int main() {
 
     // Invariant: sizes should match
     if (sv.size() != model.size()) {
-      std::cerr << "Size mismatch: sv=" << sv.size()
-                << " model=" << model.size() << std::endl;
+      std::cerr << "Size mismatch: sv=" << sv.size() << " model=" << model.size()
+                << std::endl;
       return 1;
     }
   }

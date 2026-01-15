@@ -24,13 +24,12 @@ int main() {
 
   // Generate operations with small key space to ensure collisions
   auto ops_gen = vectors(
-      variant_(
-          tuples(integers<int>({.min_value = 0, .max_value = 6}),
-                 integers<int>({.min_value = 0, .max_value = 100}))
-              .map([](auto t) { return Put{std::get<0>(t), std::get<1>(t)}; }),
-          integers<int>({.min_value = 0, .max_value = 6}).map([](int k) {
-            return Get{k};
-          })),
+      variant_(tuples(integers<int>({.min_value = 0, .max_value = 6}),
+                      integers<int>({.min_value = 0, .max_value = 100}))
+                   .map([](auto t) { return Put{std::get<0>(t), std::get<1>(t)}; }),
+               integers<int>({.min_value = 0, .max_value = 6}).map([](int k) {
+                 return Get{k};
+               })),
       {.min_size = 5, .max_size = 30});
   auto ops = ops_gen.generate();
   std::cerr << "operations: " << ops.size() << std::endl;
@@ -87,21 +86,18 @@ int main() {
       if (model_it == model_data.end()) {
         // Key shouldn't exist
         if (cache_result.has_value()) {
-          std::cerr << "Cache returned value for non-existent key " << key
-                    << std::endl;
+          std::cerr << "Cache returned value for non-existent key " << key << std::endl;
           return 1;
         }
       } else {
         // Key should exist with correct value
         if (!cache_result.has_value()) {
-          std::cerr << "Cache missing key " << key << " that should exist"
-                    << std::endl;
+          std::cerr << "Cache missing key " << key << " that should exist" << std::endl;
           return 1;
         }
         if (*cache_result != model_it->second) {
-          std::cerr << "Cache returned wrong value for key " << key
-                    << ": expected " << model_it->second << " got "
-                    << *cache_result << std::endl;
+          std::cerr << "Cache returned wrong value for key " << key << ": expected "
+                    << model_it->second << " got " << *cache_result << std::endl;
           return 1;
         }
         // Mark as recently used in model
@@ -118,8 +114,7 @@ int main() {
 
     for (const auto& [k, v] : model_data) {
       if (!cache.contains(k)) {
-        std::cerr << "Cache missing key " << k << " that model has"
-                  << std::endl;
+        std::cerr << "Cache missing key " << k << " that model has" << std::endl;
         return 1;
       }
     }

@@ -159,11 +159,9 @@ void open_connection() {
   }
   std::copy(socket_path.begin(), socket_path.end(), addr.sun_path);
 
-  if (connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) <
-      0) {
+  if (connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
     close(sock);
-    std::cerr << "hegel: failed to connect to socket at " << socket_path
-              << "\n";
+    std::cerr << "hegel: failed to connect to socket at " << socket_path << "\n";
     std::exit(ASSERTION_FAILURE_EXIT_CODE);
   }
 
@@ -178,8 +176,8 @@ void close_connection() {
   }
 
   if (connection_state.span_depth != 0) {
-    std::cerr << "hegel: close_connection called with "
-              << connection_state.span_depth << " unclosed span(s)\n";
+    std::cerr << "hegel: close_connection called with " << connection_state.span_depth
+              << " unclosed span(s)\n";
     std::exit(ASSERTION_FAILURE_EXIT_CODE);
   }
 
@@ -198,8 +196,7 @@ void decrement_span_depth() {
   connection_state.span_depth--;
 }
 
-nlohmann::json send_request(const std::string& command,
-                            const nlohmann::json& payload) {
+nlohmann::json send_request(const std::string& command, const nlohmann::json& payload) {
   if (connection_state.socket_fd < 0) {
     std::cerr << "hegel: send_request called without active connection\n";
     std::exit(ASSERTION_FAILURE_EXIT_CODE);
@@ -324,8 +321,7 @@ std::string communicate_with_socket(const std::string& schema) {
         if (response.contains("error")) {
           // Genuine error: bad schema, invalid request, etc.
           // Throw runtime_error to propagate as a real test failure.
-          throw std::runtime_error("hegel: " +
-                                   response["error"].get<std::string>());
+          throw std::runtime_error("hegel: " + response["error"].get<std::string>());
         }
         // Auto-log generated value during final replay (counterexample)
         if (is_last_run_) {
@@ -395,8 +391,7 @@ namespace st {
 
 Generator<std::monostate> nulls() {
   nlohmann::json schema = {{"type", "null"}};
-  return Generator<std::monostate>([]() { return std::monostate{}; },
-                                   schema.dump());
+  return Generator<std::monostate>([]() { return std::monostate{}; }, schema.dump());
 }
 
 Generator<bool> booleans() {
@@ -432,9 +427,8 @@ Generator<std::string> emails() {
 }
 
 Generator<std::string> domains(DomainsParams params) {
-  nlohmann::json schema = {{"type", "string"},
-                           {"format", "hostname"},
-                           {"maxLength", params.max_length}};
+  nlohmann::json schema = {
+      {"type", "string"}, {"format", "hostname"}, {"maxLength", params.max_length}};
   return from_schema<std::string>(schema.dump());
 }
 
