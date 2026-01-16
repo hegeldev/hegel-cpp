@@ -96,14 +96,12 @@ void hegel(F&& test_fn, HegelOptions options = {}) {
 
   // Build hegel command
   std::string hegel_path = options.hegel_path.value_or(HEGEL_DEFAULT_PATH);
-  std::vector<std::string> args = {hegel_path, "--client-mode", socket_path,
-                                   "--no-tui"};
+  std::vector<std::string> args = {hegel_path,     "--client-mode", socket_path,
+                                   "--no-tui",     "--verbosity",
+                                   verbosity_to_string(options.verbosity)};
   if (options.test_cases) {
     args.push_back("--test-cases");
     args.push_back(std::to_string(*options.test_cases));
-  }
-  if (options.debug) {
-    args.push_back("--debug");
   }
 
   // Fork and exec hegel

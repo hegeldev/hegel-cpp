@@ -81,14 +81,47 @@ void note(const std::string& message);
 // =============================================================================
 
 /**
+ * @brief Verbosity levels for hegel output.
+ */
+enum class Verbosity {
+  /// Minimal output (used by TUI)
+  Quiet,
+  /// Default - standard test output
+  Normal,
+  /// More detailed output
+  Verbose,
+  /// Maximum verbosity + request/response logging
+  Debug
+};
+
+/**
+ * @brief Convert Verbosity enum to command-line string.
+ * @param v The verbosity level
+ * @return The string representation for CLI argument
+ */
+inline const char* verbosity_to_string(Verbosity v) {
+  switch (v) {
+    case Verbosity::Quiet:
+      return "quiet";
+    case Verbosity::Normal:
+      return "normal";
+    case Verbosity::Verbose:
+      return "verbose";
+    case Verbosity::Debug:
+      return "debug";
+  }
+  return "normal";  // Default fallback
+}
+
+/**
  * @brief Configuration options for embedded mode execution.
  * @see hegel()
  */
 struct HegelOptions {
   /// Number of test cases to run. Default: 100
   std::optional<uint64_t> test_cases;
-  /// Enable debug output from hegel subprocess
-  bool debug = false;
+  /// Verbosity level for hegel output. Default: Normal
+  Verbosity verbosity = Verbosity::Normal;
   /// Path to the hegel binary. Default: "hegel" (uses PATH)
   std::optional<std::string> hegel_path;
 };
