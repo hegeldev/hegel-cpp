@@ -66,10 +66,6 @@ jobs:
       - name: Run property tests
         run: ctest --test-dir build --output-on-failure
 
-      - name: Run hegel workout
-        run: |
-          hegel ./build/hegel_workout --test-cases 50 --no-tui
-
   # Test with older compilers for broader compatibility
   compatibility:
     name: Compatibility (${{ matrix.os }})

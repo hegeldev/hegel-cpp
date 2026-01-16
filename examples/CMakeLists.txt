@@ -2,10 +2,6 @@
 #
 # Example programs demonstrating property-based testing with hegel.
 
-# Simple examples
-add_executable(hegel_workout hegel_workout.cpp)
-target_link_libraries(hegel_workout PRIVATE hegel)
-
 add_executable(example_usage example_usage.cpp)
 target_link_libraries(example_usage PRIVATE hegel)
 
