@@ -560,12 +560,12 @@ auto make_one_of_schema(const std::vector<Generator<T>>& gens)
     if (!gen.schema()) return std::nullopt;
   }
 
-  nlohmann::json any_of = nlohmann::json::array();
+  nlohmann::json one_of = nlohmann::json::array();
   for (const auto& gen : gens) {
-    any_of.push_back(nlohmann::json::parse(*gen.schema()));
+    one_of.push_back(nlohmann::json::parse(*gen.schema()));
   }
 
-  nlohmann::json schema = {{"one_of", any_of}};
+  nlohmann::json schema = {{"one_of", one_of}};
   return schema.dump();
 }
 
