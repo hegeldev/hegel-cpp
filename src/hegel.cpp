@@ -412,8 +412,8 @@ Generator<bool> booleans() {
 Generator<std::string> text(TextParams params) {
   nlohmann::json schema = {{"type", "string"}};
 
-  if (params.min_size > 0) schema["min_length"] = params.min_size;
-  if (params.max_size) schema["max_length"] = *params.max_size;
+  if (params.min_size > 0) schema["min_size"] = params.min_size;
+  if (params.max_size) schema["max_size"] = *params.max_size;
 
   return from_schema<std::string>(schema.dump());
 }

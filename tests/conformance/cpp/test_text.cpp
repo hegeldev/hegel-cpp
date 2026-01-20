@@ -33,13 +33,13 @@ int main(int argc, char* argv[]) {
   }
 
   auto args = nlohmann::json::parse(argv[1]);
-  size_t min_length = args["min_length"].get<size_t>();
-  size_t max_length = args["max_length"].get<size_t>();
+  size_t min_size = args["min_size"].get<size_t>();
+  size_t max_size = args["max_size"].get<size_t>();
   int test_cases = conformance::get_test_cases();
 
   hegel::hegel(
       [=]() {
-        auto gen = hegel::st::text({.min_size = min_length, .max_size = max_length});
+        auto gen = hegel::st::text({.min_size = min_size, .max_size = max_size});
         auto value = gen.generate();
         conformance::write_metrics({{"length", count_codepoints(value)}});
       },
