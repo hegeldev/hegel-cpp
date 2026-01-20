@@ -270,18 +270,16 @@ Generator<T> floats(FloatsParams<T> params = {}) {
   nlohmann::json schema = {{"type", "number"}};
 
   if (params.min_value) {
+    schema["minimum"] = *params.min_value;
     if (params.exclude_min) {
-      schema["exclusiveMinimum"] = *params.min_value;
-    } else {
-      schema["minimum"] = *params.min_value;
+      schema["exclude_minimum"] = true;
     }
   }
 
   if (params.max_value) {
+    schema["maximum"] = *params.max_value;
     if (params.exclude_max) {
-      schema["exclusiveMaximum"] = *params.max_value;
-    } else {
-      schema["maximum"] = *params.max_value;
+      schema["exclude_maximum"] = true;
     }
   }
 
@@ -311,11 +309,12 @@ template <typename T>
 Generator<std::vector<T>> vectors(Generator<T> elements, VectorsParams params = {}) {
   if (elements.schema()) {
     nlohmann::json elem_schema = nlohmann::json::parse(*elements.schema());
-    nlohmann::json schema = {{"type", "array"}, {"items", elem_schema}};
+    // Use "set" type for unique, "list" type otherwise
+    std::string schema_type = params.unique ? "set" : "list";
+    nlohmann::json schema = {{"type", schema_type}, {"elements", elem_schema}};
 
-    if (params.min_size > 0) schema["minItems"] = params.min_size;
-    if (params.max_size) schema["maxItems"] = *params.max_size;
-    if (params.unique) schema["uniqueItems"] = true;
+    if (params.min_size > 0) schema["min_size"] = params.min_size;
+    if (params.max_size) schema["max_size"] = *params.max_size;
 
     return from_schema<std::vector<T>>(schema.dump());
   }
@@ -355,11 +354,10 @@ template <typename T>
 Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
   if (elements.schema()) {
     nlohmann::json elem_schema = nlohmann::json::parse(*elements.schema());
-    nlohmann::json schema = {
-        {"type", "array"}, {"items", elem_schema}, {"uniqueItems", true}};
+    nlohmann::json schema = {{"type", "set"}, {"elements", elem_schema}};
 
-    if (params.min_size > 0) schema["minItems"] = params.min_size;
-    if (params.max_size) schema["maxItems"] = *params.max_size;
+    if (params.min_size > 0) schema["min_size"] = params.min_size;
+    if (params.max_size) schema["max_size"] = *params.max_size;
 
     auto vec_gen = from_schema<std::vector<T>>(schema.dump());
 
@@ -409,12 +407,11 @@ template <typename K, typename V>
 Generator<std::map<K, V>> dictionaries(Generator<K> keys, Generator<V> values,
                                        DictionariesParams params = {}) {
   if (values.schema()) {
-    nlohmann::json schema = {
-        {"type", "object"},
-        {"additionalProperties", nlohmann::json::parse(*values.schema())}};
+    nlohmann::json schema = {{"type", "dict"},
+                             {"values", nlohmann::json::parse(*values.schema())}};
 
-    if (params.min_size > 0) schema["minProperties"] = params.min_size;
-    if (params.max_size) schema["maxProperties"] = *params.max_size;
+    if (params.min_size > 0) schema["min_size"] = params.min_size;
+    if (params.max_size) schema["max_size"] = *params.max_size;
 
     return from_schema<std::map<K, V>>(schema.dump());
   }
@@ -445,14 +442,10 @@ auto make_tuple_schema(const Gens&... gens) -> std::optional<std::string> {
   bool all_have_schemas = (gens.schema().has_value() && ...);
   if (!all_have_schemas) return std::nullopt;
 
-  nlohmann::json prefix_items = nlohmann::json::array();
-  (prefix_items.push_back(nlohmann::json::parse(*gens.schema())), ...);
+  nlohmann::json elements = nlohmann::json::array();
+  (elements.push_back(nlohmann::json::parse(*gens.schema())), ...);
 
-  nlohmann::json schema = {{"type", "array"},
-                           {"prefixItems", prefix_items},
-                           {"items", false},
-                           {"minItems", sizeof...(Gens)},
-                           {"maxItems", sizeof...(Gens)}};
+  nlohmann::json schema = {{"type", "tuple"}, {"elements", elements}};
 
   return schema.dump();
 }
