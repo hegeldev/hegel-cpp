@@ -412,68 +412,53 @@ Generator<bool> booleans() {
 Generator<std::string> text(TextParams params) {
   nlohmann::json schema = {{"type", "string"}};
 
-  if (params.min_size > 0) schema["minLength"] = params.min_size;
-  if (params.max_size) schema["maxLength"] = *params.max_size;
+  if (params.min_size > 0) schema["min_length"] = params.min_size;
+  if (params.max_size) schema["max_length"] = *params.max_size;
 
   return from_schema<std::string>(schema.dump());
 }
 
-Generator<std::string> from_regex(const std::string& pattern) {
-  // Ensure pattern is anchored for full-string matching
-  std::string anchored = pattern;
-  if (anchored.empty() || anchored.front() != '^') {
-    anchored = "^" + anchored;
+Generator<std::string> from_regex(const std::string& pattern, bool fullmatch) {
+  nlohmann::json schema = {{"type", "regex"}, {"pattern", pattern}};
+  if (fullmatch) {
+    schema["fullmatch"] = true;
   }
-  if (anchored.size() < 2 || anchored.back() != '$') {
-    anchored = anchored + "$";
-  }
-
-  nlohmann::json schema = {{"type", "string"}, {"pattern", anchored}};
   return from_schema<std::string>(schema.dump());
 }
 
 Generator<std::string> emails() {
-  return from_schema<std::string>(R"({"type": "string", "format": "email"})");
+  return from_schema<std::string>(R"({"type": "email"})");
 }
 
 Generator<std::string> domains(DomainsParams params) {
-  nlohmann::json schema = {
-      {"type", "string"}, {"format", "hostname"}, {"maxLength", params.max_length}};
+  nlohmann::json schema = {{"type", "domain"}, {"max_length", params.max_length}};
   return from_schema<std::string>(schema.dump());
 }
 
 Generator<std::string> urls() {
-  return from_schema<std::string>(R"({"type": "string", "format": "uri"})");
+  return from_schema<std::string>(R"({"type": "url"})");
 }
 
 Generator<std::string> ip_addresses(IpAddressesParams params) {
-  nlohmann::json schema = {{"type", "string"}};
-
   if (params.v == 4) {
-    schema["format"] = "ipv4";
+    return from_schema<std::string>(R"({"type": "ipv4"})");
   } else if (params.v == 6) {
-    schema["format"] = "ipv6";
+    return from_schema<std::string>(R"({"type": "ipv6"})");
   } else {
-    schema["anyOf"] =
-        nlohmann::json::array({{{"format", "ipv4"}}, {{"format", "ipv6"}}});
+    return from_schema<std::string>(R"({"one_of": [{"type": "ipv4"}, {"type": "ipv6"}]})");
   }
-
-  return from_schema<std::string>(schema.dump());
 }
 
 Generator<std::string> dates() {
-  nlohmann::json schema = {{"type", "string"}, {"format", "date"}};
-  return from_schema<std::string>(schema.dump());
+  return from_schema<std::string>(R"({"type": "date"})");
 }
 
 Generator<std::string> times() {
-  nlohmann::json schema = {{"type", "string"}, {"format", "time"}};
-  return from_schema<std::string>(schema.dump());
+  return from_schema<std::string>(R"({"type": "time"})");
 }
 
 Generator<std::string> datetimes() {
-  nlohmann::json schema = {{"type", "string"}, {"format", "date-time"}};
-  return from_schema<std::string>(schema.dump());
+  return from_schema<std::string>(R"({"type": "datetime"})");
 }
 
 }  // namespace st

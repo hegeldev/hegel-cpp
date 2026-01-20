@@ -144,9 +144,11 @@ Generator<std::string> text(TextParams params = {});
 /**
  * @brief Generate strings matching a regular expression.
  * @param pattern Regex pattern to match
+ * @param fullmatch If true, the entire string must match the pattern; if false (default),
+ *                  the string just needs to contain a match
  * @return Generator producing matching strings
  */
-Generator<std::string> from_regex(const std::string& pattern);
+Generator<std::string> from_regex(const std::string& pattern, bool fullmatch = false);
 
 /// Generate valid email addresses
 Generator<std::string> emails();
@@ -563,7 +565,7 @@ auto make_one_of_schema(const std::vector<Generator<T>>& gens)
     any_of.push_back(nlohmann::json::parse(*gen.schema()));
   }
 
-  nlohmann::json schema = {{"anyOf", any_of}};
+  nlohmann::json schema = {{"one_of", any_of}};
   return schema.dump();
 }
 
