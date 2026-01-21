@@ -176,10 +176,10 @@ void hegel(F&& test_fn, HegelOptions options = {}) {
           }
           detail::write_line(client_fd, result.dump());
 
-          detail::set_mode(Mode::Standalone);
+          detail::set_mode(Mode::External);
         } catch (...) {
           detail::clear_embedded_connection();
-          detail::set_mode(Mode::Standalone);
+          detail::set_mode(Mode::External);
         }
         close(client_fd);
       }

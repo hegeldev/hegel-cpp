@@ -3,3 +3,4 @@ build/
 .hegel
 __pycache__
 .claude/settings.local.json
+.cache

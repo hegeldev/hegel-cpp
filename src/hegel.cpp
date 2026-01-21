@@ -25,7 +25,7 @@ namespace hegel {
 
 namespace detail {
 
-static thread_local Mode current_mode_ = Mode::Standalone;
+static thread_local Mode current_mode_ = Mode::External;
 static thread_local bool is_last_run_ = false;
 static thread_local int embedded_fd_ = -1;
 static thread_local std::string embedded_read_buffer_;
@@ -78,7 +78,7 @@ Mode current_mode() { return detail::current_mode_; }
 bool is_last_run() { return detail::is_last_run_; }
 
 void note(const std::string& message) {
-  if (detail::current_mode_ == Mode::Standalone) {
+  if (detail::current_mode_ == Mode::External) {
     std::cerr << message << std::endl;
   } else if (detail::is_last_run_) {
     std::cerr << message << std::endl;
@@ -353,7 +353,7 @@ std::string communicate_with_socket(const std::string& schema) {
     }
   }
 
-  // Standalone mode: manage connection locally
+  // External mode: manage connection locally
   bool need_connection = !is_connected();
   if (need_connection) {
     open_connection();

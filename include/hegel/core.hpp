@@ -32,13 +32,13 @@ inline constexpr int ASSERTION_FAILURE_EXIT_CODE = 134;
  */
 enum class Mode {
   /**
-   * @brief Standalone mode - test binary manages its own lifecycle.
+   * @brief External mode - test binary manages its own lifecycle.
    *
    * In this mode, the Hegel CLI is running externally and connects via
    * a Unix socket specified by the HEGEL_SOCKET environment variable.
    * The test binary is invoked repeatedly by Hegel.
    */
-  Standalone,
+  External,
   /**
    * @brief Embedded mode - test binary spawns Hegel as a subprocess.
    *
@@ -51,7 +51,7 @@ enum class Mode {
 
 /**
  * @brief Get the current execution mode.
- * @return The current Mode (Standalone or Embedded)
+ * @return The current Mode (External or Embedded)
  */
 Mode current_mode();
 
@@ -68,7 +68,7 @@ bool is_last_run();
 /**
  * @brief Print a note message for debugging.
  *
- * In standalone mode, always prints to stderr.
+ * In external mode, always prints to stderr.
  * In embedded mode, only prints on the last run to avoid cluttering
  * output during the many test iterations.
  *
@@ -150,7 +150,7 @@ class HegelReject : public std::exception {
  * @brief Stop the current test case immediately.
  *
  * In embedded mode, throws HegelReject which is caught by hegel().
- * In standalone mode, exits with the HEGEL_REJECT_CODE exit code.
+ * In external mode, exits with the HEGEL_REJECT_CODE exit code.
  *
  * @note This function never returns.
  */
