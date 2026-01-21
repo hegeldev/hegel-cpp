@@ -1,6 +1,6 @@
 # Hegel C++ SDK
 
-Hypothesis-like testing for C++20.
+Hegel C++ SDK.
 
 ## Installation
 
@@ -40,23 +40,39 @@ just format
 ## Quick Start
 
 ```cpp
-#include "hegel.hpp"
-
-// Define a struct - reflect-cpp will derive the schema
-struct Person {
-    std::string name;
-    int age;
-};
+#include "hegel/hegel.hpp"
 
 int main() {
-    // Generate a Person with automatic schema derivation
-    auto gen = hegel::default_generator<Person>();
-    Person p = gen.generate();
+    hegel::hegel([]() {
+        using namespace hegel::st;
+        auto x = integers<int>().generate();
+        auto y = integers<int>().generate();
 
-    // Or use explicit strategies
-    using namespace hegel::st;
-    auto int_gen = integers<int>({.min_value = 0, .max_value = 100});
-    int value = int_gen.generate();
+        if (x + y != y + x) {
+            throw std::runtime_error("commutativity violated");
+        }
+    });
+
+    return 0;
+}
+```
+
+## Configuration
+
+Use `HegelOptions` for more control:
+
+```cpp
+#include "hegel/hegel.hpp"
+
+int main() {
+    hegel::hegel([]() {
+        using namespace hegel::st;
+        auto n = integers<int>({.min_value = 0, .max_value = 100}).generate();
+
+        if (n < 0 || n > 100) {
+            throw std::runtime_error("out of bounds");
+        }
+    }, {.test_cases = 500, .verbosity = hegel::Verbosity::Verbose});
 
     return 0;
 }
@@ -74,8 +90,10 @@ struct Point {
     double y;
 };
 
-auto gen = hegel::default_generator<Point>();
-Point p = gen.generate();
+hegel::hegel([]() {
+    auto gen = hegel::default_generator<Point>();
+    Point p = gen.generate();
+});
 ```
 
 ### Strategies
@@ -85,125 +103,154 @@ All strategies are in the `hegel::st` namespace.
 #### Primitives
 
 ```cpp
-using namespace hegel::st;
+hegel::hegel([]() {
+    using namespace hegel::st;
 
-// Null values
-auto null_gen = nulls();
+    // Null values
+    auto n = nulls().generate();
 
-// Booleans
-auto bool_gen = booleans();
+    // Booleans
+    auto b = booleans().generate();
 
-// Constant values
-auto const_gen = just(42);
-auto str_gen = just("hello");
+    // Constant values
+    auto c = just(42).generate();
+    auto s = just("hello").generate();
+});
 ```
 
 #### Numbers
 
 ```cpp
-// Integers with optional bounds (uses type limits by default)
-auto int_gen = integers<int>();
-auto bounded_int = integers<int>({.min_value = 0, .max_value = 100});
-auto min_only = integers<int>({.min_value = 0});
+hegel::hegel([]() {
+    using namespace hegel::st;
 
-// Floating point
-auto float_gen = floats<double>();
-auto bounded_float = floats<double>({
-    .min_value = 0.0,
-    .max_value = 1.0,
-    .exclude_min = true,  // exclusive bounds
-    .exclude_max = true
+    // Integers with optional bounds (uses type limits by default)
+    auto i = integers<int>().generate();
+    auto bounded = integers<int>({.min_value = 0, .max_value = 100}).generate();
+    auto min_only = integers<int>({.min_value = 0}).generate();
+
+    // Floating point
+    auto f = floats<double>().generate();
+    auto bounded_f = floats<double>({
+        .min_value = 0.0,
+        .max_value = 1.0,
+        .exclude_min = true,  // exclusive bounds
+        .exclude_max = true
+    }).generate();
 });
 ```
 
 #### Strings
 
 ```cpp
-// Text with optional length constraints
-auto text_gen = text();
-auto bounded_text = text({.min_size = 1, .max_size = 100});
+hegel::hegel([]() {
+    using namespace hegel::st;
 
-// Regex patterns
-auto pattern_gen = from_regex("[a-z]{3}-[0-9]{3}");
+    // Text with optional length constraints
+    auto s = text().generate();
+    auto bounded = text({.min_size = 1, .max_size = 100}).generate();
 
-// Format strings
-auto email_gen = emails();
-auto url_gen = urls();
-auto domain_gen = domains({.max_length = 63});
-auto ip_gen = ip_addresses();          // IPv4 or IPv6
-auto ipv4_gen = ip_addresses({.v = 4}); // IPv4 only
-auto ipv6_gen = ip_addresses({.v = 6}); // IPv6 only
+    // Regex patterns
+    auto pattern = from_regex("[a-z]{3}-[0-9]{3}").generate();
 
-// Date/time (ISO 8601)
-auto date_gen = dates();      // YYYY-MM-DD
-auto time_gen = times();      // HH:MM:SS
-auto datetime_gen = datetimes();
+    // Format strings
+    auto email = emails().generate();
+    auto url = urls().generate();
+    auto domain = domains({.max_length = 63}).generate();
+    auto ip = ip_addresses().generate();          // IPv4 or IPv6
+    auto ipv4 = ip_addresses({.v = 4}).generate(); // IPv4 only
+    auto ipv6 = ip_addresses({.v = 6}).generate(); // IPv6 only
+
+    // Date/time (ISO 8601)
+    auto date = dates().generate();      // YYYY-MM-DD
+    auto time = times().generate();      // HH:MM:SS
+    auto datetime = datetimes().generate();
+});
 ```
 
 #### Collections
 
 ```cpp
-// Vectors
-auto vec_gen = vectors(integers<int>());
-auto bounded_vec = vectors(integers<int>(), {
-    .min_size = 1,
-    .max_size = 10,
-    .unique = true  // no duplicates
-});
+hegel::hegel([]() {
+    using namespace hegel::st;
 
-// Sets
-auto set_gen = sets(integers<int>(), {.min_size = 1, .max_size = 5});
+    // Vectors
+    auto vec = vectors(integers<int>()).generate();
+    auto bounded = vectors(integers<int>(), {
+        .min_size = 1,
+        .max_size = 10,
+        .unique = true  // no duplicates
+    }).generate();
 
-// Dictionaries (string keys only, JSON limitation)
-auto dict_gen = dictionaries(text(), integers<int>(), {
-    .min_size = 1,
-    .max_size = 3
+    // Sets
+    auto set = sets(integers<int>(), {.min_size = 1, .max_size = 5}).generate();
+
+    // Dictionaries (string keys only, JSON limitation)
+    auto dict = dictionaries(text(), integers<int>(), {
+        .min_size = 1,
+        .max_size = 3
+    }).generate();
 });
 ```
 
 #### Tuples
 
 ```cpp
-auto pair_gen = tuples(integers<int>(), text());
-auto triple_gen = tuples(booleans(), integers<int>(), floats<double>());
+hegel::hegel([]() {
+    using namespace hegel::st;
+
+    auto pair = tuples(integers<int>(), text()).generate();
+    auto triple = tuples(booleans(), integers<int>(), floats<double>()).generate();
+});
 ```
 
 #### Combinators
 
 ```cpp
-// Sample from fixed set
-auto color_gen = sampled_from({"red", "green", "blue"});
-auto num_gen = sampled_from({1, 2, 3, 4, 5});
+hegel::hegel([]() {
+    using namespace hegel::st;
 
-// Choose from multiple generators
-auto range_gen = one_of({
-    integers<int>({.min_value = 0, .max_value = 10}),
-    integers<int>({.min_value = 100, .max_value = 110})
+    // Sample from fixed set
+    auto color = sampled_from({"red", "green", "blue"}).generate();
+    auto num = sampled_from({1, 2, 3, 4, 5}).generate();
+
+    // Choose from multiple generators
+    auto n = one_of({
+        integers<int>({.min_value = 0, .max_value = 10}),
+        integers<int>({.min_value = 100, .max_value = 110})
+    }).generate();
+
+    // Optional values
+    auto opt = optional_(integers<int>()).generate();
+
+    // Variants
+    auto var = variant_(integers<int>(), text(), booleans()).generate();
 });
-
-// Optional values
-auto opt_gen = optional_(integers<int>());
-
-// Variants
-auto var_gen = variant_(integers<int>(), text(), booleans());
 ```
 
 ### Combinators: map, flatmap, filter
 
 ```cpp
-// Transform values
-auto squared = integers<int>({.min_value = 1, .max_value = 10})
-    .map([](int x) { return x * x; });
+hegel::hegel([]() {
+    using namespace hegel::st;
 
-// Filter values (rejects after max_attempts failures)
-auto even = integers<int>({.min_value = 0, .max_value = 100})
-    .filter([](int x) { return x % 2 == 0; }, 10);
+    // Transform values
+    auto squared = integers<int>({.min_value = 1, .max_value = 10})
+        .map([](int x) { return x * x; })
+        .generate();
 
-// Dependent generation
-auto sized_string = integers<size_t>({.min_value = 1, .max_value = 10})
-    .flatmap([](size_t len) {
-        return text({.min_size = len, .max_size = len});
-    });
+    // Filter values (rejects after max_attempts failures)
+    auto even = integers<int>({.min_value = 0, .max_value = 100})
+        .filter([](int x) { return x % 2 == 0; }, 10)
+        .generate();
+
+    // Dependent generation
+    auto sized_string = integers<size_t>({.min_value = 1, .max_value = 10})
+        .flatmap([](size_t len) {
+            return text({.min_size = len, .max_size = len});
+        })
+        .generate();
+});
 ```
 
 ### Object Construction
@@ -214,17 +261,21 @@ struct Rectangle {
     int height;
 };
 
-// Positional construction (calls constructor)
-auto rect_gen = builds<Rectangle>(
-    integers<int>({.min_value = 1, .max_value = 100}),
-    integers<int>({.min_value = 1, .max_value = 100})
-);
+hegel::hegel([]() {
+    using namespace hegel::st;
 
-// Named aggregate initialization
-auto rect_gen2 = builds_agg<Rectangle>(
-    field<&Rectangle::width>(integers<int>({.min_value = 1, .max_value = 100})),
-    field<&Rectangle::height>(integers<int>({.min_value = 1, .max_value = 100}))
-);
+    // Positional construction (calls constructor)
+    auto rect = builds<Rectangle>(
+        integers<int>({.min_value = 1, .max_value = 100}),
+        integers<int>({.min_value = 1, .max_value = 100})
+    ).generate();
+
+    // Named aggregate initialization
+    auto rect2 = builds_agg<Rectangle>(
+        field<&Rectangle::width>(integers<int>({.min_value = 1, .max_value = 100})),
+        field<&Rectangle::height>(integers<int>({.min_value = 1, .max_value = 100}))
+    ).generate();
+});
 ```
 
 ### Assumptions
@@ -232,8 +283,12 @@ auto rect_gen2 = builds_agg<Rectangle>(
 Use `assume()` when generated data doesn't meet preconditions:
 
 ```cpp
-auto person = person_gen.generate();
-hegel::assume(person.age >= 18);
+hegel::hegel([]() {
+    auto person = person_gen.generate();
+    hegel::assume(person.age >= 18);
+
+    // Test logic for adults only...
+});
 ```
 
 This tells Hegel to try different input data rather than counting as a test failure.
