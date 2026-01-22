@@ -12,8 +12,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install just
-        run: sudo apt-get install -y just
+      - name: Install tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y just
+
+          # all else equal, we'd prefer to get this from apt-get. But the version ubuntu
+          # carries is pretty old; this lets us install the latest.
+          pip install clang-format
       - name: Check formatting
         run: |
           just format
