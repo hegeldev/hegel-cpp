@@ -12,12 +12,12 @@ int main(int argc, char* argv[]) {
   }
 
   auto args = nlohmann::json::parse(argv[1]);
-  std::optional<int> min_value =
-      args["min_value"].is_null() ? std::nullopt
-                                  : std::optional<int>(args["min_value"].get<int>());
-  std::optional<int> max_value =
-      args["max_value"].is_null() ? std::nullopt
-                                  : std::optional<int>(args["max_value"].get<int>());
+  std::optional<int> min_value = args["min_value"].is_null()
+                                     ? std::nullopt
+                                     : std::optional<int>(args["min_value"].get<int>());
+  std::optional<int> max_value = args["max_value"].is_null()
+                                     ? std::nullopt
+                                     : std::optional<int>(args["max_value"].get<int>());
   int test_cases = conformance::get_test_cases();
 
   hegel::hegel(
