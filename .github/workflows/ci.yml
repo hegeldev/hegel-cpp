@@ -32,18 +32,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # GCC (uses libstdc++ by default)
-          - compiler: g++
-            cc: gcc
-            cxx: g++
+          # GCC 13 (with libstdc++)
+          - compiler: g++-13
+            cc: gcc-13
+            cxx: g++-13
 
-          # Clang with libstdc++ (default on Linux)
+          # GCC 11 (with libstdc++)
+          - compiler: g++-11
+            cc: gcc-11
+            cxx: g++-11
+            packages: g++-11
+
+          # Clang (with libstdc++)
           - compiler: clang++-18
             cc: clang-18
             cxx: clang++-18
             packages: clang-18
 
-          # Clang with libc++
+          # Clang (libc++)
           - compiler: clang++-18
             cc: clang-18
             cxx: clang++-18
@@ -88,42 +94,4 @@ jobs:
         run: cmake --build build -j$(nproc)
 
       - name: Run property tests
-        run: ctest --test-dir build --output-on-failure
-
-  # Test with older compilers for broader compatibility
-  compatibility:
-    name: Compatibility (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, ubuntu-24.04]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HEGEL_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-
-      - name: Install hegel
-        run: |
-          pip install git+ssh://git@github.com/antithesishq/hegel.git
-
-      - name: Configure and build
-        run: |
-          cmake -B build
-          cmake --build build -j$(nproc)
-
-      - name: Run tests
         run: ctest --test-dir build --output-on-failure
