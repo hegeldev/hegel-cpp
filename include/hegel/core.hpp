@@ -9,6 +9,7 @@
 #ifndef HEGEL_CORE_HPP
 #define HEGEL_CORE_HPP
 
+#include <cstdint>
 #include <optional>
 #include <stdexcept>
 #include <string>
