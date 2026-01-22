@@ -95,3 +95,9 @@ jobs:
 
       - name: Run property tests
         run: ctest --test-dir build --output-on-failure
+
+      - name: Run conformance tests
+        working-directory: tests/conformance
+        run: |
+          pip install pytest
+          pytest test_conformance.py -v
