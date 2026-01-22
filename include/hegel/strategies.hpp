@@ -512,7 +512,7 @@ Generator<T> sampled_from(std::vector<T> elements) {
 
   if constexpr (std::is_same_v<T, bool> || std::is_same_v<T, std::nullptr_t> ||
                 std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
-    nlohmann::json schema = {{"enum", elements}};
+    nlohmann::json schema = {{"sampled_from", elements}};
     return from_schema<T>(schema.dump());
   } else {
     auto index_gen =
