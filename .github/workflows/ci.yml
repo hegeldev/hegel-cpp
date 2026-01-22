@@ -7,6 +7,18 @@ on:
     branches: [main]
 
 jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install just
+        run: sudo apt-get install -y just
+      - name: Check formatting
+        run: |
+          just format
+          git diff --exit-code
+
   build-and-test:
     name: ${{ matrix.compiler }} ${{ matrix.stdlib && format('({0})', matrix.stdlib) || '' }}
     runs-on: ubuntu-24.04
@@ -49,9 +61,16 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HEGEL_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
       - name: Install hegel
         run: |
-          pip install git+https://github.com/antithesishq/hegel.git
+          pip install git+ssh://git@github.com/antithesishq/hegel.git
 
       - name: Configure CMake
         run: |
@@ -85,9 +104,16 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HEGEL_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
       - name: Install hegel
         run: |
-          pip install git+https://github.com/antithesishq/hegel.git
+          pip install git+ssh://git@github.com/antithesishq/hegel.git
 
       - name: Configure and build
         run: |
