@@ -7,10 +7,8 @@
 #include <hegel/generators.hpp>
 #include <hegel/grouping.hpp>
 #include <hegel/strategies.hpp>
-
-#include <nlohmann/json.hpp>
-
 #include <iostream>
+#include <nlohmann/json.hpp>
 
 // POSIX headers
 #include <sys/socket.h>
@@ -435,9 +433,7 @@ Generator<std::string> domains(DomainsParams params) {
   return from_schema<std::string>(schema.dump());
 }
 
-Generator<std::string> urls() {
-  return from_schema<std::string>(R"({"type": "url"})");
-}
+Generator<std::string> urls() { return from_schema<std::string>(R"({"type": "url"})"); }
 
 Generator<std::string> ip_addresses(IpAddressesParams params) {
   if (params.v == 4) {
@@ -445,7 +441,8 @@ Generator<std::string> ip_addresses(IpAddressesParams params) {
   } else if (params.v == 6) {
     return from_schema<std::string>(R"({"type": "ipv6"})");
   } else {
-    return from_schema<std::string>(R"({"one_of": [{"type": "ipv4"}, {"type": "ipv6"}]})");
+    return from_schema<std::string>(
+        R"({"one_of": [{"type": "ipv4"}, {"type": "ipv6"}]})");
   }
 }
 

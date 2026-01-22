@@ -9,9 +9,8 @@
 #ifndef HEGEL_DETAIL_HPP
 #define HEGEL_DETAIL_HPP
 
-#include <string>
-
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "core.hpp"
 

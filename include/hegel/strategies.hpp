@@ -11,6 +11,7 @@
 
 #include <limits>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <set>
 #include <string>
@@ -18,8 +19,6 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "core.hpp"
 #include "generators.hpp"
@@ -73,8 +72,8 @@ struct FloatsParams {
  * @brief Parameters for text() strategy.
  */
 struct TextParams {
-  size_t min_size = 0;               ///< Minimum string length
-  std::optional<size_t> max_size;    ///< Maximum string length. Default: no limit
+  size_t min_size = 0;             ///< Minimum string length
+  std::optional<size_t> max_size;  ///< Maximum string length. Default: no limit
 };
 
 /**
@@ -95,25 +94,25 @@ struct IpAddressesParams {
  * @brief Parameters for vectors() strategy.
  */
 struct VectorsParams {
-  size_t min_size = 0;               ///< Minimum vector size
-  std::optional<size_t> max_size;    ///< Maximum vector size. Default: 100
-  bool unique = false;               ///< If true, all elements must be unique
+  size_t min_size = 0;             ///< Minimum vector size
+  std::optional<size_t> max_size;  ///< Maximum vector size. Default: 100
+  bool unique = false;             ///< If true, all elements must be unique
 };
 
 /**
  * @brief Parameters for sets() strategy.
  */
 struct SetsParams {
-  size_t min_size = 0;               ///< Minimum set size
-  std::optional<size_t> max_size;    ///< Maximum set size. Default: 20
+  size_t min_size = 0;             ///< Minimum set size
+  std::optional<size_t> max_size;  ///< Maximum set size. Default: 20
 };
 
 /**
  * @brief Parameters for dictionaries() strategy.
  */
 struct DictionariesParams {
-  size_t min_size = 0;               ///< Minimum number of entries
-  std::optional<size_t> max_size;    ///< Maximum number of entries. Default: 20
+  size_t min_size = 0;             ///< Minimum number of entries
+  std::optional<size_t> max_size;  ///< Maximum number of entries. Default: 20
 };
 
 // =============================================================================
@@ -144,8 +143,8 @@ Generator<std::string> text(TextParams params = {});
 /**
  * @brief Generate strings matching a regular expression.
  * @param pattern Regex pattern to match
- * @param fullmatch If true, the entire string must match the pattern; if false (default),
- *                  the string just needs to contain a match
+ * @param fullmatch If true, the entire string must match the pattern; if false
+ * (default), the string just needs to contain a match
  * @return Generator producing matching strings
  */
 Generator<std::string> from_regex(const std::string& pattern, bool fullmatch = false);
@@ -725,7 +724,7 @@ Generator<T> builds(Gens... gens) {
 template <auto MemberPtr, typename Gen>
 struct Field {
   static constexpr auto member_ptr = MemberPtr;  ///< The member pointer
-  Gen generator;                                  ///< Generator for the field value
+  Gen generator;                                 ///< Generator for the field value
 };
 
 /**

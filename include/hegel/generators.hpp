@@ -11,11 +11,10 @@
 
 #include <functional>
 #include <optional>
-#include <string>
-#include <type_traits>
-
 #include <rfl.hpp>
 #include <rfl/json.hpp>
+#include <string>
+#include <type_traits>
 
 #include "core.hpp"
 #include "detail.hpp"
@@ -329,8 +328,9 @@ DefaultGenerator<T> default_generator() {
  * schema derivation.
  *
  * @code{.cpp}
- * auto gen = hegel::from_schema<int>(R"({"type":"integer","minimum":0,"maximum":100})");
- * int value = gen.generate();
+ * auto gen =
+ * hegel::from_schema<int>(R"({"type":"integer","minimum":0,"maximum":100})"); int value
+ * = gen.generate();
  * @endcode
  *
  * @tparam T The type to deserialize generated values into
