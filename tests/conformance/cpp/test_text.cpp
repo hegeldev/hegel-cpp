@@ -1,5 +1,6 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <string>
 
 #include "hegel/hegel.hpp"
@@ -34,7 +35,10 @@ int main(int argc, char* argv[]) {
 
   auto args = nlohmann::json::parse(argv[1]);
   size_t min_size = args["min_size"].get<size_t>();
-  size_t max_size = args["max_size"].get<size_t>();
+  std::optional<size_t> max_size =
+      args["max_size"].is_null()
+          ? std::nullopt
+          : std::optional<size_t>(args["max_size"].get<size_t>());
   int test_cases = conformance::get_test_cases();
 
   hegel::hegel(

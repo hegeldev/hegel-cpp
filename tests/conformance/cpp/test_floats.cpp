@@ -1,5 +1,7 @@
+#include <cmath>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <optional>
 
 #include "hegel/hegel.hpp"
 #include "metrics.hpp"
@@ -11,8 +13,14 @@ int main(int argc, char* argv[]) {
   }
 
   auto args = nlohmann::json::parse(argv[1]);
-  double min_value = args["min_value"].get<double>();
-  double max_value = args["max_value"].get<double>();
+  std::optional<double> min_value =
+      args["min_value"].is_null()
+          ? std::nullopt
+          : std::optional<double>(args["min_value"].get<double>());
+  std::optional<double> max_value =
+      args["max_value"].is_null()
+          ? std::nullopt
+          : std::optional<double>(args["max_value"].get<double>());
   bool exclude_min = args.value("exclude_min", false);
   bool exclude_max = args.value("exclude_max", false);
   int test_cases = conformance::get_test_cases();
@@ -26,7 +34,11 @@ int main(int argc, char* argv[]) {
             .exclude_max = exclude_max,
         });
         auto value = gen.generate();
-        conformance::write_metrics({{"value", value}});
+        conformance::write_metrics({
+            {"value", value},
+            {"is_nan", std::isnan(value)},
+            {"is_infinite", std::isinf(value)},
+        });
       },
       hegel::HegelOptions{.test_cases = test_cases});
 

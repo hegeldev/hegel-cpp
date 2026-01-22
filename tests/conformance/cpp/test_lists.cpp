@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <optional>
 
 #include "hegel/hegel.hpp"
 #include "metrics.hpp"
@@ -12,18 +13,24 @@ int main(int argc, char* argv[]) {
   }
 
   auto args = nlohmann::json::parse(argv[1]);
-  int min_size = args["min_size"].get<int>();
-  int max_size = args["max_size"].get<int>();
-  int min_value = args["min_value"].get<int>();
-  int max_value = args["max_value"].get<int>();
+  size_t min_size = args["min_size"].get<size_t>();
+  std::optional<size_t> max_size =
+      args["max_size"].is_null()
+          ? std::nullopt
+          : std::optional<size_t>(args["max_size"].get<size_t>());
+  std::optional<int> min_value =
+      args["min_value"].is_null() ? std::nullopt
+                                  : std::optional<int>(args["min_value"].get<int>());
+  std::optional<int> max_value =
+      args["max_value"].is_null() ? std::nullopt
+                                  : std::optional<int>(args["max_value"].get<int>());
   int test_cases = conformance::get_test_cases();
 
   hegel::hegel(
       [=]() {
         auto gen = hegel::st::vectors(
             hegel::st::integers<int>({.min_value = min_value, .max_value = max_value}),
-            {.min_size = static_cast<size_t>(min_size),
-             .max_size = static_cast<size_t>(max_size)});
+            {.min_size = min_size, .max_size = max_size});
 
         auto vec = gen.generate();
 
