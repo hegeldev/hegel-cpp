@@ -25,7 +25,7 @@ jobs:
           git diff --exit-code
 
   build-and-test:
-    name: ${{ matrix.compiler }} ${{ matrix.stdlib && format('({0})', matrix.stdlib) || '' }}
+    name: ${{ matrix.compiler }} ${{ matrix.stdlib && format('(with {0})', matrix.stdlib) || '' }}
     runs-on: ubuntu-24.04
 
     strategy:
@@ -49,7 +49,7 @@ jobs:
             cxx: clang++-18
             packages: clang-18
 
-          # Clang (libc++)
+          # Clang (with libc++)
           - compiler: clang++-18
             cc: clang-18
             cxx: clang++-18
