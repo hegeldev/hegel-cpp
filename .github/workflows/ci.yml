@@ -8,7 +8,7 @@ on:
 
 jobs:
   format:
-    name: Format
+    name: format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
