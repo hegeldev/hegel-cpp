@@ -1,11 +1,3 @@
-# Examples
-#
-# Example programs demonstrating property-based testing with hegel.
-
-add_executable(example_usage example_usage.cpp)
-target_link_libraries(example_usage PRIVATE hegel)
-
-# Systems Under Test (SUTs) - data structures with property tests
 set(SUTS
     fraction
     bounded_queue
