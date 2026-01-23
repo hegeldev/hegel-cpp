@@ -167,9 +167,13 @@ if(HEGEL_BUILD_TESTS)
     add_executable(test_settings tests/test_settings.cpp)
     target_link_libraries(test_settings PRIVATE hegel GTest::gtest_main)
 
+    add_executable(test_base64 tests/test_base64.cpp)
+    target_link_libraries(test_base64 PRIVATE hegel GTest::gtest_main)
+
     include(GoogleTest)
     gtest_discover_tests(property_tests)
     gtest_discover_tests(test_settings)
+    gtest_discover_tests(test_base64)
 
     add_executable(gtest_failure_test tests/gtest_failure_test.cpp)
     target_link_libraries(gtest_failure_test PRIVATE hegel GTest::gtest)

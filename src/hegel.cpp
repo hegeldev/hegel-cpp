@@ -4,6 +4,7 @@
 
 #include <hegel/core.hpp>
 #include <hegel/detail.hpp>
+#include <hegel/detail/base64.hpp>
 #include <hegel/generators.hpp>
 #include <hegel/grouping.hpp>
 #include <hegel/strategies.hpp>
@@ -416,39 +417,6 @@ Generator<std::string> text(TextParams params) {
   return from_schema<std::string>(schema.dump());
 }
 
-namespace {
-int8_t base64_char_value(char c) {
-  if (c >= 'A' && c <= 'Z') return c - 'A';
-  if (c >= 'a' && c <= 'z') return c - 'a' + 26;
-  if (c >= '0' && c <= '9') return c - '0' + 52;
-  if (c == '+') return 62;
-  if (c == '/') return 63;
-  return -1;
-}
-
-std::vector<uint8_t> base64_decode(const std::string& input) {
-  std::vector<uint8_t> result;
-  result.reserve((input.size() * 3) / 4);
-
-  for (size_t i = 0; i + 4 <= input.size(); i += 4) {
-    int8_t a = base64_char_value(input[i]);
-    int8_t b = base64_char_value(input[i + 1]);
-    int8_t c = base64_char_value(input[i + 2]);
-    int8_t d = base64_char_value(input[i + 3]);
-
-    // 4 base64 chars (4x6=24 bits) -> 3 bytes (3x8=24 bits)
-    result.push_back((a << 2) | (b >> 4));
-    if (input[i + 2] != '=') {
-      result.push_back(((b & 0x0F) << 4) | (c >> 2));
-    }
-    if (input[i + 3] != '=') {
-      result.push_back(((c & 0x03) << 6) | d);
-    }
-  }
-
-  return result;
-}
-}  // namespace
 
 Generator<std::vector<uint8_t>> binary(BinaryParams params) {
   nlohmann::json schema = {{"type", "binary"}};
@@ -460,7 +428,7 @@ Generator<std::vector<uint8_t>> binary(BinaryParams params) {
   return Generator<std::vector<uint8_t>>(
       [schema_str]() -> std::vector<uint8_t> {
         std::string b64 = from_schema<std::string>(schema_str).generate();
-        return base64_decode(b64);
+        return ::hegel::detail::base64_decode(b64);
       },
       schema_str);
 }
