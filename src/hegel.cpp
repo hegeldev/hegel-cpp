@@ -417,7 +417,6 @@ Generator<std::string> text(TextParams params) {
   return from_schema<std::string>(schema.dump());
 }
 
-
 Generator<std::vector<uint8_t>> binary(BinaryParams params) {
   nlohmann::json schema = {{"type", "binary"}};
 
