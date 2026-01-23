@@ -77,6 +77,14 @@ struct TextParams {
 };
 
 /**
+ * @brief Parameters for binary() strategy.
+ */
+struct BinaryParams {
+  size_t min_size = 0;             ///< Minimum size in bytes
+  std::optional<size_t> max_size;  ///< Maximum size in bytes. Default: no limit
+};
+
+/**
  * @brief Parameters for domains() strategy.
  */
 struct DomainsParams {
@@ -139,6 +147,13 @@ Generator<bool> booleans();
  * @return Generator producing random strings
  */
 Generator<std::string> text(TextParams params = {});
+
+/**
+ * @brief Generate random binary data (byte sequences).
+ * @param params Size constraints
+ * @return Generator producing byte vectors
+ */
+Generator<std::vector<uint8_t>> binary(BinaryParams params = {});
 
 /**
  * @brief Generate strings matching a regular expression.

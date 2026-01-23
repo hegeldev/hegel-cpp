@@ -17,6 +17,10 @@ add_executable(test_text test_text.cpp)
 target_link_libraries(test_text PRIVATE hegel)
 target_include_directories(test_text PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
+add_executable(test_binary test_binary.cpp)
+target_link_libraries(test_binary PRIVATE hegel)
+target_include_directories(test_binary PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_executable(test_lists test_lists.cpp)
 target_link_libraries(test_lists PRIVATE hegel)
 target_include_directories(test_lists PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
