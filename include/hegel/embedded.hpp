@@ -144,7 +144,6 @@ void hegel(F&& test_fn, HegelOptions options = {}) {
           bool is_last = handshake.value("is_last_run", false);
 
           // Set thread-local state
-          detail::set_mode(Mode::Embedded);
           detail::set_is_last_run(is_last);
           detail::set_embedded_connection(client_fd);
 
@@ -176,11 +175,8 @@ void hegel(F&& test_fn, HegelOptions options = {}) {
             result["message"] = error_message;
           }
           detail::write_line(client_fd, result.dump());
-
-          detail::set_mode(Mode::External);
         } catch (...) {
           detail::clear_embedded_connection();
-          detail::set_mode(Mode::External);
         }
         close(client_fd);
       }

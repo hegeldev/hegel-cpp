@@ -21,8 +21,6 @@
  * @endcode
  *
  * @section env Environment Variables
- * - `HEGEL_SOCKET`: Path to the Unix socket for generation requests
- * - `HEGEL_REJECT_CODE`: Exit code to use when assume(false) is called
  * - `HEGEL_DEBUG`: If set, prints REQUEST/RESPONSE JSON to stderr
  *
  * @section deps Dependencies

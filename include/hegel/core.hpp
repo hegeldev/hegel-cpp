@@ -23,38 +23,8 @@ namespace hegel {
 inline constexpr int ASSERTION_FAILURE_EXIT_CODE = 134;
 
 // =============================================================================
-// Mode and State
+// State
 // =============================================================================
-
-/**
- * @brief Execution mode for the Hegel SDK.
- *
- * Determines how the SDK communicates with the Hegel test runner.
- */
-enum class Mode {
-  /**
-   * @brief External mode - test binary manages its own lifecycle.
-   *
-   * In this mode, the Hegel CLI is running externally and connects via
-   * a Unix socket specified by the HEGEL_SOCKET environment variable.
-   * The test binary is invoked repeatedly by Hegel.
-   */
-  External,
-  /**
-   * @brief Embedded mode - test binary spawns Hegel as a subprocess.
-   *
-   * In this mode, the test binary uses hegel() to run property tests.
-   * The binary spawns Hegel as a subprocess and communicates over a
-   * Unix socket it creates. This is the recommended mode for most use cases.
-   */
-  Embedded
-};
-
-/**
- * @brief Get the current execution mode.
- * @return The current Mode (External or Embedded)
- */
-Mode current_mode();
 
 /**
  * @brief Check if this is the last test run.
@@ -69,9 +39,8 @@ bool is_last_run();
 /**
  * @brief Print a note message for debugging.
  *
- * In external mode, always prints to stderr.
- * In embedded mode, only prints on the last run to avoid cluttering
- * output during the many test iterations.
+ * Only prints on the last run (final replay for counterexample output)
+ * to avoid cluttering output during the many test iterations.
  *
  * @param message The message to print
  */
@@ -150,8 +119,7 @@ class HegelReject : public std::exception {
 /**
  * @brief Stop the current test case immediately.
  *
- * In embedded mode, throws HegelReject which is caught by hegel().
- * In external mode, exits with the HEGEL_REJECT_CODE exit code.
+ * Throws HegelReject which is caught by hegel().
  *
  * @note This function never returns.
  */
