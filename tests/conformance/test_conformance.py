@@ -3,6 +3,7 @@ from pathlib import Path
 from hegel.conformance import (
     BinaryConformance,
     BooleanConformance,
+    DictConformance,
     FloatConformance,
     IntegerConformance,
     ListConformance,
@@ -31,6 +32,13 @@ def test_conformance(subtests):
                 BUILD_DIR / "test_lists", min_value=INT32_MIN, max_value=INT32_MAX
             ),
             SampledFromConformance(BUILD_DIR / "test_sampled_from"),
+            DictConformance(
+                BUILD_DIR / "test_hashmaps",
+                min_key=INT32_MIN,
+                max_key=INT32_MAX,
+                min_value=INT32_MIN,
+                max_value=INT32_MAX,
+            ),
         ],
         subtests,
     )

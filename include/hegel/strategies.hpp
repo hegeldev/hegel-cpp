@@ -17,6 +17,7 @@
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -400,16 +401,20 @@ Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
 }
 
 /**
- * @brief Generate dictionaries (maps with string keys).
- *
- * @note Keys must be strings due to JSON schema limitations.
+ * @brief Generate dictionaries (maps) with configurable key and value types.
  *
  * @code{.cpp}
- * auto dict = dictionaries(text(), integers<int>());
+ * // String keys
+ * auto strDict = dictionaries(text(), integers<int>());
+ *
+ * // Integer keys
+ * auto intDict = dictionaries(integers<int>(), text());
+ *
+ * // With size bounds
  * auto bounded = dictionaries(text(), integers<int>(), {.min_size = 1, .max_size = 3});
  * @endcode
  *
- * @tparam K Key type (must be std::string)
+ * @tparam K Key type
  * @tparam V Value type
  * @param keys Generator for map keys
  * @param values Generator for map values
@@ -417,17 +422,23 @@ Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
  * @return Generator producing maps
  */
 template <typename K, typename V>
-  requires std::is_same_v<K, std::string>
 Generator<std::map<K, V>> dictionaries(Generator<K> keys, Generator<V> values,
                                        DictionariesParams params = {}) {
-  if (values.schema()) {
+  if (keys.schema() && values.schema()) {
     nlohmann::json schema = {{"type", "dict"},
+                             {"keys", nlohmann::json::parse(*keys.schema())},
                              {"values", nlohmann::json::parse(*values.schema())}};
 
     if (params.min_size > 0) schema["min_size"] = params.min_size;
     if (params.max_size) schema["max_size"] = *params.max_size;
 
-    return from_schema<std::map<K, V>>(schema.dump());
+    // Wire format is [[key, value], ...], deserialize as vector of pairs
+    auto vec_gen = from_schema<std::vector<std::pair<K, V>>>(schema.dump());
+
+    return Generator<std::map<K, V>>([vec_gen]() {
+      auto pairs = vec_gen.generate();
+      return std::map<K, V>(pairs.begin(), pairs.end());
+    });
   }
 
   size_t max_size = params.max_size.value_or(20);

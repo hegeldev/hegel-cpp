@@ -28,3 +28,7 @@ target_include_directories(test_lists PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(test_sampled_from test_sampled_from.cpp)
 target_link_libraries(test_sampled_from PRIVATE hegel)
 target_include_directories(test_sampled_from PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+add_executable(test_hashmaps test_hashmaps.cpp)
+target_link_libraries(test_hashmaps PRIVATE hegel)
+target_include_directories(test_hashmaps PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
