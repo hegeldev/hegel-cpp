@@ -19,7 +19,7 @@ jobs:
           # all else equal, we'd prefer to get this from apt-get. But the version ubuntu
           # carries is pretty old; this lets us install the latest.
           pip install clang-format
-      - name: Check formatting
+      - name: format
         run: |
           just format
           git diff --exit-code
