@@ -203,6 +203,8 @@ endif()
 # Installation
 # =============================================================================
 
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
@@ -246,6 +248,8 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/hegelConfigVersion.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
 )
+
+endif()
 
 # =============================================================================
 # Documentation
