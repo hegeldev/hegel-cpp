@@ -239,9 +239,9 @@ hegel::hegel([]() {
         .map([](int x) { return x * x; })
         .generate();
 
-    // Filter values (rejects after max_attempts failures)
+    // Filter values (rejects after 3 failures)
     auto even = integers<int>({.min_value = 0, .max_value = 100})
-        .filter([](int x) { return x % 2 == 0; }, 10)
+        .filter([](int x) { return x % 2 == 0; })
         .generate();
 
     // Dependent generation
