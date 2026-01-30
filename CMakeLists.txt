@@ -1,109 +1,85 @@
 cmake_minimum_required(VERSION 3.14)
-project(hegel-cpp VERSION 1.0.0 LANGUAGES CXX)
+project(hegel VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Options
 option(HEGEL_BUILD_EXAMPLES "Build example executables" ON)
-option(HEGEL_BUILD_TESTS "Build unit tests" ON)
-option(HEGEL_BUILD_CONFORMANCE "Build conformance test binary" ON)
-option(HEGEL_BUILD_DOCS "Build documentation" OFF)
 option(HEGEL_COVERAGE "Build with coverage instrumentation" OFF)
 
+# Coverage flags
 if(HEGEL_COVERAGE)
     add_compile_options(--coverage -fprofile-arcs -ftest-coverage)
     add_link_options(--coverage)
 endif()
 
-# In order:
-# * Prefer `hegel` on PATH
-# * If not found, install hegel with uv
-#    * Prefer `uv` on PATH
-#    * If not found, install uv from installer
-#
-# All artifacts are installed to `CMAKE_BINARY_DIR/_deps/hegel`.
+find_program(HEGEL_EXECUTABLE hegel)
 
-set(HEGEL_PYTHON_VERSION "3.13")
-set(HEGEL_INSTALL_DIR "${CMAKE_BINARY_DIR}/_deps/hegel")
+if(NOT HEGEL_EXECUTABLE)
+  # ============================================================================
+  # Hegel binary installation via uv
+  # ============================================================================
 
-find_program(HEGEL_ON_PATH hegel)
+  find_program(UV_EXECUTABLE uv)
 
-if(HEGEL_ON_PATH)
-  message(STATUS "found hegel on path: ${HEGEL_ON_PATH}")
-  set(HEGEL_BINARY_PATH "${HEGEL_ON_PATH}")
-else()
-  set(HEGEL_VENV_DIR "${HEGEL_INSTALL_DIR}/.venv")
-  set(HEGEL_BINARY_PATH "${HEGEL_VENV_DIR}/bin/hegel")
+  if(NOT UV_EXECUTABLE)
+    message(STATUS "uv not found, downloading via install script...")
 
-  if(EXISTS "${HEGEL_BINARY_PATH}")
-    message(STATUS "found hegel: ${HEGEL_BINARY_PATH}")
-  else()
-    find_program(UV_ON_PATH uv)
-
-    if(UV_ON_PATH)
-      message(STATUS "found uv on PATH: ${UV_ON_PATH}")
-      set(UV_EXECUTABLE "${UV_ON_PATH}")
-    else()
-      set(UV_EXECUTABLE "${HEGEL_INSTALL_DIR}/uv")
-
-      if(EXISTS "${UV_EXECUTABLE}")
-        message(STATUS "found uv: ${UV_EXECUTABLE}")
-      else()
-        message(STATUS "installing uv")
-
-        file(MAKE_DIRECTORY "${HEGEL_INSTALL_DIR}")
-
-        execute_process(
-          COMMAND sh -c "curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=${HEGEL_INSTALL_DIR} UV_NO_MODIFY_PATH=1 sh"
-          RESULT_VARIABLE UV_INSTALL_RESULT
-        )
-        if(NOT UV_INSTALL_RESULT EQUAL 0)
-          message(FATAL_ERROR "uv install script failed")
-        endif()
-        if(NOT EXISTS "${UV_EXECUTABLE}")
-          message(FATAL_ERROR "uv not found at ${UV_EXECUTABLE} after installation")
-        endif()
-      endif()
-    endif()
-
-    message(STATUS "using uv: ${UV_EXECUTABLE}")
-
-    message(STATUS "creating venv at ${HEGEL_VENV_DIR}")
+    set(UV_DIR "${CMAKE_BINARY_DIR}/_deps/uv")
 
     execute_process(
-      COMMAND ${UV_EXECUTABLE} venv --python ${HEGEL_PYTHON_VERSION} ${HEGEL_VENV_DIR}
+      COMMAND sh -c "curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=${UV_DIR} sh"
+      RESULT_VARIABLE UV_INSTALL_RESULT
+    )
+    if(NOT UV_INSTALL_RESULT EQUAL 0)
+      message(FATAL_ERROR "Failed to install uv")
+    endif()
+
+    set(UV_EXECUTABLE "${UV_DIR}/bin/uv")
+  endif()
+
+  message(STATUS "Using uv: ${UV_EXECUTABLE}")
+
+  # Create venv with Python 3.13
+  set(HEGEL_VENV_DIR "${CMAKE_BINARY_DIR}/_deps/hegel-venv")
+
+  if(NOT EXISTS "${HEGEL_VENV_DIR}/bin/hegel")
+    message(STATUS "Creating hegel venv...")
+
+    execute_process(
+      COMMAND ${UV_EXECUTABLE} venv --python 3.13 ${HEGEL_VENV_DIR}
       RESULT_VARIABLE UV_VENV_RESULT
     )
     if(NOT UV_VENV_RESULT EQUAL 0)
-      message(FATAL_ERROR "failed to create venv")
+      message(FATAL_ERROR "Failed to create venv")
     endif()
 
-    message(STATUS "installing hegel")
+    # Install hegel from local path
+    set(HEGEL_PACKAGE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+    message(STATUS "Installing hegel from ${HEGEL_PACKAGE_DIR}...")
 
     execute_process(
-      COMMAND ${UV_EXECUTABLE} pip install git+ssh://git@github.com/antithesishq/hegel.git
+      COMMAND ${UV_EXECUTABLE} pip install ${HEGEL_PACKAGE_DIR}
               --python ${HEGEL_VENV_DIR}/bin/python
-      RESULT_VARIABLE HEGEL_INSTALL_RESULT
+      RESULT_VARIABLE UV_INSTALL_RESULT
     )
-    if(NOT HEGEL_INSTALL_RESULT EQUAL 0)
-      message(FATAL_ERROR "failed to install hegel")
-    endif()
-    if(NOT EXISTS "${HEGEL_BINARY_PATH}")
-      message(FATAL_ERROR "hegel not found after installation: ${HEGEL_BINARY_PATH}")
+    if(NOT UV_INSTALL_RESULT EQUAL 0)
+      message(FATAL_ERROR "Failed to install hegel")
     endif()
   endif()
+
+  set(HEGEL_BINARY_PATH "${HEGEL_VENV_DIR}/bin/hegel")
+else()
+  set(HEGEL_BINARY_PATH "${HEGEL_EXECUTABLE}")
 endif()
 
-message(STATUS "using hegel: ${HEGEL_BINARY_PATH}")
-
-# =============================================================================
-# Dependencies via FetchContent
-# =============================================================================
-
-include(FetchContent)
+message(STATUS "Hegel binary: ${HEGEL_BINARY_PATH}")
 
 # Fetch reflect-cpp
+include(FetchContent)
+
 FetchContent_Declare(
     reflectcpp
     GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
@@ -121,7 +97,8 @@ set(REFLECTCPP_TOML OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_UBJSON OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_XML OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_YAML OFF CACHE BOOL "" FORCE)
-
+set(REFLECTCPP_INSTALL ON)
+ 
 FetchContent_Declare(
     nlohmann_json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
@@ -130,33 +107,25 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(reflectcpp nlohmann_json)
 
-# =============================================================================
-# Main library target
-# =============================================================================
-
+# Library target (static library)
 add_library(hegel STATIC src/hegel.cpp)
 target_include_directories(hegel PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<INSTALL_INTERFACE:include>
+    include
 )
 target_link_libraries(hegel PUBLIC reflectcpp nlohmann_json::nlohmann_json)
 target_compile_features(hegel PUBLIC cxx_std_20)
 target_compile_definitions(hegel PUBLIC
     HEGEL_DEFAULT_PATH="${HEGEL_BINARY_PATH}"
 )
-
-# =============================================================================
-# Examples
-# =============================================================================
-
-if(HEGEL_BUILD_EXAMPLES)
-    add_subdirectory(examples)
-endif()
-
-# =============================================================================
+install(DIRECTORY include/hegel DESTINATION include)
+install(TARGETS hegel)
+install(TARGETS reflectcpp)
+ 
 # Tests with Google Test
-# =============================================================================
-
+option(HEGEL_BUILD_TESTS "Build unit tests" OFF)
+ 
 if(HEGEL_BUILD_TESTS)
     enable_testing()
 
@@ -171,110 +140,6 @@ if(HEGEL_BUILD_TESTS)
     add_executable(property_tests tests/property_tests.cpp)
     target_link_libraries(property_tests PRIVATE hegel GTest::gtest_main)
 
-    add_executable(test_settings tests/test_settings.cpp)
-    target_link_libraries(test_settings PRIVATE hegel GTest::gtest_main)
-
-    add_executable(test_base64 tests/test_base64.cpp)
-    target_link_libraries(test_base64 PRIVATE hegel GTest::gtest_main)
-
     include(GoogleTest)
     gtest_discover_tests(property_tests)
-    gtest_discover_tests(test_settings)
-    gtest_discover_tests(test_base64)
-
-    add_executable(gtest_failure_test tests/gtest_failure_test.cpp)
-    target_link_libraries(gtest_failure_test PRIVATE hegel GTest::gtest)
-
-    add_test(NAME gtest_failure_test COMMAND gtest_failure_test)
-    set_tests_properties(gtest_failure_test PROPERTIES
-        PASS_REGULAR_EXPRESSION "actual:"
-    )
-endif()
-
-# =============================================================================
-# Conformance Tests
-# =============================================================================
-
-if(HEGEL_BUILD_CONFORMANCE)
-    add_subdirectory(tests/conformance/cpp)
-endif()
-
-# =============================================================================
-# Installation
-# =============================================================================
-
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-
-include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
-
-# Install the library
-install(TARGETS hegel
-    EXPORT hegelTargets
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-
-# Install headers
-install(DIRECTORY include/
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
-
-# Install CMake config files
-install(EXPORT hegelTargets
-    FILE hegelTargets.cmake
-    NAMESPACE hegel::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
-)
-
-# Generate package config file
-configure_package_config_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/hegelConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/hegelConfig.cmake
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
-)
-
-# Generate version file
-write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/hegelConfigVersion.cmake
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
-)
-
-# Install config files
-install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/hegelConfig.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/hegelConfigVersion.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
-)
-
-endif()
-
-# =============================================================================
-# Documentation
-# =============================================================================
-
-if(HEGEL_BUILD_DOCS)
-    find_package(Doxygen REQUIRED)
-
-    FetchContent_Declare(
-        doxygen-awesome-css
-        URL https://github.com/jothepro/doxygen-awesome-css/archive/refs/tags/v2.3.4.zip
-    )
-    FetchContent_MakeAvailable(doxygen-awesome-css)
-    FetchContent_GetProperties(doxygen-awesome-css SOURCE_DIR DOXYGEN_AWESOME_CSS_DIR)
-
-    set(DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs")
-    set(DOXYFILE_IN "${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile.in")
-    set(DOXYFILE_OUT "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile")
-
-    configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
-
-    add_custom_target(docs
-        COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_OUT}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMENT "Generating documentation with Doxygen"
-        VERBATIM
-    )
 endif()

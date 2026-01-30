@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    flake-compat.url = "https://flakehub.com/f/edolstra/flake-compat/1.tar.gz";
     hegel.url = "git+ssh://git@github.com/antithesishq/hegel";
   };
 
@@ -60,51 +61,31 @@
       mkHegelCppProject =
         {
           pkgs,
-          src,
-          pname,
-          version,
-          cmakeFlags ? [ ],
-          nativeBuildInputs ? [ ],
-          buildInputs ? [ ],
-          doCheck ? true,
-          ...
+          stdenv ? pkgs.stdenv,
+          lib ? pkgs.lib,
+          system ? pkgs.system,
         }@args:
-        let
-          lib = pkgs.lib;
-          # Remove our custom args, pass the rest to mkDerivation
-          extraArgs = builtins.removeAttrs args [
-            "pkgs"
-            "cmakeFlags"
-            "nativeBuildInputs"
-            "buildInputs"
-            "doCheck"
+        stdenv.mkDerivation {
+          pname = "hegel-cpp";
+          version = "1.0.0";
+          src = ./.;
+
+          nativeBuildInputs = [
+            pkgs.cmake
+            pkgs.ninja
           ];
-        in
-        pkgs.stdenv.mkDerivation (
-          extraArgs
-          // {
-            inherit
-              src
-              pname
-              version
-              doCheck
-              ;
 
-            nativeBuildInputs = [
-              pkgs.cmake
-              pkgs.ninja
-              hegel.packages.${pkgs.system}.default
-            ]
-            ++ nativeBuildInputs;
+          buildInputs = [
+            hegel.packages.${system}.default
+          ];
 
-            inherit buildInputs;
+          cmakeFlags = (mkFetchContentFlags pkgs) ++ [
+            (lib.cmakeFeature "HEGEL_BUILD_DOCS" "OFF")
+            (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
+          ];
 
-            cmakeFlags = (mkFetchContentFlags pkgs) ++ [
-              (lib.cmakeFeature "FETCHCONTENT_SOURCE_DIR_HEGEL" (toString (lib.cleanSource self)))
-            ] ++ cmakeFlags;
-          }
-        );
-
+          doCheck = true;
+        };
     in
     {
       # Export the builder for users
@@ -120,24 +101,7 @@
           deps = fetchDeps pkgs;
         in
         {
-          default = pkgs.stdenv.mkDerivation {
-            pname = "hegel-cpp";
-            version = "1.0.0";
-            src = lib.cleanSource ./.;
-
-            nativeBuildInputs = [
-              pkgs.cmake
-              pkgs.ninja
-              hegel.packages.${system}.default
-            ];
-
-            cmakeFlags = (mkFetchContentFlags pkgs) ++ [
-              (lib.cmakeFeature "HEGEL_BUILD_DOCS" "OFF")
-              (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
-            ];
-
-            doCheck = true;
-          };
+          default = mkHegelCppProject { inherit pkgs; };
         }
       );
 
