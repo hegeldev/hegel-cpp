@@ -1,5 +1,6 @@
 #include <hegel/hegel.hpp>
 #include <iostream>
+#include <stdexcept>
 
 using namespace hegel::st;
 

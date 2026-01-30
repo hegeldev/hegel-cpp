@@ -83,9 +83,7 @@ void note(const std::string& message) {
 // Core functions
 // =============================================================================
 
-[[noreturn]] void stop_test() {
-  throw HegelReject();
-}
+[[noreturn]] void stop_test() { throw HegelReject(); }
 
 void assume(bool condition) {
   if (!condition) {
@@ -118,8 +116,7 @@ std::string communicate_with_socket(const std::string& schema) {
   // Send
   size_t total_sent = 0;
   while (total_sent < message.size()) {
-    ssize_t sent =
-        write(fd, message.data() + total_sent, message.size() - total_sent);
+    ssize_t sent = write(fd, message.data() + total_sent, message.size() - total_sent);
     if (sent < 0) {
       std::cerr << "hegel: failed to write to socket\n";
       std::exit(ASSERTION_FAILURE_EXIT_CODE);
