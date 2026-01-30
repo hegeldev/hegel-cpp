@@ -200,6 +200,54 @@ if(HEGEL_BUILD_CONFORMANCE)
 endif()
 
 # =============================================================================
+# Installation
+# =============================================================================
+
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+# Install the library
+install(TARGETS hegel
+    EXPORT hegelTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+# Install headers
+install(DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+# Install CMake config files
+install(EXPORT hegelTargets
+    FILE hegelTargets.cmake
+    NAMESPACE hegel::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
+)
+
+# Generate package config file
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/hegelConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/hegelConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
+)
+
+# Generate version file
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/hegelConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+# Install config files
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/hegelConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/hegelConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
+)
+
+# =============================================================================
 # Documentation
 # =============================================================================
 
