@@ -18,6 +18,48 @@ FetchContent_MakeAvailable(hegel)
 target_link_libraries(your_target PRIVATE hegel)
 ```
 
+During build, `hegel-cpp`:
+
+* Looks for `hegel` on PATH
+* Otherwise, installs hegel with uv
+   * Looks for `uv` on PATH
+   * Otherwise, installs uv from installer
+
+`hegel-cpp` build artifacts are stored in `CMAKE_BINARY_DIR/_deps/hegel`.
+
+### Nix
+
+To use hegel-cpp in Nix:
+
+```nix
+{
+  description = "sandbox";
+
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    hegel-cpp.url = "git+ssh://git@github.com/antithesishq/hegel-cpp";
+  };
+
+  outputs = { self, nixpkgs, hegel-cpp, ... }:
+    let
+      system = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${system};
+    in
+    {
+      packages.${system}.default = hegel-cpp.lib.mkHegelCppProject {
+        inherit pkgs;
+        pname = "my-project";
+        version = "0.1.0";
+        src = ./.;
+      };
+
+      devShells.${system}.default = pkgs.mkShell {
+        inputsFrom = [ self.packages.${system}.default ];
+      };
+    };
+}
+```
+
 ## Development
 
 Prerequisites:
