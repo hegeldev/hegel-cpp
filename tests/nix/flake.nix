@@ -6,7 +6,8 @@
     hegel-cpp.url = "path:../..";
   };
 
-  outputs = { nixpkgs, hegel-cpp, ... }:
+  outputs =
+    { nixpkgs, hegel-cpp, ... }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -19,7 +20,8 @@
         cp -r ${./.}/* $out/
         cp -r ${./../..} $out/hegel-cpp
       '';
-    in {
+    in
+    {
       packages.${system}.default = pkgs.stdenv.mkDerivation {
         pname = "hegel-cpp-nix-test";
         version = "0.1.0";

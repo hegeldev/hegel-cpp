@@ -6,16 +6,30 @@
     hegel.url = "git+ssh://git@github.com/antithesishq/hegel";
   };
 
-  outputs = { self, nixpkgs, hegel, ... }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      hegel,
+      ...
+    }:
     let
-      supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      supportedSystems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-    in {
-      packages = forAllSystems (system:
+    in
+    {
+      packages = forAllSystems (
+        system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
           lib = pkgs.lib;
-        in {
+        in
+        {
           default = pkgs.stdenv.mkDerivation {
             pname = "hegel-cpp";
             version = "1.0.0";
@@ -24,7 +38,7 @@
             nativeBuildInputs = [
               pkgs.cmake
               pkgs.ninja
-              hegel.packages.${system}.default  # hegel CLI on PATH
+              hegel.packages.${system}.default # hegel CLI on PATH
             ];
 
             cmakeFlags = lib.mapAttrsToList (k: v: lib.cmakeFeature k (toString v)) {
@@ -60,14 +74,16 @@
         }
       );
 
-      devShells = forAllSystems (system:
+      devShells = forAllSystems (
+        system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-        in {
+        in
+        {
           default = pkgs.mkShell {
             inputsFrom = [ self.packages.${system}.default ];
             packages = [
-              pkgs.clang-tools  # clang-format, clangd
+              pkgs.clang-tools # clang-format, clangd
             ];
           };
         }
