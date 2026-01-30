@@ -7,7 +7,12 @@
   };
 
   outputs =
-    { self, nixpkgs, hegel-cpp, ... }:
+    {
+      self,
+      nixpkgs,
+      hegel-cpp,
+      ...
+    }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};

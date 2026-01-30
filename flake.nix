@@ -44,7 +44,8 @@
       };
 
       # Generate CMake flags for FetchContent sources
-      mkFetchContentFlags = pkgs:
+      mkFetchContentFlags =
+        pkgs:
         let
           lib = pkgs.lib;
           deps = fetchDeps pkgs;
@@ -82,13 +83,19 @@
         pkgs.stdenv.mkDerivation (
           extraArgs
           // {
-            inherit src pname version doCheck;
+            inherit
+              src
+              pname
+              version
+              doCheck
+              ;
 
             nativeBuildInputs = [
               pkgs.cmake
               pkgs.ninja
               hegel.packages.${pkgs.system}.default
-            ] ++ nativeBuildInputs;
+            ]
+            ++ nativeBuildInputs;
 
             inherit buildInputs;
 
