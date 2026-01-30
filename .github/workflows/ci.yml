@@ -98,3 +98,24 @@ jobs:
         run: |
           pip install pytest
           pytest test_conformance.py -v
+
+  nix:
+    name: nix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/base
+        with:
+          ssh-key: ${{ secrets.HEGEL_DEPLOY_KEY }}
+      - uses: cachix/install-nix-action@v27
+      - name: lint
+        run: nix run nixpkgs#nixfmt -- --check flake.nix tests/nix/flake.nix
+      - name: test
+        working-directory: tests/nix
+        run: |
+          # deleting the lock file allows nix to resolve the `path:../..` input value
+          # without erroring about unlocked values / irreproducible builds
+          rm -f flake.lock
+          nix build -L 2>&1 | tee build.log
+          # canary string to ensure we're actually building what we think we are.
+          grep "test_nix_integration_canary" build.log
