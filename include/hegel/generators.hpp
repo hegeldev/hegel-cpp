@@ -159,22 +159,21 @@ class Generator {
    * @brief Filter generated values by a predicate.
    *
    * Creates a generator that only produces values satisfying the predicate.
-   * If max_attempts consecutive values fail the predicate, calls assume(false)
+   * If 3 consecutive values fail the predicate, calls assume(false)
    * to reject the test case.
    *
    * @code{.cpp}
    * auto even = integers<int>({.min_value = 0, .max_value = 100})
-   *     .filter([](int x) { return x % 2 == 0; }, 10);
+   *     .filter([](int x) { return x % 2 == 0; });
    * @endcode
    *
    * @param pred Predicate that values must satisfy
-   * @param max_attempts Maximum generation attempts before rejecting
    * @return Generator<T> producing only values satisfying pred
    */
-  Generator<T> filter(std::function<bool(const T&)> pred, int max_attempts = 3) const {
+  Generator<T> filter(std::function<bool(const T&)> pred) const {
     auto inner = gen_fn_;
-    return Generator<T>([inner, pred, max_attempts]() -> T {
-      for (int i = 0; i < max_attempts; ++i) {
+    return Generator<T>([inner, pred]() -> T {
+      for (int i = 0; i < 3; ++i) {
         T value = inner();
         if (pred(value)) {
           return value;
