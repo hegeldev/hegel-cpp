@@ -99,7 +99,9 @@
 
             inherit buildInputs;
 
-            cmakeFlags = (mkFetchContentFlags pkgs) ++ cmakeFlags;
+            cmakeFlags = (mkFetchContentFlags pkgs) ++ [
+              (lib.cmakeFeature "FETCHCONTENT_SOURCE_DIR_HEGEL" (toString (lib.cleanSource self)))
+            ] ++ cmakeFlags;
           }
         );
 
