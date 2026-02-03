@@ -182,23 +182,21 @@ Generator<std::monostate> nulls() {
 }
 
 Generator<bool> booleans() {
-  nlohmann::json schema = {{"type", "boolean"}};
+  nlohmann::json schema = {{"type", "boolean"}, {"p", 0.5}};
   return from_schema<bool>(schema.dump());
 }
 
 Generator<std::string> text(TextParams params) {
-  nlohmann::json schema = {{"type", "string"}};
+  nlohmann::json schema = {{"type", "string"}, {"min_size", params.min_size}};
 
-  if (params.min_size > 0) schema["min_size"] = params.min_size;
   if (params.max_size) schema["max_size"] = *params.max_size;
 
   return from_schema<std::string>(schema.dump());
 }
 
 Generator<std::vector<uint8_t>> binary(BinaryParams params) {
-  nlohmann::json schema = {{"type", "binary"}};
+  nlohmann::json schema = {{"type", "binary"}, {"min_size", params.min_size}};
 
-  if (params.min_size > 0) schema["min_size"] = params.min_size;
   if (params.max_size) schema["max_size"] = *params.max_size;
 
   std::string schema_str = schema.dump();
@@ -211,10 +209,8 @@ Generator<std::vector<uint8_t>> binary(BinaryParams params) {
 }
 
 Generator<std::string> from_regex(const std::string& pattern, bool fullmatch) {
-  nlohmann::json schema = {{"type", "regex"}, {"pattern", pattern}};
-  if (fullmatch) {
-    schema["fullmatch"] = true;
-  }
+  nlohmann::json schema = {
+      {"type", "regex"}, {"pattern", pattern}, {"fullmatch", fullmatch}};
   return from_schema<std::string>(schema.dump());
 }
 

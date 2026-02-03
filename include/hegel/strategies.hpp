@@ -63,10 +63,12 @@ struct IntegersParams {
  */
 template <typename T>
 struct FloatsParams {
-  std::optional<T> min_value;  ///< Minimum value. Default: no minimum
-  std::optional<T> max_value;  ///< Maximum value. Default: no maximum
-  bool exclude_min = false;    ///< If true, exclude min_value (exclusive bound)
-  bool exclude_max = false;    ///< If true, exclude max_value (exclusive bound)
+  std::optional<T> min_value;   ///< Minimum value. Default: no minimum
+  std::optional<T> max_value;   ///< Maximum value. Default: no maximum
+  bool exclude_min = false;     ///< If true, exclude min_value (exclusive bound)
+  bool exclude_max = false;     ///< If true, exclude max_value (exclusive bound)
+  bool allow_nan = true;        ///< If true, allow NaN values. Default: true
+  bool allow_infinity = true;   ///< If true, allow infinity values. Default: true
 };
 
 /**
@@ -282,20 +284,22 @@ Generator<T> integers(IntegersParams<T> params = {}) {
 template <typename T = double>
   requires std::is_floating_point_v<T>
 Generator<T> floats(FloatsParams<T> params = {}) {
-  nlohmann::json schema = {{"type", "number"}};
+  // Determine width from type size (float = 32 bits, double = 64 bits)
+  constexpr int width = sizeof(T) * 8;
+
+  nlohmann::json schema = {{"type", "number"},
+                           {"exclude_minimum", params.exclude_min},
+                           {"exclude_maximum", params.exclude_max},
+                           {"allow_nan", params.allow_nan},
+                           {"allow_infinity", params.allow_infinity},
+                           {"width", width}};
 
   if (params.min_value) {
     schema["minimum"] = *params.min_value;
-    if (params.exclude_min) {
-      schema["exclude_minimum"] = true;
-    }
   }
 
   if (params.max_value) {
     schema["maximum"] = *params.max_value;
-    if (params.exclude_max) {
-      schema["exclude_maximum"] = true;
-    }
   }
 
   return from_schema<T>(schema.dump());
@@ -326,9 +330,9 @@ Generator<std::vector<T>> vectors(Generator<T> elements, VectorsParams params = 
     nlohmann::json elem_schema = nlohmann::json::parse(*elements.schema());
     // Use "set" type for unique, "list" type otherwise
     std::string schema_type = params.unique ? "set" : "list";
-    nlohmann::json schema = {{"type", schema_type}, {"elements", elem_schema}};
+    nlohmann::json schema = {
+        {"type", schema_type}, {"elements", elem_schema}, {"min_size", params.min_size}};
 
-    if (params.min_size > 0) schema["min_size"] = params.min_size;
     if (params.max_size) schema["max_size"] = *params.max_size;
 
     return from_schema<std::vector<T>>(schema.dump());
@@ -369,9 +373,9 @@ template <typename T>
 Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
   if (elements.schema()) {
     nlohmann::json elem_schema = nlohmann::json::parse(*elements.schema());
-    nlohmann::json schema = {{"type", "set"}, {"elements", elem_schema}};
+    nlohmann::json schema = {
+        {"type", "set"}, {"elements", elem_schema}, {"min_size", params.min_size}};
 
-    if (params.min_size > 0) schema["min_size"] = params.min_size;
     if (params.max_size) schema["max_size"] = *params.max_size;
 
     auto vec_gen = from_schema<std::vector<T>>(schema.dump());
@@ -427,9 +431,9 @@ Generator<std::map<K, V>> dictionaries(Generator<K> keys, Generator<V> values,
   if (keys.schema() && values.schema()) {
     nlohmann::json schema = {{"type", "dict"},
                              {"keys", nlohmann::json::parse(*keys.schema())},
-                             {"values", nlohmann::json::parse(*values.schema())}};
+                             {"values", nlohmann::json::parse(*values.schema())},
+                             {"min_size", params.min_size}};
 
-    if (params.min_size > 0) schema["min_size"] = params.min_size;
     if (params.max_size) schema["max_size"] = *params.max_size;
 
     // Wire format is [[key, value], ...], deserialize as vector of pairs
