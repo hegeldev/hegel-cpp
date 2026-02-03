@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    flake-compat.url = "https://flakehub.com/f/edolstra/flake-compat/1.tar.gz";
     hegel.url = "git+ssh://git@github.com/antithesishq/hegel";
   };
 
@@ -29,18 +30,6 @@
           tag = "v0.22.0";
           hash = "sha256-5Og3+dM3QuCX6sT+6Rz8vwvyzQb+8qz10ROk9yOMPgE=";
         };
-        nlohmann_json = pkgs.fetchFromGitHub {
-          owner = "nlohmann";
-          repo = "json";
-          tag = "v3.12.0";
-          hash = "sha256-cECvDOLxgX7Q9R3IE86Hj9JJUxraDQvhoyPDF03B2CY=";
-        };
-        googletest = pkgs.fetchFromGitHub {
-          owner = "google";
-          repo = "googletest";
-          tag = "v1.14.0";
-          hash = "sha256-t0RchAHTJbuI5YW4uyBPykTvcjy90JW9AOPNjIhwh6U=";
-        };
       };
 
       # Generate CMake flags for FetchContent sources
@@ -52,59 +41,43 @@
         in
         lib.mapAttrsToList (k: v: lib.cmakeFeature k (toString v)) {
           FETCHCONTENT_SOURCE_DIR_REFLECTCPP = deps.reflectcpp;
-          FETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON = deps.nlohmann_json;
-          FETCHCONTENT_SOURCE_DIR_GOOGLETEST = deps.googletest;
+          FETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON = pkgs.nlohmann_json.src;
+          FETCHCONTENT_SOURCE_DIR_GOOGLETEST = pkgs.gtest.src;
         };
 
       # export builder helper for consumers
       mkHegelCppProject =
         {
           pkgs,
-          src,
-          pname,
-          version,
-          cmakeFlags ? [ ],
-          nativeBuildInputs ? [ ],
-          buildInputs ? [ ],
-          doCheck ? true,
-          ...
-        }@args:
-        let
-          lib = pkgs.lib;
-          # Remove our custom args, pass the rest to mkDerivation
-          extraArgs = builtins.removeAttrs args [
-            "pkgs"
-            "cmakeFlags"
-            "nativeBuildInputs"
-            "buildInputs"
-            "doCheck"
-          ];
-        in
-        pkgs.stdenv.mkDerivation (
-          extraArgs
-          // {
-            inherit
-              src
-              pname
-              version
-              doCheck
-              ;
-
+          stdenv ? pkgs.stdenv,
+          lib ? pkgs.lib,
+          system ? pkgs.system,
+        }@args: let 
+          fs = pkgs.lib.fileset;
+          baseSrc = fs.unions [ ./cmake ./CMakeLists.txt ./src ./include ./tests];
+        in stdenv.mkDerivation {
+            pname = "hegel-cpp";
+            version = "0.1.0";
+            src =  fs.toSource {
+              root = ./.;
+              fileset = baseSrc;
+          };
             nativeBuildInputs = [
               pkgs.cmake
               pkgs.ninja
-              hegel.packages.${pkgs.system}.default
-            ]
-            ++ nativeBuildInputs;
+            ];
 
-            inherit buildInputs;
+            buildInputs = [
+              hegel.packages.${system}.default
+            ];
 
             cmakeFlags = (mkFetchContentFlags pkgs) ++ [
-              (lib.cmakeFeature "FETCHCONTENT_SOURCE_DIR_HEGEL" (toString (lib.cleanSource self)))
-            ] ++ cmakeFlags;
-          }
-        );
+              (lib.cmakeFeature "HEGEL_BUILD_DOCS" "OFF")
+              (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
+            ];
 
+            doCheck = true;
+          };
     in
     {
       # Export the builder for users
@@ -120,24 +93,7 @@
           deps = fetchDeps pkgs;
         in
         {
-          default = pkgs.stdenv.mkDerivation {
-            pname = "hegel-cpp";
-            version = "1.0.0";
-            src = lib.cleanSource ./.;
-
-            nativeBuildInputs = [
-              pkgs.cmake
-              pkgs.ninja
-              hegel.packages.${system}.default
-            ];
-
-            cmakeFlags = (mkFetchContentFlags pkgs) ++ [
-              (lib.cmakeFeature "HEGEL_BUILD_DOCS" "OFF")
-              (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
-            ];
-
-            doCheck = true;
-          };
+          default = mkHegelCppProject { inherit pkgs; };
         }
       );
 

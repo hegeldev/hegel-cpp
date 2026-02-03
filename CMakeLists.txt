@@ -121,7 +121,8 @@ set(REFLECTCPP_TOML OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_UBJSON OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_XML OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_YAML OFF CACHE BOOL "" FORCE)
-
+set(REFLECTCPP_INSTALL ON)
+ 
 FetchContent_Declare(
     nlohmann_json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
@@ -139,12 +140,15 @@ target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(hegel PUBLIC reflectcpp nlohmann_json::nlohmann_json)
+target_link_libraries(hegel 
+  PUBLIC reflectcpp 
+  $<BUILD_INTERFACE:nlohmann_json::nlohmann_json>
+)
 target_compile_features(hegel PUBLIC cxx_std_20)
 target_compile_definitions(hegel PUBLIC
     HEGEL_DEFAULT_PATH="${HEGEL_BINARY_PATH}"
 )
-
+ 
 # =============================================================================
 # Examples
 # =============================================================================
@@ -191,6 +195,7 @@ if(HEGEL_BUILD_TESTS)
     )
 endif()
 
+
 # =============================================================================
 # Conformance Tests
 # =============================================================================
@@ -205,49 +210,49 @@ endif()
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
-include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
+  include(GNUInstallDirs)
+  include(CMakePackageConfigHelpers)
 
-# Install the library
-install(TARGETS hegel
+  # Install the library
+  install(TARGETS hegel
     EXPORT hegelTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
+  )
 
-# Install headers
-install(DIRECTORY include/
+  # Install headers
+  install(DIRECTORY include/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
+  )
 
-# Install CMake config files
-install(EXPORT hegelTargets
-    FILE hegelTargets.cmake
-    NAMESPACE hegel::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
-)
+  # Install CMake config files
+  install(EXPORT hegelTargets
+      FILE hegelTargets.cmake
+      NAMESPACE hegel::
+      DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
+  )
 
-# Generate package config file
-configure_package_config_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/hegelConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/hegelConfig.cmake
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
-)
+  # Generate package config file
+  configure_package_config_file(
+      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/hegelConfig.cmake.in
+      ${CMAKE_CURRENT_BINARY_DIR}/hegelConfig.cmake
+      INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
+  )
 
-# Generate version file
-write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/hegelConfigVersion.cmake
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
-)
+  # Generate version file
+  write_basic_package_version_file(
+      ${CMAKE_CURRENT_BINARY_DIR}/hegelConfigVersion.cmake
+      VERSION ${PROJECT_VERSION}
+      COMPATIBILITY SameMajorVersion
+  )
 
-# Install config files
-install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/hegelConfig.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/hegelConfigVersion.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
-)
+  # Install config files
+  install(FILES
+      ${CMAKE_CURRENT_BINARY_DIR}/hegelConfig.cmake
+      ${CMAKE_CURRENT_BINARY_DIR}/hegelConfigVersion.cmake
+      DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
+  )
 
 endif()
 
