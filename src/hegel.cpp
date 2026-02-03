@@ -182,7 +182,7 @@ Generator<std::monostate> nulls() {
 }
 
 Generator<bool> booleans() {
-  nlohmann::json schema = {{"type", "boolean"}, {"p", 0.5}};
+  nlohmann::json schema = {{"type", "boolean"}};
   return from_schema<bool>(schema.dump());
 }
 
