@@ -52,28 +52,32 @@
           stdenv ? pkgs.stdenv,
           lib ? pkgs.lib,
           system ? pkgs.system,
-        }@args:
-        stdenv.mkDerivation {
-          pname = "hegel-cpp";
-          version = "0.1.0";
-          src = ./.;
+        }@args: let 
+          fs = pkgs.lib.fileset;
+          baseSrc = fs.unions [ ./cmake ./CMakeLists.txt ./src ./include ./tests];
+        in stdenv.mkDerivation {
+            pname = "hegel-cpp";
+            version = "0.1.0";
+            src =  fs.toSource {
+              root = ./.;
+              fileset = baseSrc;
+          };
+            nativeBuildInputs = [
+              pkgs.cmake
+              pkgs.ninja
+            ];
 
-          nativeBuildInputs = [
-            pkgs.cmake
-            pkgs.ninja
-          ];
+            buildInputs = [
+              hegel.packages.${system}.default
+            ];
 
-          buildInputs = [
-            hegel.packages.${system}.default
-          ];
+            cmakeFlags = (mkFetchContentFlags pkgs) ++ [
+              (lib.cmakeFeature "HEGEL_BUILD_DOCS" "OFF")
+              (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
+            ];
 
-          cmakeFlags = (mkFetchContentFlags pkgs) ++ [
-            (lib.cmakeFeature "HEGEL_BUILD_DOCS" "OFF")
-            (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
-          ];
-
-          doCheck = true;
-        };
+            doCheck = true;
+          };
     in
     {
       # Export the builder for users
