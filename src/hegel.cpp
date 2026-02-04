@@ -3,7 +3,7 @@
  */
 
 #include <functional>
-#include <hegel/core.h>
+#include <hegel/options.h>
 #include <hegel/internal.h>
 #include <socket.h>
 #include <run_state.h>

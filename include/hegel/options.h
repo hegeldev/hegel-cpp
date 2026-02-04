@@ -1,11 +1,8 @@
 #pragma once
 
 /**
- * @file core.h
- * @brief Core types and functions for Hegel SDK
- *
- * Contains Mode enum, HegelOptions, HegelReject exception, and
- * fundamental functions like assume() and note().
+ * @file options.h
+ * @brief HegelOptions and supporting classes
  */
 
 #include <cstdint>

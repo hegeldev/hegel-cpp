@@ -15,7 +15,7 @@
 #include <string>
 #include <type_traits>
 
-#include "core.h"
+#include "options.h"
 #include "internal.h"
 
 namespace hegel {

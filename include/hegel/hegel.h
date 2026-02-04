@@ -31,8 +31,8 @@
  * - POSIX sockets (sys/socket.h, sys/un.h, unistd.h)
  */
 
-// Core types and functions
-#include "core.h"
+// HegelOptions and supporting classes
+#include "options.h"
 
 // Internal namespace
 #include "internal.h"

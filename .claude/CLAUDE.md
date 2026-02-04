@@ -41,7 +41,7 @@ The SDK supports two modes:
 ### Key Components
 
 - **`hegel.h`** - Main include file, aggregates all SDK components
-- **`core.h`** - Mode enum, HegelOptions, `assume()`, `note()`, HegelReject exception
+- **`options.h`** - HegelOptions
 - **`embedded.h`** - `hegel()` function template that orchestrates embedded mode
 - **`generators.h`** - `Generator<T>` and `DefaultGenerator<T>` class templates with `map()`, `flatmap()`, `filter()` combinators
 - **`strategies.h`** - Strategy factory functions in `hegel::strategies` namespace (integers, floats, text, vectors, etc.)

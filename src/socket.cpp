@@ -2,7 +2,7 @@
 #include <run_state.h>
 #include <impl.h>
 #include <hegel/internal.h>
-#include <hegel/core.h>
+#include <hegel/options.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
 

@@ -1,6 +1,6 @@
 #include <impl.h>
 #include <hegel/internal.h>
-#include <hegel/core.h>
+#include <hegel/options.h>
 
 namespace hegel::impl {
 
