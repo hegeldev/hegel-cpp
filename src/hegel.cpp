@@ -11,7 +11,6 @@
 #include <impl.h>
 #include <hegel/embedded.h>
 #include <hegel/generators.h>
-#include <hegel/grouping.h>
 #include <hegel/strategies.h>
 #include <iostream>
 #include <nlohmann/json.hpp>

@@ -34,9 +34,6 @@
 // HegelOptions and supporting classes
 #include "options.h"
 
-// Span/grouping management
-#include "grouping.h"
-
 // Generator and DefaultGenerator classes
 #include "generators.h"
 
