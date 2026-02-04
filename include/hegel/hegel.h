@@ -34,9 +34,6 @@
 // HegelOptions and supporting classes
 #include "options.h"
 
-// Internal namespace
-#include "internal.h"
-
 // Span/grouping management
 #include "grouping.h"
 
