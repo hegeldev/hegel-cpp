@@ -8,6 +8,7 @@
 
 // POSIX headers
 #include <sys/socket.h>
+#include <unistd.h>
 
 // =============================================================================
 // Socket Communication
