@@ -8,6 +8,7 @@
 #include <socket.h>
 #include <run_state.h>
 #include <base64.h>
+#include <impl.h>
 #include <hegel/embedded.h>
 #include <hegel/generators.h>
 #include <hegel/grouping.h>
@@ -28,11 +29,9 @@
 
 namespace hegel {
 
-[[noreturn]] void stop_test() { throw HegelReject(); }
-
 void assume(bool condition) {
     if (!condition) {
-        stop_test();
+        impl::stop_test();
     }
 }
 
@@ -125,7 +124,7 @@ void hegel(std::function<void()> test_fn, HegelOptions options) {
                     std::string error_message;
                     try {
                         test_fn();
-                    } catch (const HegelReject& e) {
+                    } catch (const impl::HegelReject& e) {
                         result_type = "reject";
                         error_message = e.what();
                     } catch (const std::exception& e) {

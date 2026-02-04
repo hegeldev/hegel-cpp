@@ -1,5 +1,6 @@
 #include <socket.h>
 #include <run_state.h>
+#include <impl.h>
 #include <hegel/internal.h>
 #include <hegel/core.h>
 #include <iostream>
@@ -119,7 +120,7 @@ namespace hegel::internal {
                     // Rejection: hypothesis stopped this test case (e.g., buffer
                     // exhausted). Just stop the test - hegel already knows it's a
                     // rejection.
-                    stop_test();
+                    impl::stop_test();
                 }
                 if (response.contains("error")) {
                     // Genuine error: bad schema, invalid request, etc.
