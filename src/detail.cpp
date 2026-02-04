@@ -9,32 +9,36 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-namespace hegel::detail {
-    // TODO: we shouldn't be doing a lot of exits in a library; figure out why we are
-    // =============================================================================
-    // Constants
-    // =============================================================================
-
-    inline constexpr int ASSERTION_FAILURE_EXIT_CODE = 134;
-
+// =============================================================================
+// Run State
+// =============================================================================
+namespace hegel::impl::run_state {
     // =============================================================================
     // Thread-local State
     // =============================================================================
-
     static thread_local bool is_last_run_ = false;
+
+    // =============================================================================
+    // Functions
+    // =============================================================================
+    bool is_last_run() { return is_last_run_; }
+
+    void set_is_last_run(bool v) { is_last_run_ = v; }
+}
+
+// =============================================================================
+// Socket Communication
+// =============================================================================
+namespace hegel::impl::socket {
+    // =============================================================================
+    // Thread-local State
+    // =============================================================================
     static thread_local int embedded_fd_ = -1;
     static thread_local std::string embedded_read_buffer_;
 
-    bool is_last_run() { return detail::is_last_run_; }
-
-    void set_is_last_run(bool v) { is_last_run_ = v; }
-
-
     // =============================================================================
-    // Socket Communication
+    // Functions
     // =============================================================================
-
-
     void set_embedded_connection(int fd) {
         embedded_fd_ = fd;
         embedded_read_buffer_.clear();
@@ -74,11 +78,20 @@ namespace hegel::detail {
             total += static_cast<size_t>(n);
         }
     }
+} // namespace hegel::impl
 
+// TODO: we shouldn't be doing a lot of exits in a library; figure out why we are
+// =============================================================================
+// Constants
+// =============================================================================
+
+inline constexpr int ASSERTION_FAILURE_EXIT_CODE = 134;
+
+namespace hegel::detail {
     std::string communicate_with_socket(const std::string& schema) {
         nlohmann::json payload = nlohmann::json::parse(schema);
 
-        int fd = get_embedded_fd();
+        int fd = impl::socket::get_embedded_fd();
         if (fd < 0) {
             std::cerr << "hegel: no connection set\n";
             std::exit(ASSERTION_FAILURE_EXIT_CODE);
@@ -108,7 +121,7 @@ namespace hegel::detail {
         }
 
         // Read response
-        std::string& buffer = get_embedded_read_buffer();
+        std::string& buffer = impl::socket::get_embedded_read_buffer();
         while (true) {
             size_t newline = buffer.find('\n');
             if (newline != std::string::npos) {
@@ -133,7 +146,7 @@ namespace hegel::detail {
                                             response["error"].get<std::string>());
                 }
                 // Auto-log generated value during final replay (counterexample)
-                if (is_last_run_) {
+                if (impl::run_state::is_last_run()) {
                     std::cerr << "Generated: " << response["result"].dump() << "\n";
                 }
                 // Return full response for parsing by Generator::generate_impl

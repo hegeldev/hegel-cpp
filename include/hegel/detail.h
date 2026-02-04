@@ -11,10 +11,13 @@
 #include <string>
 
 namespace hegel::detail {
-    // =============================================================================
-    // State
-    // =============================================================================
+    std::string communicate_with_socket(const std::string& schema);
+}  // namespace hegel::detail
 
+// =============================================================================
+// Run State
+// =============================================================================
+namespace hegel::impl::run_state {
     /**
     * @brief Check if this is the last test run.
     *
@@ -26,15 +29,14 @@ namespace hegel::detail {
     bool is_last_run();
 
     void set_is_last_run(bool v);
+}  // namespace hegel::impl
 
-    // =============================================================================
-    // Socket Communication
-    // =============================================================================
-
-    std::string communicate_with_socket(const std::string& schema);
+// =============================================================================
+// Socket Communication
+// =============================================================================
+namespace hegel::impl::socket {
     void set_embedded_connection(int fd);
     void clear_embedded_connection();
     std::string read_line(int fd);
     void write_line(int fd, const std::string& line);
-
-}  // namespace hegel::detail
+}  // namespace hegel::impl

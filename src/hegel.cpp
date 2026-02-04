@@ -31,7 +31,7 @@ namespace hegel {
 // =============================================================================
 
 void note(const std::string& message) {
-    if (detail::is_last_run()) {
+    if (impl::run_state::is_last_run()) {
         std::cerr << message << std::endl;
     }
 }
@@ -116,16 +116,16 @@ void hegel(std::function<void()> test_fn, HegelOptions options) {
                 // Handle connection
                 try {
                     // Read handshake
-                    std::string line = detail::read_line(client_fd);
+                    std::string line = impl::socket::read_line(client_fd);
                     auto handshake = nlohmann::json::parse(line);
                     bool is_last = handshake.value("is_last_run", false);
 
                     // Set thread-local state
-                    detail::set_is_last_run(is_last);
-                    detail::set_embedded_connection(client_fd);
+                    impl::run_state::set_is_last_run(is_last);
+                    impl::socket::set_embedded_connection(client_fd);
 
                     // Send handshake_ack
-                    detail::write_line(client_fd,
+                    impl::socket::write_line(client_fd,
                                        R"({"type": "handshake_ack"})");
 
                     // Run test
@@ -145,7 +145,7 @@ void hegel(std::function<void()> test_fn, HegelOptions options) {
                     }
 
                     // Clear embedded connection
-                    detail::clear_embedded_connection();
+                    impl::socket::clear_embedded_connection();
 
                     // Send result
                     nlohmann::json result = {{"type", "test_result"},
@@ -153,9 +153,9 @@ void hegel(std::function<void()> test_fn, HegelOptions options) {
                     if (!error_message.empty()) {
                         result["message"] = error_message;
                     }
-                    detail::write_line(client_fd, result.dump());
+                    impl::socket::write_line(client_fd, result.dump());
                 } catch (...) {
-                    detail::clear_embedded_connection();
+                    impl::socket::clear_embedded_connection();
                 }
                 close(client_fd);
             }
