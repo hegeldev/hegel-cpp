@@ -27,34 +27,8 @@
 #endif
 
 namespace hegel {
-
-    void hegel(std::function<void()> test_fn, HegelOptions options) {
-        // Create temp directory with socket
-        std::string temp_dir = "/tmp/hegel_" + std::to_string(getpid());
-        std::filesystem::create_directories(temp_dir);
-        std::string socket_path = temp_dir + "/hegel.sock";
-
-        // Create server socket
-        int server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-        if (server_fd < 0) {
-            throw std::runtime_error("Failed to create socket");
-        }
-
-        struct sockaddr_un addr {};
-        addr.sun_family = AF_UNIX;
-        std::copy(socket_path.begin(), socket_path.end(), addr.sun_path);
-
-        if (bind(server_fd, reinterpret_cast<struct sockaddr*>(&addr),
-                sizeof(addr)) < 0) {
-            close(server_fd);
-            throw std::runtime_error("Failed to bind socket");
-        }
-
-        if (listen(server_fd, 5) < 0) {
-            close(server_fd);
-            throw std::runtime_error("Failed to listen on socket");
-        }
-
+    // Child process from fork: exec hegel
+    void hegel_child(const std::string& socket_path, const HegelOptions& options) {
         // Build hegel command
         std::string hegel_path = options.hegel_path.value_or(HEGEL_DEFAULT_PATH);
         uint64_t test_cases = options.test_cases.value_or(100);
@@ -64,24 +38,17 @@ namespace hegel {
             "--verbosity",  verbosity_to_string(options.verbosity),
             "--test-cases", std::to_string(test_cases)};
 
-        // Fork and exec hegel
-        pid_t pid = fork();
-        if (pid < 0) {
-            close(server_fd);
-            throw std::runtime_error("Failed to fork");
-        }
 
-        if (pid == 0) {
-            // Child: exec hegel
-            std::vector<char*> argv;
-            for (auto& a : args) {
-                argv.push_back(const_cast<char*>(a.c_str()));
-            }
-            argv.push_back(nullptr);
-            execvp(argv[0], argv.data());
-            std::exit(1);
+        std::vector<char*> argv;
+        for (auto& a : args) {
+            argv.push_back(const_cast<char*>(a.c_str()));
         }
+        argv.push_back(nullptr);
+        execvp(argv[0], argv.data());
+        std::exit(1);
+    }
 
+    void hegel_parent(int server_fd, std::function<void()> test_fn, std::string temp_dir, pid_t child_pid) {
         // Parent: accept connections until hegel exits
         fd_set fds;
         struct timeval tv;
@@ -147,8 +114,8 @@ namespace hegel {
 
             // Check if hegel exited
             int status;
-            pid_t result = waitpid(pid, &status, WNOHANG);
-            if (result == pid) {
+            pid_t result = waitpid(child_pid, &status, WNOHANG);
+            if (result == child_pid) {
                 if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
                     close(server_fd);
                     std::filesystem::remove_all(temp_dir);
@@ -163,5 +130,46 @@ namespace hegel {
         // Cleanup
         close(server_fd);
         std::filesystem::remove_all(temp_dir);
+    }
+
+    void hegel(std::function<void()> test_fn, HegelOptions options) {
+        // Create temp directory with socket
+        std::string temp_dir = "/tmp/hegel_" + std::to_string(getpid());
+        std::filesystem::create_directories(temp_dir);
+        std::string socket_path = temp_dir + "/hegel.sock";
+
+        // Create server socket
+        int server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+        if (server_fd < 0) {
+            throw std::runtime_error("Failed to create socket");
+        }
+
+        struct sockaddr_un addr {};
+        addr.sun_family = AF_UNIX;
+        std::copy(socket_path.begin(), socket_path.end(), addr.sun_path);
+
+        if (bind(server_fd, reinterpret_cast<struct sockaddr*>(&addr),
+                sizeof(addr)) < 0) {
+            close(server_fd);
+            throw std::runtime_error("Failed to bind socket");
+        }
+
+        if (listen(server_fd, 5) < 0) {
+            close(server_fd);
+            throw std::runtime_error("Failed to listen on socket");
+        }
+
+        // Fork and exec hegel
+        pid_t pid = fork();
+        if (pid < 0) {
+            close(server_fd);
+            throw std::runtime_error("Failed to fork");
+        }
+
+        if (pid == 0) {
+            hegel_child(socket_path, options);
+        } else {
+            hegel_parent(server_fd, std::move(test_fn), std::move(temp_dir), pid);
+        }
     }
 } // namespace hegel
