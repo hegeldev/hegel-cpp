@@ -6,7 +6,7 @@
 
 #include "lru_cache.h"
 
-using namespace hegel::st;
+using namespace hegel::strategies;
 
 struct Put {
     int key;

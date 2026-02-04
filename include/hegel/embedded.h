@@ -43,7 +43,7 @@ namespace hegel {
  *
  * int main() {
  *     hegel::hegel([]() {
- *         using namespace hegel::st;
+ *         using namespace hegel::strategies;
  *         auto x = integers<int>({.min_value = 0, .max_value = 100}).generate();
  *         auto y = integers<int>({.min_value = 0, .max_value = 100}).generate();
  *

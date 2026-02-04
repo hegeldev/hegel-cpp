@@ -17,7 +17,7 @@
 #include <set>
 #include <sstream>
 
-using namespace hegel::st;
+using namespace hegel::strategies;
 using hegel::assume;
 using hegel::note;
 

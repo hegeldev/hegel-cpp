@@ -3,7 +3,7 @@
 
 #include "run_length.h"
 
-using namespace hegel::st;
+using namespace hegel::strategies;
 
 int main() {
     // Generate random byte sequences

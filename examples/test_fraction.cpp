@@ -4,7 +4,7 @@
 
 #include "fraction.h"
 
-using namespace hegel::st;
+using namespace hegel::strategies;
 
 int main() {
     // Generate non-zero integers for fractions

@@ -4,7 +4,7 @@
 
 #include "bounded_queue.h"
 
-using namespace hegel::st;
+using namespace hegel::strategies;
 
 struct Push {
     int value;

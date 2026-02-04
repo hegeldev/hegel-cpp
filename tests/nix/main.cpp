@@ -2,7 +2,7 @@
 #include <iostream>
 #include <stdexcept>
 
-using namespace hegel::st;
+using namespace hegel::strategies;
 
 // Canary string that CI greps for to verify we built the right thing
 void test_nix_integration_canary() {

@@ -54,7 +54,7 @@ struct Response {
  * and composing generators.
  *
  * @code{.cpp}
- * using namespace hegel::st;
+ * using namespace hegel::strategies;
  *
  * // Create a generator
  * auto int_gen = integers<int>({.min_value = 0, .max_value = 100});

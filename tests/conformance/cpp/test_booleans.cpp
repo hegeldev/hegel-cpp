@@ -6,7 +6,7 @@ int main(int argc, char* argv[]) {
 
     hegel::hegel(
         []() {
-            auto gen = hegel::st::booleans();
+            auto gen = hegel::strategies::booleans();
             auto value = gen.generate();
             conformance::write_metrics({{"value", value}});
         },

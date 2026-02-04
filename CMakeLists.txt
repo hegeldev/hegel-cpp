@@ -135,7 +135,7 @@ FetchContent_MakeAvailable(reflectcpp nlohmann_json)
 # Main library target
 # =============================================================================
 
-add_library(hegel STATIC src/hegel.cpp src/detail.cpp)
+add_library(hegel STATIC src/hegel.cpp src/detail.cpp src/strategies.cpp)
 target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>

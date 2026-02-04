@@ -15,7 +15,7 @@
  * Person p = gen.generate();
  *
  * // Strategy-based generation
- * using namespace hegel::st;
+ * using namespace hegel::strategies;
  * auto int_gen = integers<int>({.min_value = 0, .max_value = 100});
  * int value = int_gen.generate();
  * @endcode

@@ -5,7 +5,7 @@
 
 #include "sorted_vec.h"
 
-using namespace hegel::st;
+using namespace hegel::strategies;
 
 struct Insert {
     int value;

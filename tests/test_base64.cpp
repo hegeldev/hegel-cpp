@@ -4,7 +4,7 @@
 #include <hegel/hegel.h>
 
 using namespace hegel::detail;
-using namespace hegel::st;
+using namespace hegel::strategies;
 
 TEST(Base64, RoundTrip) {
     hegel::hegel(
