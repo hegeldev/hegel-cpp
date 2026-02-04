@@ -6,10 +6,10 @@
 #include <hegel/core.hpp>
 #include <hegel/detail.hpp>
 #include <hegel/detail/base64.hpp>
-#include <hegel/embedded.hpp>
 #include <hegel/generators.hpp>
 #include <hegel/grouping.hpp>
 #include <hegel/strategies.hpp>
+#include <hegel/embedded.hpp>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
@@ -257,6 +257,7 @@ Generator<std::string> datetimes() {
 }
 
 }  // namespace st
+
 
 void hegel(std::function<void()> test_fn, HegelOptions options) {
   // Create temp directory with socket
