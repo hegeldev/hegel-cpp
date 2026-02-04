@@ -1,19 +1,5 @@
-#include <functional>
-#include <hegel/core.h>
-#include <hegel/detail.h>
-#include <hegel/detail/base64.h>
-#include <hegel/embedded.h>
-#include <hegel/generators.h>
-#include <hegel/grouping.h>
 #include <hegel/strategies.h>
-#include <iostream>
-#include <nlohmann/json.hpp>
-#include <stdexcept>
-
-// POSIX headers
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
+#include <hegel/detail/base64.h>
 
 // =============================================================================
 // Strategy implementations
