@@ -34,9 +34,6 @@
 // HegelOptions and supporting classes
 #include "options.h"
 
-// Generator and DefaultGenerator classes
-#include "generators.h"
-
 // All strategy functions
 #include "strategies.h"
 
