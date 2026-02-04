@@ -1,3 +1,5 @@
+#pragma once
+
 /**
  * @file hegel.h
  * @brief Hegel C++ SDK - Hypothesis-like property-based testing for C++20
@@ -29,9 +31,6 @@
  * - POSIX sockets (sys/socket.h, sys/un.h, unistd.h)
  */
 
-#ifndef HEGEL_HPP
-#define HEGEL_HPP
-
 // Core types and functions
 #include "core.h"
 
@@ -49,5 +48,3 @@
 
 // Embedded mode (hegel function)
 #include "embedded.h"
-
-#endif  // HEGEL_HPP
