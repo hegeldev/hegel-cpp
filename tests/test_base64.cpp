@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <hegel/detail/base64.h>
+#include <hegel/base64.h>
 #include <hegel/hegel.h>
 
 using namespace hegel::detail;

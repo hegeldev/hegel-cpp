@@ -1,5 +1,5 @@
 #include <hegel/strategies.h>
-#include <hegel/detail/base64.h>
+#include <hegel/base64.h>
 
 // =============================================================================
 // Strategy implementations
