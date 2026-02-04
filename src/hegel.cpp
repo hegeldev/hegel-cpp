@@ -3,13 +3,13 @@
  */
 
 #include <functional>
-#include <hegel/core.hpp>
-#include <hegel/detail.hpp>
-#include <hegel/detail/base64.hpp>
-#include <hegel/generators.hpp>
-#include <hegel/grouping.hpp>
-#include <hegel/strategies.hpp>
-#include <hegel/embedded.hpp>
+#include <hegel/core.h>
+#include <hegel/detail.h>
+#include <hegel/detail/base64.h>
+#include <hegel/generators.h>
+#include <hegel/grouping.h>
+#include <hegel/strategies.h>
+#include <hegel/embedded.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <stdexcept>

@@ -1,5 +1,5 @@
 /**
- * @file grouping.hpp
+ * @file grouping.h
  * @brief Span management and grouped generation for Hegel SDK
  *
  * Contains start_span(), stop_span(), group(), discardable_group(),

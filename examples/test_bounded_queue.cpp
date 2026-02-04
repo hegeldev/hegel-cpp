@@ -1,8 +1,8 @@
-#include <hegel/hegel.hpp>
+#include <hegel/hegel.h>
 #include <iostream>
 #include <variant>
 
-#include "bounded_queue.hpp"
+#include "bounded_queue.h"
 
 using namespace hegel::st;
 

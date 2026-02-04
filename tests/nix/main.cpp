@@ -1,4 +1,4 @@
-#include <hegel/hegel.hpp>
+#include <hegel/hegel.h>
 #include <iostream>
 #include <stdexcept>
 

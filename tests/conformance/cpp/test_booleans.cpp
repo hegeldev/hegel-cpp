@@ -1,5 +1,5 @@
-#include "hegel/hegel.hpp"
-#include "metrics.hpp"
+#include "hegel/hegel.h"
+#include "metrics.h"
 
 int main(int argc, char* argv[]) {
   int test_cases = conformance::get_test_cases();

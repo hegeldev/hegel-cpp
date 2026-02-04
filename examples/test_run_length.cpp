@@ -1,7 +1,7 @@
-#include <hegel/hegel.hpp>
+#include <hegel/hegel.h>
 #include <iostream>
 
-#include "run_length.hpp"
+#include "run_length.h"
 
 using namespace hegel::st;
 

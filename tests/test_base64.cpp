@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include <hegel/detail/base64.hpp>
-#include <hegel/hegel.hpp>
+#include <hegel/detail/base64.h>
+#include <hegel/hegel.h>
 
 using namespace hegel::detail;
 using namespace hegel::st;

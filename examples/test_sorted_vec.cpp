@@ -1,9 +1,9 @@
-#include <hegel/hegel.hpp>
+#include <hegel/hegel.h>
 #include <iostream>
 #include <set>
 #include <variant>
 
-#include "sorted_vec.hpp"
+#include "sorted_vec.h"
 
 using namespace hegel::st;
 

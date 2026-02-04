@@ -3,8 +3,8 @@
 #include <optional>
 #include <string>
 
-#include "hegel/hegel.hpp"
-#include "metrics.hpp"
+#include "hegel/hegel.h"
+#include "metrics.h"
 
 // Count Unicode codepoints in a UTF-8 string
 size_t count_codepoints(const std::string& s) {

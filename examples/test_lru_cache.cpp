@@ -1,10 +1,10 @@
-#include <hegel/hegel.hpp>
+#include <hegel/hegel.h>
 #include <iostream>
 #include <map>
 #include <set>
 #include <variant>
 
-#include "lru_cache.hpp"
+#include "lru_cache.h"
 
 using namespace hegel::st;
 

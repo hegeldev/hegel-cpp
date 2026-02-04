@@ -4,8 +4,8 @@
 #include <optional>
 #include <vector>
 
-#include "hegel/hegel.hpp"
-#include "metrics.hpp"
+#include "hegel/hegel.h"
+#include "metrics.h"
 
 int main(int argc, char* argv[]) {
   if (argc < 2) {

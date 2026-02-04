@@ -1,5 +1,5 @@
 /**
- * @file generators.hpp
+ * @file generators.h
  * @brief Generator and DefaultGenerator class templates for Hegel SDK
  *
  * Contains the core Generator<T> and DefaultGenerator<T> class templates,
@@ -16,8 +16,8 @@
 #include <string>
 #include <type_traits>
 
-#include "core.hpp"
-#include "detail.hpp"
+#include "core.h"
+#include "detail.h"
 
 namespace hegel {
 

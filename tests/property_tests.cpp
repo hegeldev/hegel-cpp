@@ -12,7 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <hegel/hegel.hpp>
+#include <hegel/hegel.h>
 #include <numeric>
 #include <set>
 #include <sstream>

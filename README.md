@@ -82,7 +82,7 @@ just format
 ## Quick Start
 
 ```cpp
-#include "hegel/hegel.hpp"
+#include "hegel/hegel.h"
 
 int main() {
     hegel::hegel([]() {
@@ -104,7 +104,7 @@ int main() {
 Use `HegelOptions` for more control:
 
 ```cpp
-#include "hegel/hegel.hpp"
+#include "hegel/hegel.h"
 
 int main() {
     hegel::hegel([]() {

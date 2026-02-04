@@ -1,5 +1,5 @@
 /**
- * @file core.hpp
+ * @file core.h
  * @brief Core types and functions for Hegel SDK
  *
  * Contains Mode enum, HegelOptions, HegelReject exception, and

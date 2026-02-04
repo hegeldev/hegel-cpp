@@ -40,13 +40,13 @@ The SDK supports two modes:
 
 ### Key Components
 
-- **`hegel.hpp`** - Main include file, aggregates all SDK components
-- **`core.hpp`** - Mode enum, HegelOptions, `assume()`, `note()`, HegelReject exception
-- **`embedded.hpp`** - `hegel()` function template that orchestrates embedded mode
-- **`generators.hpp`** - `Generator<T>` and `DefaultGenerator<T>` class templates with `map()`, `flatmap()`, `filter()` combinators
-- **`strategies.hpp`** - Strategy factory functions in `hegel::st` namespace (integers, floats, text, vectors, etc.)
-- **`detail.hpp`** - Internal socket communication, JSON protocol handling
-- **`grouping.hpp`** - Span management for shrinking
+- **`hegel.h`** - Main include file, aggregates all SDK components
+- **`core.h`** - Mode enum, HegelOptions, `assume()`, `note()`, HegelReject exception
+- **`embedded.h`** - `hegel()` function template that orchestrates embedded mode
+- **`generators.h`** - `Generator<T>` and `DefaultGenerator<T>` class templates with `map()`, `flatmap()`, `filter()` combinators
+- **`strategies.h`** - Strategy factory functions in `hegel::st` namespace (integers, floats, text, vectors, etc.)
+- **`detail.h`** - Internal socket communication, JSON protocol handling
+- **`grouping.h`** - Span management for shrinking
 
 ### Generator Pattern
 

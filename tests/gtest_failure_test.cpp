@@ -10,7 +10,7 @@
 
 #include <gtest/gtest.h>
 
-#include <hegel/hegel.hpp>
+#include <hegel/hegel.h>
 
 using namespace hegel::st;
 

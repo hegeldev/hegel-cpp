@@ -1,8 +1,8 @@
 #include <cmath>
-#include <hegel/hegel.hpp>
+#include <hegel/hegel.h>
 #include <iostream>
 
-#include "fraction.hpp"
+#include "fraction.h"
 
 using namespace hegel::st;
 

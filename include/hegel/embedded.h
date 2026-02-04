@@ -1,5 +1,5 @@
 /**
- * @file embedded.hpp
+ * @file embedded.h
  * @brief Embedded mode implementation for Hegel SDK
  *
  * Contains the hegel() function template for running property-based tests
@@ -23,8 +23,8 @@
 
 #include <nlohmann/json.hpp>
 
-#include "core.hpp"
-#include "detail.hpp"
+#include "core.h"
+#include "detail.h"
 
 namespace hegel {
 
@@ -39,7 +39,7 @@ namespace hegel {
  * 5. Throws std::runtime_error if any test case fails
  *
  * @code{.cpp}
- * #include "hegel/hegel.hpp"
+ * #include "hegel/hegel.h"
  *
  * int main() {
  *     hegel::hegel([]() {

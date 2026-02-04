@@ -1,5 +1,5 @@
 /**
- * @file hegel.hpp
+ * @file hegel.h
  * @brief Hegel C++ SDK - Hypothesis-like property-based testing for C++20
  *
  * This library provides type-safe random data generation for property-based
@@ -8,7 +8,7 @@
  * @section usage Basic Usage
  *
  * @code{.cpp}
- * #include "hegel/hegel.hpp"
+ * #include "hegel/hegel.h"
  *
  * // Type-based generation (schema derived via reflect-cpp)
  * auto gen = hegel::default_generator<Person>();
@@ -33,21 +33,21 @@
 #define HEGEL_HPP
 
 // Core types and functions
-#include "core.hpp"
+#include "core.h"
 
 // Internal detail namespace
-#include "detail.hpp"
+#include "detail.h"
 
 // Span/grouping management
-#include "grouping.hpp"
+#include "grouping.h"
 
 // Generator and DefaultGenerator classes
-#include "generators.hpp"
+#include "generators.h"
 
 // All strategy functions
-#include "strategies.hpp"
+#include "strategies.h"
 
 // Embedded mode (hegel function)
-#include "embedded.hpp"
+#include "embedded.h"
 
 #endif  // HEGEL_HPP

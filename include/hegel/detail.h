@@ -1,5 +1,5 @@
 /**
- * @file detail.hpp
+ * @file detail.h
  * @brief Internal implementation details for Hegel SDK
  *
  * Contains socket communication, connection management, and other
@@ -12,7 +12,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-#include "core.hpp"
+#include "core.h"
 
 namespace hegel {
 namespace detail {

@@ -1,5 +1,5 @@
 /**
- * @file strategies.hpp
+ * @file strategies.h
  * @brief Strategy functions for data generation
  *
  * Contains all strategy functions in the hegel::st namespace for generating
@@ -21,8 +21,8 @@
 #include <variant>
 #include <vector>
 
-#include "core.hpp"
-#include "generators.hpp"
+#include "core.h"
+#include "generators.h"
 
 namespace hegel {
 
