@@ -40,13 +40,13 @@ The SDK supports two modes:
 
 ### Key Components
 
-- **`hegel.hpp`** - Main include file, aggregates all SDK components
-- **`core.hpp`** - Mode enum, HegelOptions, `assume()`, `note()`, HegelReject exception
-- **`embedded.hpp`** - `hegel()` function template that orchestrates embedded mode
-- **`generators.hpp`** - `Generator<T>` and `DefaultGenerator<T>` class templates with `map()`, `flatmap()`, `filter()` combinators
-- **`strategies.hpp`** - Strategy factory functions in `hegel::st` namespace (integers, floats, text, vectors, etc.)
-- **`detail.hpp`** - Internal socket communication, JSON protocol handling
-- **`grouping.hpp`** - Span management for shrinking
+- **`hegel.h`** - Main include file, aggregates all SDK components
+- **`options.h`** - HegelOptions
+- **`embedded.h`** - `hegel()` function template that orchestrates embedded mode
+- **`generators.h`** - `Generator<T>` and `DefaultGenerator<T>` class templates with `map()`, `flatmap()`, `filter()` combinators
+- **`strategies.h`** - Strategy factory functions in `hegel::strategies` namespace (integers, floats, text, vectors, etc.)
+- **`detail.h`** - Internal socket communication, JSON protocol handling
+- **`grouping.h`** - Span management for shrinking
 
 ### Generator Pattern
 
@@ -70,6 +70,6 @@ Newline-delimited JSON over Unix socket. The SDK sends JSON schemas and receives
 
 ## Code Style
 
-- All public API is in `hegel` namespace, strategies in `hegel::st`
+- All public API is in `hegel` namespace, strategies in `hegel::strategies`
 - Parameter structs use designated initializers (C++20): `integers<int>({.min_value = 0})`
 - Dictionary keys must be strings (JSON schema limitation)

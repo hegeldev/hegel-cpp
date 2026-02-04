@@ -1,16 +1,16 @@
 #include <gtest/gtest.h>
 
-#include <hegel/hegel.hpp>
+#include <hegel/hegel.h>
 
-using namespace hegel::st;
+using namespace hegel::strategies;
 
 TEST(Settings, DefaultRuns100TestCases) {
-  int count = 0;
+    int count = 0;
 
-  hegel::hegel([&count] {
-    integers<int>().generate();
-    count++;
-  });
+    hegel::hegel([&count] {
+        integers<int>().generate();
+        count++;
+    });
 
-  ASSERT_EQ(count, 100);
+    ASSERT_EQ(count, 100);
 }

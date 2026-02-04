@@ -82,11 +82,11 @@ just format
 ## Quick Start
 
 ```cpp
-#include "hegel/hegel.hpp"
+#include "hegel/hegel.h"
 
 int main() {
     hegel::hegel([]() {
-        using namespace hegel::st;
+        using namespace hegel::strategies;
         auto x = integers<int>().generate();
         auto y = integers<int>().generate();
 
@@ -104,11 +104,11 @@ int main() {
 Use `HegelOptions` for more control:
 
 ```cpp
-#include "hegel/hegel.hpp"
+#include "hegel/hegel.h"
 
 int main() {
     hegel::hegel([]() {
-        using namespace hegel::st;
+        using namespace hegel::strategies;
         auto n = integers<int>({.min_value = 0, .max_value = 100}).generate();
 
         if (n < 0 || n > 100) {
@@ -140,13 +140,13 @@ hegel::hegel([]() {
 
 ### Strategies
 
-All strategies are in the `hegel::st` namespace.
+All strategies are in the `hegel::strategies` namespace.
 
 #### Primitives
 
 ```cpp
 hegel::hegel([]() {
-    using namespace hegel::st;
+    using namespace hegel::strategies;
 
     // Null values
     auto n = nulls().generate();
@@ -164,7 +164,7 @@ hegel::hegel([]() {
 
 ```cpp
 hegel::hegel([]() {
-    using namespace hegel::st;
+    using namespace hegel::strategies;
 
     // Integers with optional bounds (uses type limits by default)
     auto i = integers<int>().generate();
@@ -186,7 +186,7 @@ hegel::hegel([]() {
 
 ```cpp
 hegel::hegel([]() {
-    using namespace hegel::st;
+    using namespace hegel::strategies;
 
     // Text with optional length constraints
     auto s = text().generate();
@@ -214,7 +214,7 @@ hegel::hegel([]() {
 
 ```cpp
 hegel::hegel([]() {
-    using namespace hegel::st;
+    using namespace hegel::strategies;
 
     // Vectors
     auto vec = vectors(integers<int>()).generate();
@@ -239,7 +239,7 @@ hegel::hegel([]() {
 
 ```cpp
 hegel::hegel([]() {
-    using namespace hegel::st;
+    using namespace hegel::strategies;
 
     auto pair = tuples(integers<int>(), text()).generate();
     auto triple = tuples(booleans(), integers<int>(), floats<double>()).generate();
@@ -250,7 +250,7 @@ hegel::hegel([]() {
 
 ```cpp
 hegel::hegel([]() {
-    using namespace hegel::st;
+    using namespace hegel::strategies;
 
     // Sample from fixed set
     auto color = sampled_from({"red", "green", "blue"}).generate();
@@ -274,7 +274,7 @@ hegel::hegel([]() {
 
 ```cpp
 hegel::hegel([]() {
-    using namespace hegel::st;
+    using namespace hegel::strategies;
 
     // Transform values
     auto squared = integers<int>({.min_value = 1, .max_value = 10})
@@ -304,7 +304,7 @@ struct Rectangle {
 };
 
 hegel::hegel([]() {
-    using namespace hegel::st;
+    using namespace hegel::strategies;
 
     // Positional construction (calls constructor)
     auto rect = builds<Rectangle>(
