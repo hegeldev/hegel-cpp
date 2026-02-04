@@ -5,7 +5,7 @@
 #include <functional>
 #include <hegel/core.h>
 #include <hegel/detail.h>
-#include <hegel/base64.h>
+#include <base64.h>
 #include <hegel/embedded.h>
 #include <hegel/generators.h>
 #include <hegel/grouping.h>

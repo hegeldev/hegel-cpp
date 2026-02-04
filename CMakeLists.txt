@@ -139,6 +139,9 @@ add_library(hegel STATIC src/hegel.cpp src/detail.cpp src/strategies.cpp src/bas
 target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
+
+    PRIVATE
+        src
 )
 target_link_libraries(hegel 
   PUBLIC reflectcpp 
