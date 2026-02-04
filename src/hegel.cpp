@@ -9,7 +9,6 @@
 #include <run_state.h>
 #include <base64.h>
 #include <impl.h>
-#include <hegel/embedded.h>
 #include <hegel/generators.h>
 #include <hegel/strategies.h>
 #include <iostream>
@@ -19,6 +18,7 @@
 // POSIX headers
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 // Default path to hegel binary (can be overridden by CMake)
