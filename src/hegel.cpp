@@ -44,7 +44,11 @@ namespace hegel {
             argv.push_back(const_cast<char*>(a.c_str()));
         }
         argv.push_back(nullptr);
-        execvp(argv[0], argv.data());
+
+        int result = execvp(argv[0], argv.data());
+        if (result == -1) {
+            std::cerr << "Failed to run Hegel server at path " << hegel_path.c_str() << ": " << strerror(errno) << std::endl;
+        }
         std::exit(1);
     }
 
