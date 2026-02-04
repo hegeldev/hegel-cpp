@@ -19,8 +19,8 @@
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <functional>
 
+#include <functional>
 #include <nlohmann/json.hpp>
 
 #include "core.hpp"
