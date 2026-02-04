@@ -1,6 +1,6 @@
 #include <base64.h>
 
-namespace hegel::detail {
+namespace hegel::impl {
 
     constexpr char base64_alphabet[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

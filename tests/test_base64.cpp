@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 #include <hegel/hegel.h>
 
-using namespace hegel::detail;
+using namespace hegel::impl;
 using namespace hegel::strategies;
 
 TEST(Base64, RoundTrip) {

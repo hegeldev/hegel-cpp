@@ -36,7 +36,7 @@ namespace hegel::strategies {
         return Generator<std::vector<uint8_t>>(
             [schema_str]() -> std::vector<uint8_t> {
                 std::string b64 = from_schema<std::string>(schema_str).generate();
-                return ::hegel::detail::base64_decode(b64);
+                return ::hegel::impl::base64_decode(b64);
             },
             schema_str);
     }
