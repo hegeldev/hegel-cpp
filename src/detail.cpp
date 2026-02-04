@@ -1,15 +1,5 @@
-/*
- * hegel.cpp - Implementation of non-template functions
- */
-
-#include <functional>
-#include <hegel/core.h>
 #include <hegel/detail.h>
-#include <hegel/detail/base64.h>
-#include <hegel/embedded.h>
-#include <hegel/generators.h>
-#include <hegel/grouping.h>
-#include <hegel/strategies.h>
+#include <hegel/core.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
@@ -19,12 +9,13 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-// Default path to hegel binary (can be overridden by CMake)
-#ifndef HEGEL_DEFAULT_PATH
-#define HEGEL_DEFAULT_PATH "hegel"
-#endif
-
 namespace hegel::detail {
+    // TODO: we shouldn't be doing a lot of exits in a library; figure out why we are
+    // =============================================================================
+    // Constants
+    // =============================================================================
+
+    inline constexpr int ASSERTION_FAILURE_EXIT_CODE = 134;
 
     // =============================================================================
     // Thread-local State

@@ -1,3 +1,5 @@
+#pragma once
+
 /**
  * @file detail.h
  * @brief Internal implementation details for Hegel SDK
@@ -6,13 +8,7 @@
  * internal functions. Not part of the public API.
  */
 
-#ifndef HEGEL_DETAIL_HPP
-#define HEGEL_DETAIL_HPP
-
-#include <nlohmann/json.hpp>
 #include <string>
-
-#include "core.h"
 
 namespace hegel::detail {
     // =============================================================================
@@ -42,5 +38,3 @@ namespace hegel::detail {
     void write_line(int fd, const std::string& line);
 
 }  // namespace hegel::detail
-
-#endif  // HEGEL_DETAIL_HPP
