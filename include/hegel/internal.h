@@ -16,4 +16,11 @@
 
 namespace hegel::internal {
     std::string communicate_with_socket(const std::string& schema);
+
+    /* Print a note message for debugging.
+     *
+     * Only prints on the last run (final replay for counterexample output)
+     * to avoid cluttering output during the many test iterations.
+    */
+    void note(const std::string& message);
 }

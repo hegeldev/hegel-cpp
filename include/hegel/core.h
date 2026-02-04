@@ -14,21 +14,6 @@
 #include <string>
 
 namespace hegel {
-
-    // =============================================================================
-    // State
-    // =============================================================================
-
-    /**
-    * @brief Print a note message for debugging.
-    *
-    * Only prints on the last run (final replay for counterexample output)
-    * to avoid cluttering output during the many test iterations.
-    *
-    * @param message The message to print
-    */
-    void note(const std::string& message);
-
     // =============================================================================
     // Embedded Mode Options
     // =============================================================================

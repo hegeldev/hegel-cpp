@@ -28,16 +28,6 @@
 
 namespace hegel {
 
-// =============================================================================
-// Core functions
-// =============================================================================
-
-void note(const std::string& message) {
-    if (impl::run_state::is_last_run()) {
-        std::cerr << message << std::endl;
-    }
-}
-
 [[noreturn]] void stop_test() { throw HegelReject(); }
 
 void assume(bool condition) {

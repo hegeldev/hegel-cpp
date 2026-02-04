@@ -142,6 +142,7 @@ add_library(hegel
     src/base64.cpp
     src/socket.cpp
     src/run_state.cpp
+    src/internal.cpp
 )
 target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

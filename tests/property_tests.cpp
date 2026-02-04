@@ -19,7 +19,7 @@
 
 using namespace hegel::strategies;
 using hegel::assume;
-using hegel::note;
+using hegel::internal::note;
 
 // =============================================================================
 // Algebraic Properties
