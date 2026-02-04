@@ -5,6 +5,8 @@
 #include <functional>
 #include <hegel/core.h>
 #include <hegel/detail.h>
+#include <socket.h>
+#include <run_state.h>
 #include <base64.h>
 #include <hegel/embedded.h>
 #include <hegel/generators.h>

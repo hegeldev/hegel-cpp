@@ -1,30 +1,12 @@
+#include <socket.h>
+#include <run_state.h>
 #include <hegel/detail.h>
 #include <hegel/core.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
-#include <stdexcept>
 
 // POSIX headers
 #include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
-
-// =============================================================================
-// Run State
-// =============================================================================
-namespace hegel::impl::run_state {
-    // =============================================================================
-    // Thread-local State
-    // =============================================================================
-    static thread_local bool is_last_run_ = false;
-
-    // =============================================================================
-    // Functions
-    // =============================================================================
-    bool is_last_run() { return is_last_run_; }
-
-    void set_is_last_run(bool v) { is_last_run_ = v; }
-}
 
 // =============================================================================
 // Socket Communication
@@ -78,7 +60,7 @@ namespace hegel::impl::socket {
             total += static_cast<size_t>(n);
         }
     }
-} // namespace hegel::impl
+} // namespace hegel::impl::socket
 
 // TODO: we shouldn't be doing a lot of exits in a library; figure out why we are
 // =============================================================================
