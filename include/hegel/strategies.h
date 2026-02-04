@@ -526,7 +526,7 @@ namespace hegel::strategies {
     */
     template <typename T>
     Generator<T> sampled_from(std::vector<T> elements) {
-        assume(!elements.empty());
+        internal::assume(!elements.empty());
 
         if constexpr (std::is_same_v<T, bool> || std::is_same_v<T, std::nullptr_t> ||
                       std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {

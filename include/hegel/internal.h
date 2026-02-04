@@ -23,4 +23,21 @@ namespace hegel::internal {
      * to avoid cluttering output during the many test iterations.
     */
     void note(const std::string& message);
+
+    /**
+    * @brief Assume a condition is true; reject if false.
+    *
+    * Use this when generated data doesn't meet test preconditions.
+    * This signals to Hegel that the input is invalid and should be
+    * discarded, not counted as a test failure.
+    *
+    * @code{.cpp}
+    * auto person = person_gen.generate();
+    * hegel::assume(person.age >= 18);  // Only test adults
+    * // ... rest of test
+    * @endcode
+    *
+    * @param condition The condition to check
+    */
+    void assume(bool condition);
 }

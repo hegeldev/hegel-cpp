@@ -29,12 +29,6 @@
 
 namespace hegel {
 
-void assume(bool condition) {
-    if (!condition) {
-        impl::stop_test();
-    }
-}
-
 void hegel(std::function<void()> test_fn, HegelOptions options) {
     // Create temp directory with socket
     std::string temp_dir = "/tmp/hegel_" + std::to_string(getpid());

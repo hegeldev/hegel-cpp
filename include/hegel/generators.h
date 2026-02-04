@@ -178,7 +178,7 @@ namespace hegel {
                         return value;
                     }
                 }
-                assume(false);
+                internal::assume(false);
                 std::abort();  // Unreachable, but needed for return type
             });
         }
@@ -221,12 +221,12 @@ namespace hegel {
             std::string response_json = internal::communicate_with_socket(schema_);
 
             auto parse_result = rfl::json::read<Response<T>>(response_json);
-            assume(parse_result.has_value());
+            internal::assume(parse_result.has_value());
 
             const Response<T>& response = parse_result.value();
 
-            assume(!response.error);
-            assume(response.result.has_value());
+            internal::assume(!response.error);
+            internal::assume(response.result.has_value());
 
             return *response.result;
         }
@@ -259,12 +259,12 @@ namespace hegel {
                 std::string response_json = internal::communicate_with_socket(schema_copy);
 
                 auto parse_result = rfl::json::read<Response<T>>(response_json);
-                assume(parse_result.has_value());
+                internal::assume(parse_result.has_value());
 
                 const Response<T>& response = parse_result.value();
 
-                assume(!response.error);
-                assume(response.result.has_value());
+                internal::assume(!response.error);
+                internal::assume(response.result.has_value());
 
                 return *response.result;
             });
@@ -342,12 +342,12 @@ namespace hegel {
                 std::string response_json = internal::communicate_with_socket(schema);
 
                 auto parse_result = rfl::json::read<Response<T>>(response_json);
-                assume(parse_result.has_value());
+                internal::assume(parse_result.has_value());
 
                 const Response<T>& response = parse_result.value();
 
-                assume(!response.error);
-                assume(response.result.has_value());
+                internal::assume(!response.error);
+                internal::assume(response.result.has_value());
 
                 return *response.result;
             },

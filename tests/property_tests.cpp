@@ -18,7 +18,7 @@
 #include <sstream>
 
 using namespace hegel::strategies;
-using hegel::assume;
+using hegel::internal::assume;
 using hegel::internal::note;
 
 // =============================================================================
