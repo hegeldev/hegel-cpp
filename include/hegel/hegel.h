@@ -34,8 +34,8 @@
 // Core types and functions
 #include "core.h"
 
-// Internal detail namespace
-#include "detail.h"
+// Internal namespace
+#include "internal.h"
 
 // Span/grouping management
 #include "grouping.h"

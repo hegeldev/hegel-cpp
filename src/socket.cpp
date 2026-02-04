@@ -1,6 +1,6 @@
 #include <socket.h>
 #include <run_state.h>
-#include <hegel/detail.h>
+#include <hegel/internal.h>
 #include <hegel/core.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -69,7 +69,7 @@ namespace hegel::impl::socket {
 
 inline constexpr int ASSERTION_FAILURE_EXIT_CODE = 134;
 
-namespace hegel::detail {
+namespace hegel::internal {
     std::string communicate_with_socket(const std::string& schema) {
         nlohmann::json payload = nlohmann::json::parse(schema);
 
@@ -147,4 +147,4 @@ namespace hegel::detail {
         }
     }
 
-} // namespace hegel::detail
+} // namespace hegel::internal

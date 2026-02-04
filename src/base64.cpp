@@ -66,4 +66,4 @@ namespace hegel::impl {
         return result;
     }
 
-}  // namespace hegel::detail
+}

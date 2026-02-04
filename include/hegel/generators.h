@@ -16,7 +16,7 @@
 #include <type_traits>
 
 #include "core.h"
-#include "detail.h"
+#include "internal.h"
 
 namespace hegel {
 
@@ -218,7 +218,7 @@ namespace hegel {
         std::string schema_;
 
         T generate_impl() const {
-            std::string response_json = detail::communicate_with_socket(schema_);
+            std::string response_json = internal::communicate_with_socket(schema_);
 
             auto parse_result = rfl::json::read<Response<T>>(response_json);
             assume(parse_result.has_value());
@@ -256,7 +256,7 @@ namespace hegel {
         Generator<T> to_generator() const {
             std::string schema_copy = schema_;
             return Generator<T>([schema_copy]() -> T {
-                std::string response_json = detail::communicate_with_socket(schema_copy);
+                std::string response_json = internal::communicate_with_socket(schema_copy);
 
                 auto parse_result = rfl::json::read<Response<T>>(response_json);
                 assume(parse_result.has_value());
@@ -339,7 +339,7 @@ namespace hegel {
     Generator<T> from_schema(std::string schema) {
         return Generator<T>(
             [schema]() -> T {
-                std::string response_json = detail::communicate_with_socket(schema);
+                std::string response_json = internal::communicate_with_socket(schema);
 
                 auto parse_result = rfl::json::read<Response<T>>(response_json);
                 assume(parse_result.has_value());

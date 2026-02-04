@@ -23,7 +23,7 @@
 #include <nlohmann/json.hpp>
 
 #include "core.h"
-#include "detail.h"
+#include "internal.h"
 
 namespace hegel {
 

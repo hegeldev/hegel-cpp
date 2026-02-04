@@ -4,7 +4,7 @@
 
 #include <functional>
 #include <hegel/core.h>
-#include <hegel/detail.h>
+#include <hegel/internal.h>
 #include <socket.h>
 #include <run_state.h>
 #include <base64.h>
