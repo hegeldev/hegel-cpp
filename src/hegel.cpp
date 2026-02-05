@@ -8,7 +8,6 @@
 #include <socket.h>
 #include <run_state.h>
 #include <base64.h>
-#include <impl.h>
 #include <hegel/generators.h>
 #include <hegel/strategies.h>
 #include <iostream>
@@ -88,7 +87,7 @@ namespace hegel {
                         std::string error_message;
                         try {
                             test_fn();
-                        } catch (const impl::HegelReject& e) {
+                        } catch (const internal::HegelReject& e) {
                             result_type = "reject";
                             error_message = e.what();
                         } catch (const std::exception& e) {

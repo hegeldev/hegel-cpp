@@ -1,5 +1,4 @@
 #include <hegel/internal.h>
-#include <impl.h>
 #include <run_state.h>
 #include <iostream>
 
@@ -14,7 +13,9 @@ namespace hegel::internal {
 
     void assume(bool condition) {
         if (!condition) {
-            impl::stop_test();
+            stop_test();
         }
     }
+
+    [[noreturn]] void stop_test() { throw HegelReject(); }
 }
