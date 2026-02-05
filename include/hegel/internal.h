@@ -14,6 +14,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <optional>
 
 namespace hegel::internal {
     std::string communicate_with_socket(const std::string& schema);
@@ -58,4 +59,13 @@ namespace hegel::internal {
     * @note This function never returns.
     */
     [[noreturn]] void stop_test();
+
+    // =============================================================================
+    // Response wrapper for socket communication
+    // =============================================================================
+    template <typename T>
+    struct Response {
+        std::optional<T> result;
+        std::optional<std::string> error;
+    };
 }

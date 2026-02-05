@@ -8,38 +8,12 @@
  * the Response wrapper, and factory functions.
  */
 
-#include <functional>
-#include <optional>
 #include <rfl.hpp>
 #include <rfl/json.hpp>
-#include <string>
-#include <type_traits>
 
-#include "options.h"
 #include "internal.h"
 
 namespace hegel {
-
-    // =============================================================================
-    // Forward declarations
-    // =============================================================================
-
-    template <typename T>
-    class Generator;
-    template <typename T>
-    class DefaultGenerator;
-
-    // =============================================================================
-    // Response wrapper for socket communication
-    // =============================================================================
-
-    /// @cond INTERNAL
-    template <typename T>
-    struct Response {
-        std::optional<T> result;
-        std::optional<std::string> error;
-    };
-    /// @endcond
 
     // =============================================================================
     // Generator class template
@@ -76,10 +50,6 @@ namespace hegel {
     */
     template <typename T>
     class Generator {
-    private:
-        std::function<T()> gen_fn_;
-        std::optional<std::string> schema_;
-
     public:
         /**
         * @brief Construct a generator from a function.
@@ -122,9 +92,10 @@ namespace hegel {
         */
         template <typename F>
         auto map(F&& f) const -> Generator<std::invoke_result_t<F, T>> {
-            using U = std::invoke_result_t<F, T>;
+            // F is of type T -> ResultType
+            using ResultType = std::invoke_result_t<F, T>;
             auto inner = gen_fn_;
-            return Generator<U>([inner, f = std::forward<F>(f)]() -> U { return f(inner()); });
+            return Generator<ResultType>([inner, f = std::forward<F>(f)]() -> ResultType { return f(inner()); });
         }
 
         /**
@@ -147,11 +118,15 @@ namespace hegel {
         */
         template <typename F>
         auto flatmap(F&& f) const -> std::invoke_result_t<F, T> {
-            using ResultGen = std::invoke_result_t<F, T>;
-            using U = decltype(std::declval<ResultGen>().generate());
+            // Relevant types here:
+            //     ResultType: some type
+            //     gen_fn_:   () -> T
+            //     F:         T -> Generator<ResultType>
+            //     Function return type: Generator<ResultType>
+            using ResultType = decltype(std::declval<std::invoke_result_t<F, T>>().generate());
             auto inner = gen_fn_;
-            return Generator<U>(
-                [inner, f = std::forward<F>(f)]() -> U { return f(inner()).generate(); });
+            return Generator<ResultType>(
+                [inner, f = std::forward<F>(f)]() -> ResultType { return f(inner()).generate(); });
         }
 
         /**
@@ -178,10 +153,14 @@ namespace hegel {
                         return value;
                     }
                 }
-                internal::assume(false);
-                std::abort();  // Unreachable, but needed for return type
+                internal::stop_test();
             });
         }
+
+    private:
+        std::function<T()> gen_fn_;
+        std::optional<std::string> schema_;
+
     };
 
     // =============================================================================
@@ -214,29 +193,10 @@ namespace hegel {
     */
     template <typename T>
     class DefaultGenerator {
-    private:
-        std::string schema_;
-
-        T generate_impl() const {
-            std::string response_json = internal::communicate_with_socket(schema_);
-
-            auto parse_result = rfl::json::read<Response<T>>(response_json);
-            internal::assume(parse_result.has_value());
-
-            const Response<T>& response = parse_result.value();
-
-            internal::assume(!response.error);
-            internal::assume(response.result.has_value());
-
-            return *response.result;
-        }
-
     public:
         /// Default constructor - derives schema from T using reflect-cpp
         DefaultGenerator() : schema_(rfl::json::to_schema<T>()) {}
 
-        /// Get mutable reference to the JSON schema
-        std::string& schema() { return schema_; }
         /// Get const reference to the JSON schema
         const std::string& schema() const { return schema_; }
 
@@ -258,10 +218,10 @@ namespace hegel {
             return Generator<T>([schema_copy]() -> T {
                 std::string response_json = internal::communicate_with_socket(schema_copy);
 
-                auto parse_result = rfl::json::read<Response<T>>(response_json);
+                auto parse_result = rfl::json::read<internal::Response<T>>(response_json);
                 internal::assume(parse_result.has_value());
 
-                const Response<T>& response = parse_result.value();
+                const internal::Response<T>& response = parse_result.value();
 
                 internal::assume(!response.error);
                 internal::assume(response.result.has_value());
@@ -291,6 +251,23 @@ namespace hegel {
         /// @see Generator::filter
         Generator<T> filter(std::function<bool(const T&)> pred) const {
             return to_generator().filter(std::move(pred));
+        }
+
+    private:
+        std::string schema_;
+
+        T generate_impl() const {
+            std::string response_json = internal::communicate_with_socket(schema_);
+
+            auto parse_result = rfl::json::read<internal::Response<T>>(response_json);
+            internal::assume(parse_result.has_value());
+
+            const internal::Response<T>& response = parse_result.value();
+
+            internal::assume(!response.error);
+            internal::assume(response.result.has_value());
+
+            return *response.result;
         }
     };
 
@@ -341,10 +318,10 @@ namespace hegel {
             [schema]() -> T {
                 std::string response_json = internal::communicate_with_socket(schema);
 
-                auto parse_result = rfl::json::read<Response<T>>(response_json);
+                auto parse_result = rfl::json::read<internal::Response<T>>(response_json);
                 internal::assume(parse_result.has_value());
 
-                const Response<T>& response = parse_result.value();
+                const internal::Response<T>& response = parse_result.value();
 
                 internal::assume(!response.error);
                 internal::assume(response.result.has_value());
