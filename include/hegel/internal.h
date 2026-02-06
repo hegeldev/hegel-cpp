@@ -16,6 +16,8 @@
 #include <stdexcept>
 #include <optional>
 
+
+/// @cond INTERNAL
 namespace hegel::internal {
     std::string communicate_with_socket(const std::string& schema);
 
@@ -69,3 +71,4 @@ namespace hegel::internal {
         std::optional<std::string> error;
     };
 }
+/// @endcond

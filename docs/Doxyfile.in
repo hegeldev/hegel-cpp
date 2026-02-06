@@ -7,8 +7,8 @@ PROJECT_NUMBER         = @PROJECT_VERSION@
 OUTPUT_DIRECTORY       = @DOXYGEN_OUTPUT_DIR@
 
 # Input
-INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/include @CMAKE_CURRENT_SOURCE_DIR@/src
-FILE_PATTERNS          = *.hpp *.cpp
+INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/include
+FILE_PATTERNS          = *.h
 RECURSIVE              = YES
 EXTRACT_ALL            = YES
 

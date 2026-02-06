@@ -8,7 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(HEGEL_BUILD_EXAMPLES "Build example executables" ON)
 option(HEGEL_BUILD_TESTS "Build unit tests" ON)
 option(HEGEL_BUILD_CONFORMANCE "Build conformance test binary" ON)
-option(HEGEL_BUILD_DOCS "Build documentation" OFF)
+option(HEGEL_BUILD_DOCS "Build documentation" ON)
 option(HEGEL_COVERAGE "Build with coverage instrumentation" OFF)
 
 if(HEGEL_COVERAGE)
@@ -258,6 +258,7 @@ if(HEGEL_BUILD_DOCS)
     configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
 
     add_custom_target(docs
+        ALL
         COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_OUT}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMMENT "Generating documentation with Doxygen"

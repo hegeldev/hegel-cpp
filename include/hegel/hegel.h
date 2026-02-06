@@ -39,6 +39,8 @@
 #include "strategies.h"
 
 #include <functional>
+
+/// @brief Main hegel namespace
 namespace hegel {
 
     /**
