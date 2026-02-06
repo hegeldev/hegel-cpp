@@ -2,9 +2,9 @@
 
 /**
  * @file generators.h
- * @brief Generator and DefaultGenerator class templates for Hegel SDK
+ * @brief Generator and SchemaBackedGenerator class templates for Hegel SDK
  *
- * Contains the core Generator<T> and DefaultGenerator<T> class templates,
+ * Contains the core Generator<T> and SchemaBackedGenerator<T> class templates,
  * the Response wrapper, and factory functions.
  */
 
@@ -32,7 +32,7 @@ namespace hegel {
         * @brief Get the JSON schema for this generator, if any.
         * @return Optional containing the schema, or nullopt if not schema-based
         */
-        virtual const std::optional<std::string>& schema() const = 0;
+        virtual const std::optional<std::string_view> schema() const = 0;
     };
 
     template <typename T>
@@ -51,7 +51,7 @@ namespace hegel {
         * @brief Get the JSON schema for this generator, if any.
         * @return Optional containing the schema, or nullopt if not schema-based
         */
-        const std::optional<std::string>& schema() const { return inner_->schema(); }
+        const std::optional<std::string_view> schema() const override { return inner_->schema(); }
 
         /**
         * @brief Transform generated values with a function.
@@ -182,13 +182,13 @@ namespace hegel {
         * @brief Get the JSON schema for this generator, if any.
         * @return Optional containing the schema, or nullopt if not schema-based
         */
-        const std::optional<std::string>& schema() const { return schema_; }
+        const std::optional<std::string_view> schema() const override { return schema_; }
 
         /**
         * @brief Generate a random value.
         * @return A randomly generated value of type T
         */
-        T generate() const { return gen_fn_(); }
+        T generate() const override { return gen_fn_(); }
 
     private:
         std::function<T()> gen_fn_;
@@ -196,13 +196,13 @@ namespace hegel {
     };
 
     // =============================================================================
-    // DefaultGenerator class template
+    // SchemaBackedGenerator class template
     // =============================================================================
 
     /**
     * @brief A generator that derives its schema from type T using reflect-cpp.
     *
-    * DefaultGenerator automatically creates a JSON schema from the structure
+    * SchemaBackedGenerator automatically creates a JSON schema from the structure
     * of type T using reflect-cpp's compile-time reflection. This allows
     * generating random instances of structs and classes without manually
     * specifying the schema.
@@ -224,19 +224,18 @@ namespace hegel {
     * @see default_generator() Factory function for creating DefaultGenerators
     */
     template <typename T>
-    class DefaultGenerator : public IGenerator<T> {
+    class SchemaBackedGenerator : public IGenerator<T> {
     public:
-        /// Default constructor - derives schema from T using reflect-cpp
-        DefaultGenerator() : schema_(rfl::json::to_schema<T>()) {}
+        SchemaBackedGenerator(std::string schema) : schema_(std::move(schema)) {}
 
         /// Get const reference to the JSON schema
-        const std::string& schema() const { return schema_; }
+        const std::optional<std::string_view> schema() const override { return std::string_view(schema_); }
 
         /**
         * @brief Generate a random value of type T.
         * @return A randomly generated value
         */
-        T generate() const { 
+        T generate() const override { 
             std::string response_json = internal::communicate_with_socket(schema_);
 
             auto parse_result = rfl::json::read<internal::Response<T>>(response_json);
@@ -271,11 +270,11 @@ namespace hegel {
     * @endcode
     *
     * @tparam T The type to generate (must be reflect-cpp compatible)
-    * @return A DefaultGenerator<T> instance
+    * @return A SchemaBackedGenerator<T> instance
     */
     template <typename T>
-    DefaultGenerator<T> default_generator() {
-        return DefaultGenerator<T>();
+    SchemaBackedGenerator<T> default_generator() {
+        return from_schema<T>(rfl::json::to_schema<T>());
     }
 
     /**
@@ -317,21 +316,7 @@ namespace hegel {
     */
     template <typename T>
     Generator<T> from_schema(std::string schema) {
-        return generator<T>(
-            [schema]() -> T {
-                std::string response_json = internal::communicate_with_socket(schema);
-
-                auto parse_result = rfl::json::read<internal::Response<T>>(response_json);
-                internal::assume(parse_result.has_value());
-
-                const internal::Response<T>& response = parse_result.value();
-
-                internal::assume(!response.error);
-                internal::assume(response.result.has_value());
-
-                return *response.result;
-            },
-            schema);
+        return Generator<T>(new SchemaBackedGenerator<T>(std::move(schema)));
     }
 
 }  // namespace hegel
