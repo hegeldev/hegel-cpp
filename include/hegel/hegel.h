@@ -33,6 +33,9 @@
 // HegelOptions and supporting classes
 #include "options.h"
 
+// Data generator primitives
+#include "generators.h"
+
 // All strategy functions
 // inetgers<>, booleans, floats<>, etc.
 #include "strategies.h"

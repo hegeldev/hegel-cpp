@@ -31,6 +31,9 @@
  * @endcode
  */
 namespace hegel::strategies {
+    using hegel::generators::Generator;
+    using hegel::generators::generator;
+    using hegel::generators::from_schema;
 
     // =============================================================================
     // Parameter structs

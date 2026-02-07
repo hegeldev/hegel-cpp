@@ -14,9 +14,25 @@
 
 #include "internal.h"
 
-namespace hegel {
-    template <typename T> class Generator;  // Forward decl
-
+/**
+ * @brief Namespace containing abstractions for data generation.
+ *
+ * You wouldn't typically use the classes in this namespace directly.
+ * You might use the default_generator() function, and all the strategies
+ * in hegel::strategies use generators internally.
+ */
+namespace hegel::generators {
+    /**
+    * @brief The base interface that defines Generators.
+    *
+    * Generators have a generate() method that returns a single value of 
+    * type T, and a schema() method that returns the schema (if there is one).
+    * All Generators implement these basic operations. 
+    *
+    * @tparam T The type to generate values for (must be reflect-cpp compatible)
+    * @see default_generator() Factory function for creating default type-based Generators
+    * @see hegel::strategies Built-in functions that %generate data for you
+    */
     template <typename T>
     struct IGenerator {
         IGenerator() {}
@@ -265,7 +281,7 @@ namespace hegel {
     *
     * @code{.cpp}
     * struct Point { double x; double y; };
-    * auto gen = hegel::default_generator<Point>();
+    * auto gen = hegel::generators::default_generator<Point>();
     * Point p = gen.generate();
     * @endcode
     *
