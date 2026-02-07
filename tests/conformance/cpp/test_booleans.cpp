@@ -10,7 +10,7 @@ int main(int argc, char* argv[]) {
             auto value = gen.generate();
             conformance::write_metrics({{"value", value}});
         },
-        hegel::HegelOptions{.test_cases = test_cases});
+        {.test_cases = test_cases});
 
     return 0;
 }

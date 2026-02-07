@@ -24,7 +24,7 @@ TEST(FailureReporting, ShowsCounterexample) {
             // counterexample
             ASSERT_LE(x, 50) << "Value should be <= 50";
         },
-        hegel::HegelOptions{.test_cases = 100});
+        {.test_cases = 100});
 }
 
 int main(int argc, char** argv) {

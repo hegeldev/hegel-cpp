@@ -1,15 +1,8 @@
-/*
- * hegel.cpp - Implementation of non-template functions
- */
-
+#include <hegel/hegel.h>
 #include <functional>
-#include <hegel/options.h>
-#include <hegel/internal.h>
 #include <socket.h>
 #include <run_state.h>
 #include <base64.h>
-#include <hegel/generators.h>
-#include <hegel/strategies.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
@@ -27,7 +20,7 @@
 
 namespace hegel {
     // Child process from fork: exec hegel
-    void hegel_child(const std::string& socket_path, const HegelOptions& options) {
+    void hegel_child(const std::string& socket_path, const options::HegelOptions& options) {
         // Build hegel command
         std::string hegel_path = options.hegel_path.value_or(HEGEL_DEFAULT_PATH);
         uint64_t test_cases = options.test_cases.value_or(100);
@@ -135,7 +128,7 @@ namespace hegel {
         std::filesystem::remove_all(temp_dir);
     }
 
-    void hegel(std::function<void()> test_fn, HegelOptions options) {
+    void hegel(std::function<void()> test_fn, options::HegelOptions options) {
         // Create temp directory with socket
         std::string temp_dir = "/tmp/hegel_" + std::to_string(getpid());
         std::filesystem::create_directories(temp_dir);

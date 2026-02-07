@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
                 {"is_infinite", std::isinf(value)},
             });
         },
-        hegel::HegelOptions{.test_cases = test_cases});
+        {.test_cases = test_cases});
 
     return 0;
 }

@@ -14,7 +14,7 @@ TEST(Base64, RoundTrip) {
             std::vector<uint8_t> decoded = base64_decode(encoded);
             ASSERT_EQ(input, decoded);
         },
-        hegel::HegelOptions{.test_cases = 100});
+        {.test_cases = 100});
 }
 
 TEST(Base64, KnownValues) {

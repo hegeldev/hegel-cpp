@@ -1,19 +1,13 @@
 #pragma once
 
-/**
- * @file options.h
- * @brief HegelOptions and supporting classes
- */
-
 #include <cstdint>
 #include <optional>
 #include <string>
 
-namespace hegel {
-    // =============================================================================
-    // Options
-    // =============================================================================
-
+/** @namespace hegel::options
+ * @brief The HegelOptions struct for configuring your Hegel run, and supporting items
+*/
+namespace hegel::options {
     /**
     * @brief Verbosity levels for hegel output.
     */
@@ -45,7 +39,7 @@ namespace hegel {
 
     /**
     * @brief Configuration options for embedded mode execution.
-    * @see hegel()
+    * @see hegel::hegel()
     */
     struct HegelOptions {
         /// Number of test cases to run. Default: 100

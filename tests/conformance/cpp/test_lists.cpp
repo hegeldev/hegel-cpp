@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
             }
             conformance::write_metrics(metrics);
         },
-        hegel::HegelOptions{.test_cases = test_cases});
+        {.test_cases = test_cases});
 
     return 0;
 }

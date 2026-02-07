@@ -16,6 +16,7 @@ EXTRACT_ALL            = YES
 GENERATE_HTML          = YES
 GENERATE_LATEX         = NO
 HTML_OUTPUT            = html
+SHOW_FILES             = NO
 
 # Doxygen Awesome theme
 GENERATE_TREEVIEW      = YES

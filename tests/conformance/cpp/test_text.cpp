@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
             auto value = gen.generate();
             conformance::write_metrics({{"length", count_codepoints(value)}});
         },
-        hegel::HegelOptions{.test_cases = test_cases});
+        {.test_cases = test_cases});
 
     return 0;
 }

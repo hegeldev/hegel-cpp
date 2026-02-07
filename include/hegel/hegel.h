@@ -1,8 +1,7 @@
 #pragma once
 
 /**
- * @file hegel.h
- * @brief Hegel C++ SDK - Hypothesis-like property-based testing for C++20
+ * @mainpage Hegel C++ SDK - Hypothesis-like property-based testing for C++20
  *
  * This library provides type-safe random data generation for property-based
  * testing, communicating with the Hegel test runner via Unix sockets.
@@ -40,7 +39,11 @@
 
 #include <functional>
 
-/// @brief Main hegel namespace
+/** @namespace hegel
+ * @brief Main Hegel namespace
+ * 
+ * All Hegel functionality exists in this namespace or its sub-namespaces.
+*/
 namespace hegel {
 
     /**
@@ -78,5 +81,5 @@ namespace hegel {
     * @throws std::runtime_error if any test case fails
     * @see HegelOptions for configuration options
     */
-    void hegel(std::function<void()> test_fn, HegelOptions options = {});
+    void hegel(std::function<void()> test_fn, options::HegelOptions options = {});
 }  // namespace hegel
