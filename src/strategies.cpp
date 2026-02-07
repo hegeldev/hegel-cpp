@@ -9,7 +9,7 @@
 namespace hegel::strategies {
     Generator<std::monostate> nulls() {
         nlohmann::json schema = {{"type", "null"}};
-        return generator<std::monostate>([]() { return std::monostate{}; },
+        return from_function<std::monostate>([]() { return std::monostate{}; },
                 schema.dump());
     }
 
@@ -34,7 +34,7 @@ namespace hegel::strategies {
             schema["max_size"] = *params.max_size;
 
         std::string schema_str = schema.dump();
-        return generator<std::vector<uint8_t>>(
+        return from_function<std::vector<uint8_t>>(
                 [schema_str]() -> std::vector<uint8_t> {
                     std::string b64 = from_schema<std::string>(schema_str).generate();
                     return ::hegel::impl::base64_decode(b64);

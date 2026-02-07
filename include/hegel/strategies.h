@@ -32,7 +32,7 @@
  */
 namespace hegel::strategies {
     using hegel::generators::Generator;
-    using hegel::generators::generator;
+    using hegel::generators::from_function;
     using hegel::generators::from_schema;
 
     // =============================================================================
@@ -219,9 +219,9 @@ namespace hegel::strategies {
         if constexpr (std::is_same_v<T, bool> || std::is_same_v<T, std::nullptr_t> ||
                       std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
             schema = {{"const", value}};
-            return generator<T>([value]() { return value; }, schema.dump());
+            return from_function<T>([value]() { return value; }, schema.dump());
         } else {
-            return generator<T>([value]() { return value; });
+            return from_function<T>([value]() { return value; });
         }
     }
 
@@ -335,7 +335,7 @@ namespace hegel::strategies {
         auto length_gen =
             integers<size_t>({.min_value = params.min_size, .max_value = max_size});
 
-        return generator<std::vector<T>>([elements, length_gen]() {
+        return from_function<std::vector<T>>([elements, length_gen]() {
             size_t len = length_gen.generate();
             std::vector<T> result;
             result.reserve(len);
@@ -372,7 +372,7 @@ namespace hegel::strategies {
 
             auto vec_gen = from_schema<std::vector<T>>(schema.dump());
 
-            return generator<std::set<T>>([vec_gen]() {
+            return from_function<std::set<T>>([vec_gen]() {
                 auto vec = vec_gen.generate();
                 return std::set<T>(vec.begin(), vec.end());
             });
@@ -382,7 +382,7 @@ namespace hegel::strategies {
         auto length_gen =
             integers<size_t>({.min_value = params.min_size, .max_value = max_size});
 
-        return generator<std::set<T>>([elements, length_gen]() {
+        return from_function<std::set<T>>([elements, length_gen]() {
             size_t target_len = length_gen.generate();
             std::set<T> result;
 
@@ -431,7 +431,7 @@ namespace hegel::strategies {
             // Wire format is [[key, value], ...], deserialize as vector of pairs
             auto vec_gen = from_schema<std::vector<std::pair<K, V>>>(schema.dump());
 
-            return generator<std::map<K, V>>([vec_gen]() {
+            return from_function<std::map<K, V>>([vec_gen]() {
                 auto pairs = vec_gen.generate();
                 return std::map<K, V>(pairs.begin(), pairs.end());
             });
@@ -441,7 +441,7 @@ namespace hegel::strategies {
         auto length_gen =
             integers<size_t>({.min_value = params.min_size, .max_value = max_size});
 
-        return generator<std::map<K, V>>([keys, values, length_gen]() {
+        return from_function<std::map<K, V>>([keys, values, length_gen]() {
             size_t len = length_gen.generate();
             std::map<K, V> result;
 
@@ -505,7 +505,7 @@ namespace hegel::strategies {
 
         auto gen_tuple = std::make_tuple(std::move(gens)...);
 
-        return generator<ResultTuple>([gen_tuple]() {
+        return from_function<ResultTuple>([gen_tuple]() {
             return detail::generate_tuple_impl<ResultTuple>(gen_tuple, std::index_sequence_for<Ts...>{});
         });
     }
@@ -539,7 +539,7 @@ namespace hegel::strategies {
             auto index_gen =
                 integers<size_t>({.min_value = 0, .max_value = elements.size() - 1});
 
-            return generator<T>([elements, index_gen](){
+            return from_function<T>([elements, index_gen](){
                 size_t idx = index_gen.generate();
                 return elements[idx];
             });
@@ -612,7 +612,7 @@ namespace hegel::strategies {
 
         auto index_gen = integers<size_t>({.min_value = 0, .max_value = gens.size() - 1});
 
-        return generator<T>([gens, index_gen](){
+        return from_function<T>([gens, index_gen](){
             size_t idx = index_gen.generate();
             return gens[idx].generate();
         });
@@ -664,7 +664,7 @@ namespace hegel::strategies {
         auto gen_tuple = std::make_tuple(std::move(gens)...);
         auto index_gen = integers<size_t>({.min_value = 0, .max_value = N - 1});
 
-        return generator<ResultVariant>([gen_tuple, index_gen]() {
+        return from_function<ResultVariant>([gen_tuple, index_gen]() {
             size_t idx = index_gen.generate();
             return detail::generate_variant_impl<ResultVariant, decltype(gen_tuple)>(gen_tuple, idx);
         });
@@ -688,7 +688,7 @@ namespace hegel::strategies {
     Generator<std::optional<T>> optional_(Generator<T> gen) {
         auto bool_gen = booleans();
 
-        return generator<std::optional<T>>([gen, bool_gen]() -> std::optional<T> {
+        return from_function<std::optional<T>>([gen, bool_gen]() -> std::optional<T> {
             bool is_none = bool_gen.generate();
             if (is_none) {
                 return std::nullopt;
@@ -729,7 +729,7 @@ namespace hegel::strategies {
     Generator<T> builds(Gens... gens) {
         auto gen_tuple = std::make_tuple(std::move(gens)...);
 
-        return generator<T>([gen_tuple](){
+        return from_function<T>([gen_tuple](){
             return std::apply([](auto&... g) { return T(g.generate()...); }, gen_tuple);
         });
     }
@@ -793,7 +793,7 @@ namespace hegel::strategies {
     Generator<T> builds_agg(Fields... fields) {
         auto gen_tuple = std::make_tuple(std::move(fields)...);
 
-        return generator<T>([gen_tuple]() mutable{
+        return from_function<T>([gen_tuple]() mutable{
             T result{};
             std::apply(
                 [&result](auto&... fs) {

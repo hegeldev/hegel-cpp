@@ -142,7 +142,7 @@ namespace hegel::generators {
             // F is of type T -> ResultType
             using ResultType = std::invoke_result_t<F, T>;
             auto inner = inner_;
-            return generator<ResultType>([inner, f = std::forward<F>(f)]() -> ResultType { return f(inner->generate()); });
+            return from_function<ResultType>([inner, f = std::forward<F>(f)]() -> ResultType { return f(inner->generate()); });
         }
 
         /**
@@ -181,7 +181,7 @@ namespace hegel::generators {
             //     Function return type: Generator<ResultType>
             using ResultType = decltype(std::declval<std::invoke_result_t<F, T>>().generate());
             auto inner = inner_;
-            return generator<ResultType>(
+            return from_function<ResultType>(
                 [inner, f = std::forward<F>(f)]() -> ResultType { return f(inner->generate()).generate(); });
         }
 
@@ -211,7 +211,7 @@ namespace hegel::generators {
         */
         Generator<T> filter(std::function<bool(const T&)> pred) const {
             auto inner = inner_;
-            return generator<T>([inner, pred]() -> T {
+            return from_function<T>([inner, pred]() -> T {
                 for (int i = 0; i < 3; ++i) {
                     T value = inner->generate();
                     if (pred(value)) {
@@ -229,7 +229,7 @@ namespace hegel::generators {
     /**
     * @brief A generator that uses a function to produce random values of type T.
     * 
-    * You shouldn't create this directly, but rather use the generator() function.
+    * You shouldn't create this directly, but rather use the from_function() function.
     *
     * @tparam T The type of values this generator produces
     */
@@ -335,23 +335,23 @@ namespace hegel::generators {
     * @param fn Function that produces values of type T
     */
     template <typename T>
-    Generator<T> generator(std::function<T()> fn) {
+    Generator<T> from_function(std::function<T()> fn) {
         return Generator<T>(new FunctionBackedGenerator<T>(std::move(fn)));
     }
 
     /**
-    * @brief Construct a generator with an associated JSON schema.
+    * @brief Construct a generator from a function (with an associated JSON schema).
     * @param fn Function that produces values of type T
     * @param schema JSON schema string for this generator. This isn't used in generate(), but may be used when composing generators.
     */
     template <typename T>
-    Generator<T> generator(std::function<T()> fn, std::string schema) {
+    Generator<T> from_function(std::function<T()> fn, std::string schema) {
         return Generator<T>(new FunctionBackedGenerator<T>(std::move(fn), std::move(schema)));
     }
 
 
     /**
-    * @brief Create a generator from an explicit JSON schema.
+    * @brief Create a from_function from an explicit JSON schema.
     *
     * Use this when you need fine-grained control over the generation
     * schema, or when working with types that don't support automatic
