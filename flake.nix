@@ -43,6 +43,7 @@
           FETCHCONTENT_SOURCE_DIR_REFLECTCPP = deps.reflectcpp;
           FETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON = pkgs.nlohmann_json.src;
           FETCHCONTENT_SOURCE_DIR_GOOGLETEST = pkgs.gtest.src;
+          FETCHCONTENT_FULLY_DISCONNECTED = "ON";
         };
 
       # export builder helper for consumers
