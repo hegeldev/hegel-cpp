@@ -235,6 +235,11 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
       DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
   )
 
+  # Install docs
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs
+      TYPE DOC
+  )
+
 endif()
 
 # =============================================================================
@@ -246,10 +251,11 @@ if(HEGEL_BUILD_DOCS)
 
     FetchContent_Declare(
         doxygen-awesome-css
-        URL https://github.com/jothepro/doxygen-awesome-css/archive/refs/tags/v2.3.4.zip
+        GIT_REPOSITORY https://github.com/jothepro/doxygen-awesome-css.git
+        GIT_TAG v2.3.4
     )
+
     FetchContent_MakeAvailable(doxygen-awesome-css)
-    FetchContent_GetProperties(doxygen-awesome-css SOURCE_DIR DOXYGEN_AWESOME_CSS_DIR)
 
     set(DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs")
     set(DOXYFILE_IN "${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile.in")

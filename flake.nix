@@ -55,7 +55,7 @@
           system ? pkgs.system,
         }@args: let 
           fs = pkgs.lib.fileset;
-          baseSrc = fs.unions [ ./cmake ./CMakeLists.txt ./src ./include ./tests];
+          baseSrc = fs.unions [ ./cmake ./CMakeLists.txt ./src ./include ./tests ./docs];
         in stdenv.mkDerivation {
             pname = "hegel-cpp";
             version = "0.1.0";
@@ -66,6 +66,7 @@
             nativeBuildInputs = [
               pkgs.cmake
               pkgs.ninja
+              pkgs.doxygen
             ];
 
             buildInputs = [
@@ -73,7 +74,7 @@
             ];
 
             cmakeFlags = (mkFetchContentFlags pkgs) ++ [
-              (lib.cmakeFeature "HEGEL_BUILD_DOCS" "OFF")
+              (lib.cmakeFeature "HEGEL_BUILD_DOCS" "ON")
               (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
             ];
 
