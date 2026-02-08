@@ -146,6 +146,7 @@ add_library(hegel
 )
 target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 
     PRIVATE
@@ -153,7 +154,6 @@ target_include_directories(hegel PUBLIC
 )
 target_link_libraries(hegel 
   PUBLIC reflectcpp 
-  $<BUILD_INTERFACE:nlohmann_json::nlohmann_json>
 )
 target_compile_features(hegel PUBLIC cxx_std_20)
 target_compile_definitions(hegel PUBLIC
@@ -200,6 +200,12 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  )
+
+  # Install the nlohman_json stuff
+  install(
+    DIRECTORY ${nlohmann_json_SOURCE_DIR}/include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
   # Install headers
