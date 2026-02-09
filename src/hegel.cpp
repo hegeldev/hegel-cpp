@@ -26,8 +26,7 @@ void hegel_child(const std::string& socket_path,
     std::string hegel_path = options.hegel_path.value_or(HEGEL_DEFAULT_PATH);
     uint64_t test_cases = options.test_cases.value_or(100);
     std::vector<std::string> args = {
-        hegel_path,     "--client-mode",
-        socket_path,    "--no-tui",
+        hegel_path,     socket_path,
         "--verbosity",  verbosity_to_string(options.verbosity),
         "--test-cases", std::to_string(test_cases)};
 
