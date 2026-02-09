@@ -191,7 +191,7 @@ endif()
 # =============================================================================
 
 if(HEGEL_BUILD_CONFORMANCE)
-    add_subdirectory(tests/conformance/cpp EXCLUDE_FROM_ALL)
+    add_subdirectory(tests/conformance/cpp)
 endif()
 
 # =============================================================================
