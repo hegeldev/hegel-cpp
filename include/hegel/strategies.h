@@ -248,8 +248,8 @@ inline Generator<std::string> just(const char* value) {
  * @return Generator producing integers in the specified range
  */
 template <typename T = int64_t>
-requires std::is_integral_v<T> Generator<T>
-integers(IntegersParams<T> params = {}) {
+    requires std::is_integral_v<T>
+Generator<T> integers(IntegersParams<T> params = {}) {
     nlohmann::json schema = {{"type", "integer"}};
 
     T min_val = params.min_value.value_or(std::numeric_limits<T>::min());
@@ -278,8 +278,8 @@ integers(IntegersParams<T> params = {}) {
  * @return Generator producing floats in the specified range
  */
 template <typename T = double>
-requires std::is_floating_point_v<T> Generator<T>
-floats(FloatsParams<T> params = {}) {
+    requires std::is_floating_point_v<T>
+Generator<T> floats(FloatsParams<T> params = {}) {
     // Determine width from type size (float = 32 bits, double = 64 bits)
     constexpr int width = sizeof(T) * 8;
 

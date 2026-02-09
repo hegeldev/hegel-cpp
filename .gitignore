@@ -10,3 +10,10 @@ __pycache__
 .claude/*.local.md
 .claude/*.local.json
 .claude/*.local
+.claude-reliability/
+.claude/reliability-config.yaml
+
+# Development environment
+.devcontainer/
+devcontainer
+external/

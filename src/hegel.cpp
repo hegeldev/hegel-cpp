@@ -142,7 +142,7 @@ void hegel(std::function<void()> test_fn, options::HegelOptions options) {
         throw std::runtime_error("Failed to create socket");
     }
 
-    struct sockaddr_un addr {};
+    struct sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     std::copy(socket_path.begin(), socket_path.end(), addr.sun_path);
 

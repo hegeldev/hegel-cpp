@@ -119,3 +119,30 @@ jobs:
           nix build -L 2>&1 | tee build.log
           # canary string to ensure we're actually building what we think we are.
           grep "test_nix_integration_canary" build.log
+
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/base
+        with:
+          ssh-key: ${{ secrets.HEGEL_DEPLOY_KEY }}
+
+      - name: Install Doxygen
+        run: sudo apt-get update && sudo apt-get install -y doxygen
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install hegel
+        run: pip install git+ssh://git@github.com/antithesishq/hegel.git
+
+      - name: Configure CMake
+        run: cmake -B build -DHEGEL_BUILD_DOCS=ON
+
+      - name: Build docs
+        run: cmake --build build --target docs

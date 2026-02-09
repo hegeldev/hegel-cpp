@@ -8,7 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(HEGEL_BUILD_EXAMPLES "Build example executables" ON)
 option(HEGEL_BUILD_TESTS "Build unit tests" ON)
 option(HEGEL_BUILD_CONFORMANCE "Build conformance test binary" ON)
-option(HEGEL_BUILD_DOCS "Build documentation" ON)
+option(HEGEL_BUILD_DOCS "Build documentation" OFF)
 option(HEGEL_COVERAGE "Build with coverage instrumentation" OFF)
 
 if(HEGEL_COVERAGE)
@@ -81,8 +81,17 @@ else()
 
     message(STATUS "installing hegel")
 
+    # Prefer local checkout in external/hegel if present
+    set(HEGEL_LOCAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/hegel")
+    if(EXISTS "${HEGEL_LOCAL_DIR}/pyproject.toml")
+      message(STATUS "using local hegel from ${HEGEL_LOCAL_DIR}")
+      set(HEGEL_INSTALL_SOURCE "${HEGEL_LOCAL_DIR}")
+    else()
+      set(HEGEL_INSTALL_SOURCE "git+ssh://git@github.com/antithesishq/hegel.git")
+    endif()
+
     execute_process(
-      COMMAND ${UV_EXECUTABLE} pip install git+ssh://git@github.com/antithesishq/hegel.git
+      COMMAND ${UV_EXECUTABLE} pip install ${HEGEL_INSTALL_SOURCE}
               --python ${HEGEL_VENV_DIR}/bin/python
       RESULT_VARIABLE HEGEL_INSTALL_RESULT
     )
