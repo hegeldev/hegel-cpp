@@ -56,6 +56,7 @@
           pname ? "hegel-cpp",
           version ? "0.1.0",
           src ? null,
+          buildDocs ? false,
         }@args:
         let
           fs = pkgs.lib.fileset;
@@ -75,18 +76,19 @@
         stdenv.mkDerivation {
           inherit pname version;
           src = if src != null then src else defaultSrc;
-          nativeBuildInputs = [
-            pkgs.cmake
-            pkgs.ninja
-            pkgs.doxygen
-          ];
+          nativeBuildInputs =
+            [
+              pkgs.cmake
+              pkgs.ninja
+            ]
+            ++ lib.optionals buildDocs [ pkgs.doxygen ];
 
           buildInputs = [
             hegel.packages.${system}.default
           ];
 
           cmakeFlags = (mkFetchContentFlags pkgs) ++ [
-            (lib.cmakeFeature "HEGEL_BUILD_DOCS" "ON")
+            (lib.cmakeFeature "HEGEL_BUILD_DOCS" (if buildDocs then "ON" else "OFF"))
             (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
           ];
 
