@@ -53,33 +53,42 @@
           stdenv ? pkgs.stdenv,
           lib ? pkgs.lib,
           system ? pkgs.system,
-        }@args: let 
+        }@args:
+        let
           fs = pkgs.lib.fileset;
-          baseSrc = fs.unions [ ./cmake ./CMakeLists.txt ./src ./include ./tests ./docs];
-        in stdenv.mkDerivation {
-            pname = "hegel-cpp";
-            version = "0.1.0";
-            src =  fs.toSource {
-              root = ./.;
-              fileset = baseSrc;
+          baseSrc = fs.unions [
+            ./cmake
+            ./CMakeLists.txt
+            ./src
+            ./include
+            ./tests
+            ./docs
+          ];
+        in
+        stdenv.mkDerivation {
+          pname = "hegel-cpp";
+          version = "0.1.0";
+          src = fs.toSource {
+            root = ./.;
+            fileset = baseSrc;
           };
-            nativeBuildInputs = [
-              pkgs.cmake
-              pkgs.ninja
-              pkgs.doxygen
-            ];
+          nativeBuildInputs = [
+            pkgs.cmake
+            pkgs.ninja
+            pkgs.doxygen
+          ];
 
-            buildInputs = [
-              hegel.packages.${system}.default
-            ];
+          buildInputs = [
+            hegel.packages.${system}.default
+          ];
 
-            cmakeFlags = (mkFetchContentFlags pkgs) ++ [
-              (lib.cmakeFeature "HEGEL_BUILD_DOCS" "ON")
-              (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
-            ];
+          cmakeFlags = (mkFetchContentFlags pkgs) ++ [
+            (lib.cmakeFeature "HEGEL_BUILD_DOCS" "ON")
+            (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
+          ];
 
-            doCheck = true;
-          };
+          doCheck = true;
+        };
     in
     {
       # Export the builder for users
