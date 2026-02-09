@@ -43,8 +43,8 @@ int main(int argc, char* argv[]) {
 
     hegel::hegel(
         [=]() {
-            auto gen =
-                hegel::strategies::text({.min_size = min_size, .max_size = max_size});
+            auto gen = hegel::strategies::text(
+                {.min_size = min_size, .max_size = max_size});
             auto value = gen.generate();
             conformance::write_metrics({{"length", count_codepoints(value)}});
         },
