@@ -90,7 +90,11 @@
           ];
 
           doCheck = true;
-          cmakeCheckFlags = [ "--verbose" ];
+          checkPhase = ''
+            runHook preCheck
+            ctest --output-on-failure --verbose
+            runHook postCheck
+          '';
         };
     in
     {
