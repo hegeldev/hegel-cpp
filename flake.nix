@@ -76,12 +76,10 @@
         stdenv.mkDerivation {
           inherit pname version;
           src = if src != null then src else defaultSrc;
-          nativeBuildInputs =
-            [
-              pkgs.cmake
-              pkgs.ninja
-            ]
-            ++ lib.optionals buildDocs [ pkgs.doxygen ];
+          nativeBuildInputs = [
+            pkgs.cmake
+            pkgs.ninja
+          ] ++ lib.optionals buildDocs [ pkgs.doxygen ];
 
           buildInputs = [
             hegel.packages.${system}.default
