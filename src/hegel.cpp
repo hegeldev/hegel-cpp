@@ -1,10 +1,10 @@
-#include <hegel/hegel.h>
-#include <functional>
-#include <socket.h>
-#include <run_state.h>
 #include <base64.h>
+#include <functional>
+#include <hegel/hegel.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <run_state.h>
+#include <socket.h>
 #include <stdexcept>
 
 // POSIX headers
@@ -19,153 +19,155 @@
 #endif
 
 namespace hegel {
-    // Child process from fork: exec hegel
-    void hegel_child(const std::string& socket_path, const options::HegelOptions& options) {
-        // Build hegel command
-        std::string hegel_path = options.hegel_path.value_or(HEGEL_DEFAULT_PATH);
-        uint64_t test_cases = options.test_cases.value_or(100);
-        std::vector<std::string> args = {
-            hegel_path,     "--client-mode",
-            socket_path,    "--no-tui",
-            "--verbosity",  verbosity_to_string(options.verbosity),
-            "--test-cases", std::to_string(test_cases)};
+// Child process from fork: exec hegel
+void hegel_child(const std::string& socket_path,
+                 const options::HegelOptions& options) {
+    // Build hegel command
+    std::string hegel_path = options.hegel_path.value_or(HEGEL_DEFAULT_PATH);
+    uint64_t test_cases = options.test_cases.value_or(100);
+    std::vector<std::string> args = {
+        hegel_path,     "--client-mode",
+        socket_path,    "--no-tui",
+        "--verbosity",  verbosity_to_string(options.verbosity),
+        "--test-cases", std::to_string(test_cases)};
 
-
-        std::vector<char*> argv;
-        for (auto& a : args) {
-            argv.push_back(const_cast<char*>(a.c_str()));
-        }
-        argv.push_back(nullptr);
-
-        int result = execvp(argv[0], argv.data());
-        if (result == -1) {
-            std::cerr << "Failed to run Hegel server at path " << hegel_path.c_str() << ": " << strerror(errno) << std::endl;
-        }
-        std::exit(1);
+    std::vector<char*> argv;
+    for (auto& a : args) {
+        argv.push_back(const_cast<char*>(a.c_str()));
     }
+    argv.push_back(nullptr);
 
-    void hegel_parent(int server_fd, std::function<void()> test_fn, std::string temp_dir, pid_t child_pid) {
-        // Parent: accept connections until hegel exits
-        fd_set fds;
-        struct timeval tv;
+    int result = execvp(argv[0], argv.data());
+    if (result == -1) {
+        std::cerr << "Failed to run Hegel server at path " << hegel_path.c_str()
+                  << ": " << strerror(errno) << std::endl;
+    }
+    std::exit(1);
+}
 
-        while (true) {
-            FD_ZERO(&fds);
-            FD_SET(server_fd, &fds);
-            tv.tv_sec = 0;
-            tv.tv_usec = 100000; // 100ms
+void hegel_parent(int server_fd, std::function<void()> test_fn,
+                  std::string temp_dir, pid_t child_pid) {
+    // Parent: accept connections until hegel exits
+    fd_set fds;
+    struct timeval tv;
 
-            int ready = select(server_fd + 1, &fds, nullptr, nullptr, &tv);
+    while (true) {
+        FD_ZERO(&fds);
+        FD_SET(server_fd, &fds);
+        tv.tv_sec = 0;
+        tv.tv_usec = 100000; // 100ms
 
-            if (ready > 0) {
-                int client_fd = accept(server_fd, nullptr, nullptr);
-                if (client_fd >= 0) {
-                    // Handle connection
+        int ready = select(server_fd + 1, &fds, nullptr, nullptr, &tv);
+
+        if (ready > 0) {
+            int client_fd = accept(server_fd, nullptr, nullptr);
+            if (client_fd >= 0) {
+                // Handle connection
+                try {
+                    // Read handshake
+                    std::string line = impl::socket::read_line(client_fd);
+                    auto handshake = nlohmann::json::parse(line);
+                    bool is_last = handshake.value("is_last_run", false);
+
+                    // Set thread-local state
+                    impl::run_state::set_is_last_run(is_last);
+                    impl::socket::set_embedded_connection(client_fd);
+
+                    // Send handshake_ack
+                    impl::socket::write_line(client_fd,
+                                             R"({"type": "handshake_ack"})");
+
+                    // Run test
+                    std::string result_type = "pass";
+                    std::string error_message;
                     try {
-                        // Read handshake
-                        std::string line = impl::socket::read_line(client_fd);
-                        auto handshake = nlohmann::json::parse(line);
-                        bool is_last = handshake.value("is_last_run", false);
-
-                        // Set thread-local state
-                        impl::run_state::set_is_last_run(is_last);
-                        impl::socket::set_embedded_connection(client_fd);
-
-                        // Send handshake_ack
-                        impl::socket::write_line(client_fd,
-                                        R"({"type": "handshake_ack"})");
-
-                        // Run test
-                        std::string result_type = "pass";
-                        std::string error_message;
-                        try {
-                            test_fn();
-                        } catch (const internal::HegelReject& e) {
-                            result_type = "reject";
-                            error_message = e.what();
-                        } catch (const std::exception& e) {
-                            result_type = "fail";
-                            error_message = e.what();
-                        } catch (...) {
-                            result_type = "fail";
-                            error_message = "Unknown exception";
-                        }
-
-                        // Clear embedded connection
-                        impl::socket::clear_embedded_connection();
-
-                        // Send result
-                        nlohmann::json result = {{"type", "test_result"},
-                                                {"result", result_type}};
-                        if (!error_message.empty()) {
-                            result["message"] = error_message;
-                        }
-                        impl::socket::write_line(client_fd, result.dump());
+                        test_fn();
+                    } catch (const internal::HegelReject& e) {
+                        result_type = "reject";
+                        error_message = e.what();
+                    } catch (const std::exception& e) {
+                        result_type = "fail";
+                        error_message = e.what();
                     } catch (...) {
-                        impl::socket::clear_embedded_connection();
+                        result_type = "fail";
+                        error_message = "Unknown exception";
                     }
-                    close(client_fd);
-                }
-            }
 
-            // Check if hegel exited
-            int status;
-            pid_t result = waitpid(child_pid, &status, WNOHANG);
-            if (result == child_pid) {
-                if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-                    close(server_fd);
-                    std::filesystem::remove_all(temp_dir);
-                    throw std::runtime_error("Hegel test failed (exit code " +
-                                            std::to_string(WEXITSTATUS(status)) +
-                                            ")");
+                    // Clear embedded connection
+                    impl::socket::clear_embedded_connection();
+
+                    // Send result
+                    nlohmann::json result = {{"type", "test_result"},
+                                             {"result", result_type}};
+                    if (!error_message.empty()) {
+                        result["message"] = error_message;
+                    }
+                    impl::socket::write_line(client_fd, result.dump());
+                } catch (...) {
+                    impl::socket::clear_embedded_connection();
                 }
-                break;
+                close(client_fd);
             }
         }
 
-        // Cleanup
+        // Check if hegel exited
+        int status;
+        pid_t result = waitpid(child_pid, &status, WNOHANG);
+        if (result == child_pid) {
+            if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+                close(server_fd);
+                std::filesystem::remove_all(temp_dir);
+                throw std::runtime_error("Hegel test failed (exit code " +
+                                         std::to_string(WEXITSTATUS(status)) +
+                                         ")");
+            }
+            break;
+        }
+    }
+
+    // Cleanup
+    close(server_fd);
+    std::filesystem::remove_all(temp_dir);
+}
+
+void hegel(std::function<void()> test_fn, options::HegelOptions options) {
+    // Create temp directory with socket
+    std::string temp_dir = "/tmp/hegel_" + std::to_string(getpid());
+    std::filesystem::create_directories(temp_dir);
+    std::string socket_path = temp_dir + "/hegel.sock";
+
+    // Create server socket
+    int server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (server_fd < 0) {
+        throw std::runtime_error("Failed to create socket");
+    }
+
+    struct sockaddr_un addr {};
+    addr.sun_family = AF_UNIX;
+    std::copy(socket_path.begin(), socket_path.end(), addr.sun_path);
+
+    if (bind(server_fd, reinterpret_cast<struct sockaddr*>(&addr),
+             sizeof(addr)) < 0) {
         close(server_fd);
-        std::filesystem::remove_all(temp_dir);
+        throw std::runtime_error("Failed to bind socket");
     }
 
-    void hegel(std::function<void()> test_fn, options::HegelOptions options) {
-        // Create temp directory with socket
-        std::string temp_dir = "/tmp/hegel_" + std::to_string(getpid());
-        std::filesystem::create_directories(temp_dir);
-        std::string socket_path = temp_dir + "/hegel.sock";
-
-        // Create server socket
-        int server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-        if (server_fd < 0) {
-            throw std::runtime_error("Failed to create socket");
-        }
-
-        struct sockaddr_un addr {};
-        addr.sun_family = AF_UNIX;
-        std::copy(socket_path.begin(), socket_path.end(), addr.sun_path);
-
-        if (bind(server_fd, reinterpret_cast<struct sockaddr*>(&addr),
-                sizeof(addr)) < 0) {
-            close(server_fd);
-            throw std::runtime_error("Failed to bind socket");
-        }
-
-        if (listen(server_fd, 5) < 0) {
-            close(server_fd);
-            throw std::runtime_error("Failed to listen on socket");
-        }
-
-        // Fork and exec hegel
-        pid_t pid = fork();
-        if (pid < 0) {
-            close(server_fd);
-            throw std::runtime_error("Failed to fork");
-        }
-
-        if (pid == 0) {
-            hegel_child(socket_path, options);
-        } else {
-            hegel_parent(server_fd, std::move(test_fn), std::move(temp_dir), pid);
-        }
+    if (listen(server_fd, 5) < 0) {
+        close(server_fd);
+        throw std::runtime_error("Failed to listen on socket");
     }
+
+    // Fork and exec hegel
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(server_fd);
+        throw std::runtime_error("Failed to fork");
+    }
+
+    if (pid == 0) {
+        hegel_child(socket_path, options);
+    } else {
+        hegel_parent(server_fd, std::move(test_fn), std::move(temp_dir), pid);
+    }
+}
 } // namespace hegel
