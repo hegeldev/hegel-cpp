@@ -5,15 +5,13 @@ __pycache__
 .claude/settings.local.json
 .cache
 
-# claude-reliability managed
+.devcontainer/
+devcontainer
+external/
+
+.claude-reliability/
+.claude/reliability-config.yaml
 .claude/bin/
 .claude/*.local.md
 .claude/*.local.json
 .claude/*.local
-.claude-reliability/
-.claude/reliability-config.yaml
-
-# Development environment
-.devcontainer/
-devcontainer
-external/
