@@ -184,7 +184,7 @@ endif()
 # =============================================================================
 
 if(HEGEL_BUILD_TESTS)
-    add_subdirectory(tests EXCLUDE_FROM_ALL)
+    add_subdirectory(tests)
 endif()
 
 
@@ -274,6 +274,7 @@ if(HEGEL_BUILD_DOCS)
 
     FetchContent_MakeAvailable(doxygen-awesome-css)
 
+    set(DOXYGEN_AWESOME_CSS_DIR "${doxygen-awesome-css_SOURCE_DIR}")
     set(DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs")
     set(DOXYFILE_IN "${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile.in")
     set(DOXYFILE_OUT "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile")

@@ -33,13 +33,17 @@ inline Value boolean(bool b) { return Value(b); }
 
 /// Create a CBOR integer value
 template <typename T>
-requires std::is_integral_v<T>
-inline Value integer(T n) { return Value(n); }
+    requires std::is_integral_v<T>
+inline Value integer(T n) {
+    return Value(n);
+}
 
 /// Create a CBOR float value
 template <typename T>
-requires std::is_floating_point_v<T>
-inline Value floating(T f) { return Value(f); }
+    requires std::is_floating_point_v<T>
+inline Value floating(T f) {
+    return Value(f);
+}
 
 /// Create a CBOR text string value
 inline Value text(const std::string& s) { return Value(s); }
