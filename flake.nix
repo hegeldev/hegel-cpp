@@ -90,6 +90,7 @@
           ];
 
           doCheck = true;
+          cmakeCheckFlags = [ "--verbose" ];
         };
     in
     {
