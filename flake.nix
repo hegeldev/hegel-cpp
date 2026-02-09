@@ -53,6 +53,9 @@
           stdenv ? pkgs.stdenv,
           lib ? pkgs.lib,
           system ? pkgs.system,
+          pname ? "hegel-cpp",
+          version ? "0.1.0",
+          src ? null,
         }@args:
         let
           fs = pkgs.lib.fileset;
@@ -64,14 +67,14 @@
             ./tests
             ./docs
           ];
-        in
-        stdenv.mkDerivation {
-          pname = "hegel-cpp";
-          version = "0.1.0";
-          src = fs.toSource {
+          defaultSrc = fs.toSource {
             root = ./.;
             fileset = baseSrc;
           };
+        in
+        stdenv.mkDerivation {
+          inherit pname version;
+          src = if src != null then src else defaultSrc;
           nativeBuildInputs = [
             pkgs.cmake
             pkgs.ninja
