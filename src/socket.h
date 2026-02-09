@@ -1,13 +1,19 @@
 #pragma once
 
-#include <string>
+#include <cstdint>
 
 // =============================================================================
 // Socket Communication
 // =============================================================================
+namespace hegel::impl {
+class Connection;
+}
+
 namespace hegel::impl::socket {
-void set_embedded_connection(int fd);
+void set_embedded_connection(Connection* conn, uint32_t data_channel);
 void clear_embedded_connection();
-std::string read_line(int fd);
-void write_line(int fd, const std::string& line);
+Connection* get_embedded_connection();
+uint32_t get_embedded_data_channel();
+bool is_test_aborted();
+void set_test_aborted(bool v);
 } // namespace hegel::impl::socket

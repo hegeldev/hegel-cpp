@@ -22,11 +22,11 @@
  * @endcode
  *
  * @section env Environment Variables
- * - `HEGEL_DEBUG`: If set, prints REQUEST/RESPONSE JSON to stderr
+ * - `HEGEL_DEBUG`: If set, prints REQUEST/RESPONSE CBOR data to stderr
  *
  * @section deps Dependencies
  * - reflect-cpp (https://github.com/getml/reflect-cpp) - C++20 reflection
- * - nlohmann/json (https://github.com/nlohmann/json) - JSON manipulation
+ * - nlohmann library - CBOR serialization
  * - POSIX sockets (sys/socket.h, sys/un.h, unistd.h)
  */
 

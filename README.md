@@ -227,7 +227,7 @@ hegel::hegel([]() {
     // Sets
     auto set = sets(integers<int>(), {.min_size = 1, .max_size = 5}).generate();
 
-    // Dictionaries (string keys only, JSON limitation)
+    // Dictionaries (string keys only)
     auto dict = dictionaries(text(), integers<int>(), {
         .min_size = 1,
         .max_size = 3

@@ -1,5 +1,6 @@
 #include "hegel/generators.h"
 #include <base64.h>
+#include <hegel/cbor.h>
 #include <hegel/strategies.h>
 
 // =============================================================================
@@ -7,82 +8,95 @@
 // =============================================================================
 
 namespace hegel::strategies {
+
+// Use namespace alias to avoid conflict with text() strategy function
+namespace cv = hegel::cbor;
+using cv::array;
+using cv::boolean;
+using cv::integer;
+using cv::map;
+using cv::map_insert;
+using cv::Value;
+
 Generator<std::monostate> nulls() {
-    nlohmann::json schema = {{"type", "null"}};
+    Value schema = map({{"type", cv::text("null")}});
     return from_function<std::monostate>([]() { return std::monostate{}; },
-                                         schema.dump());
+                                         std::move(schema));
 }
 
 Generator<bool> booleans() {
-    nlohmann::json schema = {{"type", "boolean"}};
-    return from_schema<bool>(schema.dump());
+    Value schema = map({{"type", cv::text("boolean")}});
+    return from_schema<bool>(std::move(schema));
 }
 
 Generator<std::string> text(TextParams params) {
-    nlohmann::json schema = {{"type", "string"}, {"min_size", params.min_size}};
+    Value schema = map(
+        {{"type", cv::text("string")}, {"min_size", integer(params.min_size)}});
 
     if (params.max_size)
-        schema["max_size"] = *params.max_size;
+        map_insert(schema, "max_size", integer(*params.max_size));
 
-    return from_schema<std::string>(schema.dump());
+    return from_schema<std::string>(std::move(schema));
 }
 
 Generator<std::vector<uint8_t>> binary(BinaryParams params) {
-    nlohmann::json schema = {{"type", "binary"}, {"min_size", params.min_size}};
+    Value schema = map(
+        {{"type", cv::text("binary")}, {"min_size", integer(params.min_size)}});
 
     if (params.max_size)
-        schema["max_size"] = *params.max_size;
+        map_insert(schema, "max_size", integer(*params.max_size));
 
-    std::string schema_str = schema.dump();
     return from_function<std::vector<uint8_t>>(
-        [schema_str]() -> std::vector<uint8_t> {
-            std::string b64 = from_schema<std::string>(schema_str).generate();
+        [schema]() -> std::vector<uint8_t> {
+            std::string b64 = from_schema<std::string>(schema).generate();
             return ::hegel::impl::base64_decode(b64);
         },
-        schema_str);
+        schema);
 }
 
 Generator<std::string> from_regex(const std::string& pattern, bool fullmatch) {
-    nlohmann::json schema = {
-        {"type", "regex"}, {"pattern", pattern}, {"fullmatch", fullmatch}};
-    return from_schema<std::string>(schema.dump());
+    Value schema = map({{"type", cv::text("regex")},
+                        {"pattern", cv::text(pattern)},
+                        {"fullmatch", boolean(fullmatch)}});
+    return from_schema<std::string>(std::move(schema));
 }
 
 Generator<std::string> emails() {
-    return from_schema<std::string>(R"({"type": "email"})");
+    return from_schema<std::string>(map({{"type", cv::text("email")}}));
 }
 
 Generator<std::string> domains(DomainsParams params) {
-    nlohmann::json schema = {{"type", "domain"},
-                             {"max_length", params.max_length}};
-    return from_schema<std::string>(schema.dump());
+    Value schema = map({{"type", cv::text("domain")},
+                        {"max_length", integer(params.max_length)}});
+    return from_schema<std::string>(std::move(schema));
 }
 
 Generator<std::string> urls() {
-    return from_schema<std::string>(R"({"type": "url"})");
+    return from_schema<std::string>(map({{"type", cv::text("url")}}));
 }
 
 Generator<std::string> ip_addresses(IpAddressesParams params) {
     if (params.v == 4) {
-        return from_schema<std::string>(R"({"type": "ipv4"})");
+        return from_schema<std::string>(map({{"type", cv::text("ipv4")}}));
     } else if (params.v == 6) {
-        return from_schema<std::string>(R"({"type": "ipv6"})");
+        return from_schema<std::string>(map({{"type", cv::text("ipv6")}}));
     } else {
         return from_schema<std::string>(
-            R"({"one_of": [{"type": "ipv4"}, {"type": "ipv6"}]})");
+            map({{"one_of", array({map({{"type", cv::text("ipv4")}}),
+                                   map({{"type", cv::text("ipv6")}})})}}));
     }
 }
 
 Generator<std::string> dates() {
-    return from_schema<std::string>(R"({"type": "date"})");
+    return from_schema<std::string>(map({{"type", cv::text("date")}}));
 }
 
 Generator<std::string> times() {
-    return from_schema<std::string>(R"({"type": "time"})");
+    return from_schema<std::string>(map({{"type", cv::text("time")}}));
 }
 
 Generator<std::string> datetimes() {
-    return from_schema<std::string>(R"({"type": "datetime"})");
+    return from_schema<std::string>(map({{"type", cv::text("datetime")}}));
 }
 
 } // namespace hegel::strategies

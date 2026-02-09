@@ -1,7 +1,13 @@
 test:
     cmake -B build
     cmake --build build
-    ctest --test-dir build --output-on-failure -j{{ num_cpus() }}
+    ctest --test-dir build/tests --output-on-failure -j{{ num_cpus() }}
+
+check:
+    cmake -B build
+    cmake --build build
+    ctest --test-dir build/tests --output-on-failure -j{{ num_cpus() }}
+    just format-check
 
 docs:
     cmake -B build -DHEGEL_BUILD_DOCS=ON
@@ -9,11 +15,7 @@ docs:
     open build/docs/html/index.html
 
 format:
-    find . -name "*.cpp" -o -name "*.h" | grep -v build | xargs clang-format -i
+    find . \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) ! -path "./build/*" | xargs clang-format -i
 
-check:
-    cmake -B build
-    cmake --build build
-    ctest --test-dir build --output-on-failure -j{{ num_cpus() }}
-    just format
-    git diff --exit-code
+format-check:
+    find . \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) ! -path "./build/*" | xargs clang-format --dry-run -Werror

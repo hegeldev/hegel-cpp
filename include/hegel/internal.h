@@ -16,9 +16,11 @@
 #include <stdexcept>
 #include <string>
 
+#include "cbor.h"
+
 /// @cond INTERNAL
 namespace hegel::internal {
-std::string communicate_with_socket(const std::string& schema);
+cbor::Value communicate_with_socket(const cbor::Value& schema);
 
 /* Print a note message for debugging.
  *
@@ -61,12 +63,5 @@ class HegelReject : public std::exception {
  */
 [[noreturn]] void stop_test();
 
-// =============================================================================
-// Response wrapper for socket communication
-// =============================================================================
-template <typename T> struct Response {
-    std::optional<T> result;
-    std::optional<std::string> error;
-};
 } // namespace hegel::internal
 /// @endcond

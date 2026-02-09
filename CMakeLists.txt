@@ -119,7 +119,7 @@ FetchContent_Declare(
     GIT_TAG v0.22.0
 )
 
-# reflect-cpp options - we only need JSON support
+# reflect-cpp options - we use rfl::json for schema derivation and type conversion
 set(REFLECTCPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_BSON OFF CACHE BOOL "" FORCE)
@@ -131,7 +131,7 @@ set(REFLECTCPP_UBJSON OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_XML OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_YAML OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_INSTALL ON)
- 
+
 FetchContent_Declare(
     nlohmann_json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
@@ -144,14 +144,16 @@ FetchContent_MakeAvailable(reflectcpp nlohmann_json)
 # Main library target
 # =============================================================================
 
-add_library(hegel 
-  STATIC 
-    src/hegel.cpp 
-    src/strategies.cpp 
+add_library(hegel
+  STATIC
+    src/hegel.cpp
+    src/strategies.cpp
     src/base64.cpp
     src/socket.cpp
     src/run_state.cpp
     src/internal.cpp
+    src/protocol.cpp
+    src/connection.cpp
 )
 target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -211,7 +213,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   )
 
-  # Install the nlohman_json stuff
+  # Install the nlohmann library headers
   install(
     DIRECTORY ${nlohmann_json_SOURCE_DIR}/include/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

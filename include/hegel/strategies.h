@@ -8,7 +8,6 @@
  * generating primitive types, collections, and composite data structures.
  */
 
-#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <variant>
@@ -59,9 +58,9 @@ template <typename T> struct FloatsParams {
     std::optional<T> max_value; ///< Maximum value. Default: no maximum
     bool exclude_min = false; ///< If true, exclude min_value (exclusive bound)
     bool exclude_max = false; ///< If true, exclude max_value (exclusive bound)
-    bool allow_nan = true;    ///< If true, allow NaN values. Default: true
-    bool allow_infinity =
-        true; ///< If true, allow infinity values. Default: true
+    std::optional<bool> allow_nan; ///< Allow NaN. Default: true if unbounded
+    std::optional<bool>
+        allow_infinity; ///< Allow infinity. Default: true if unbounded
 };
 
 /**
@@ -122,7 +121,7 @@ struct DictionariesParams {
 };
 
 // =============================================================================
-// Non-template strategy declarations (implemented in hegel.cpp)
+// Non-template strategy declarations (implemented in strategies.cpp)
 // =============================================================================
 
 /// @name Primitive Strategies
@@ -217,13 +216,31 @@ Generator<std::string> datetimes();
  * @return Generator that always produces value
  */
 template <typename T> Generator<T> just(T value) {
-    nlohmann::json schema;
+    using cbor::array;
+    using cbor::boolean;
+    using cbor::floating;
+    using cbor::integer;
+    using cbor::map;
+    using cbor::map_insert;
+    using cbor::null;
+    using cbor::Value;
+    namespace cv = cbor; // alias to avoid conflict with text() strategy
 
-    if constexpr (std::is_same_v<T, bool> ||
-                  std::is_same_v<T, std::nullptr_t> ||
-                  std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
-        schema = {{"const", value}};
-        return from_function<T>([value]() { return value; }, schema.dump());
+    if constexpr (std::is_same_v<T, bool>) {
+        Value schema = map({{"const", boolean(value)}});
+        return from_function<T>([value]() { return value; }, std::move(schema));
+    } else if constexpr (std::is_same_v<T, std::nullptr_t>) {
+        Value schema = map({{"const", null()}});
+        return from_function<T>([value]() { return value; }, std::move(schema));
+    } else if constexpr (std::is_integral_v<T>) {
+        Value schema = map({{"const", integer(value)}});
+        return from_function<T>([value]() { return value; }, std::move(schema));
+    } else if constexpr (std::is_floating_point_v<T>) {
+        Value schema = map({{"const", floating(value)}});
+        return from_function<T>([value]() { return value; }, std::move(schema));
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        Value schema = map({{"const", cv::text(value)}});
+        return from_function<T>([value]() { return value; }, std::move(schema));
     } else {
         return from_function<T>([value]() { return value; });
     }
@@ -250,15 +267,24 @@ inline Generator<std::string> just(const char* value) {
 template <typename T = int64_t>
     requires std::is_integral_v<T>
 Generator<T> integers(IntegersParams<T> params = {}) {
-    nlohmann::json schema = {{"type", "integer"}};
+    using cbor::array;
+    using cbor::boolean;
+    using cbor::floating;
+    using cbor::integer;
+    using cbor::map;
+    using cbor::map_insert;
+    using cbor::null;
+    using cbor::Value;
+    namespace cv = cbor;
 
     T min_val = params.min_value.value_or(std::numeric_limits<T>::min());
     T max_val = params.max_value.value_or(std::numeric_limits<T>::max());
 
-    schema["minimum"] = min_val;
-    schema["maximum"] = max_val;
+    Value schema = map({{"type", cv::text("integer")},
+                        {"minimum", integer(min_val)},
+                        {"maximum", integer(max_val)}});
 
-    return from_schema<T>(schema.dump());
+    return from_schema<T>(std::move(schema));
 }
 
 /**
@@ -280,25 +306,39 @@ Generator<T> integers(IntegersParams<T> params = {}) {
 template <typename T = double>
     requires std::is_floating_point_v<T>
 Generator<T> floats(FloatsParams<T> params = {}) {
+    using cbor::array;
+    using cbor::boolean;
+    using cbor::floating;
+    using cbor::integer;
+    using cbor::map;
+    using cbor::map_insert;
+    using cbor::null;
+    using cbor::Value;
+    namespace cv = cbor;
+
     // Determine width from type size (float = 32 bits, double = 64 bits)
     constexpr int width = sizeof(T) * 8;
 
-    nlohmann::json schema = {{"type", "number"},
-                             {"exclude_minimum", params.exclude_min},
-                             {"exclude_maximum", params.exclude_max},
-                             {"allow_nan", params.allow_nan},
-                             {"allow_infinity", params.allow_infinity},
-                             {"width", width}};
+    bool bounded = params.min_value.has_value() || params.max_value.has_value();
+    bool nan = params.allow_nan.value_or(!bounded);
+    bool inf = params.allow_infinity.value_or(!bounded);
+
+    Value schema = map({{"type", cv::text("number")},
+                        {"exclude_minimum", boolean(params.exclude_min)},
+                        {"exclude_maximum", boolean(params.exclude_max)},
+                        {"allow_nan", boolean(nan)},
+                        {"allow_infinity", boolean(inf)},
+                        {"width", integer(width)}});
 
     if (params.min_value) {
-        schema["minimum"] = *params.min_value;
+        map_insert(schema, "minimum", floating(*params.min_value));
     }
 
     if (params.max_value) {
-        schema["maximum"] = *params.max_value;
+        map_insert(schema, "maximum", floating(*params.max_value));
     }
 
-    return from_schema<T>(schema.dump());
+    return from_schema<T>(std::move(schema));
 }
 
 /// @}
@@ -323,18 +363,27 @@ Generator<T> floats(FloatsParams<T> params = {}) {
 template <typename T>
 Generator<std::vector<T>> vectors(Generator<T> elements,
                                   VectorsParams params = {}) {
+    using cbor::array;
+    using cbor::boolean;
+    using cbor::floating;
+    using cbor::integer;
+    using cbor::map;
+    using cbor::map_insert;
+    using cbor::null;
+    using cbor::Value;
+    namespace cv = cbor;
+
     if (elements.schema()) {
-        nlohmann::json elem_schema = nlohmann::json::parse(*elements.schema());
         // Use "set" type for unique, "list" type otherwise
         std::string schema_type = params.unique ? "set" : "list";
-        nlohmann::json schema = {{"type", schema_type},
-                                 {"elements", elem_schema},
-                                 {"min_size", params.min_size}};
+        Value schema = map({{"type", cv::text(schema_type)},
+                            {"elements", *elements.schema()},
+                            {"min_size", integer(params.min_size)}});
 
         if (params.max_size)
-            schema["max_size"] = *params.max_size;
+            map_insert(schema, "max_size", integer(*params.max_size));
 
-        return from_schema<std::vector<T>>(schema.dump());
+        return from_schema<std::vector<T>>(std::move(schema));
     }
 
     size_t max_size = params.max_size.value_or(100);
@@ -370,16 +419,25 @@ Generator<std::vector<T>> vectors(Generator<T> elements,
  */
 template <typename T>
 Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
+    using cbor::array;
+    using cbor::boolean;
+    using cbor::floating;
+    using cbor::integer;
+    using cbor::map;
+    using cbor::map_insert;
+    using cbor::null;
+    using cbor::Value;
+    namespace cv = cbor;
+
     if (elements.schema()) {
-        nlohmann::json elem_schema = nlohmann::json::parse(*elements.schema());
-        nlohmann::json schema = {{"type", "set"},
-                                 {"elements", elem_schema},
-                                 {"min_size", params.min_size}};
+        Value schema = map({{"type", cv::text("set")},
+                            {"elements", *elements.schema()},
+                            {"min_size", integer(params.min_size)}});
 
         if (params.max_size)
-            schema["max_size"] = *params.max_size;
+            map_insert(schema, "max_size", integer(*params.max_size));
 
-        auto vec_gen = from_schema<std::vector<T>>(schema.dump());
+        auto vec_gen = from_schema<std::vector<T>>(std::move(schema));
 
         return from_function<std::set<T>>([vec_gen]() {
             auto vec = vec_gen.generate();
@@ -430,18 +488,28 @@ Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
 template <typename K, typename V>
 Generator<std::map<K, V>> dictionaries(Generator<K> keys, Generator<V> values,
                                        DictionariesParams params = {}) {
+    using cbor::array;
+    using cbor::boolean;
+    using cbor::floating;
+    using cbor::integer;
+    using cbor::map;
+    using cbor::map_insert;
+    using cbor::null;
+    using cbor::Value;
+    namespace cv = cbor;
+
     if (keys.schema() && values.schema()) {
-        nlohmann::json schema = {
-            {"type", "dict"},
-            {"keys", nlohmann::json::parse(*keys.schema())},
-            {"values", nlohmann::json::parse(*values.schema())},
-            {"min_size", params.min_size}};
+        Value schema = map({{"type", cv::text("dict")},
+                            {"keys", *keys.schema()},
+                            {"values", *values.schema()},
+                            {"min_size", integer(params.min_size)}});
 
         if (params.max_size)
-            schema["max_size"] = *params.max_size;
+            map_insert(schema, "max_size", integer(*params.max_size));
 
         // Wire format is [[key, value], ...], deserialize as vector of pairs
-        auto vec_gen = from_schema<std::vector<std::pair<K, V>>>(schema.dump());
+        auto vec_gen =
+            from_schema<std::vector<std::pair<K, V>>>(std::move(schema));
 
         return from_function<std::map<K, V>>([vec_gen]() {
             auto pairs = vec_gen.generate();
@@ -471,17 +539,27 @@ Generator<std::map<K, V>> dictionaries(Generator<K> keys, Generator<V> values,
 namespace detail {
 
 template <typename... Gens>
-auto make_tuple_schema(const Gens&... gens) -> std::optional<std::string> {
+auto make_tuple_schema(const Gens&... gens) -> std::optional<cbor::Value> {
+    using cbor::array;
+    using cbor::boolean;
+    using cbor::floating;
+    using cbor::integer;
+    using cbor::map;
+    using cbor::map_insert;
+    using cbor::null;
+    using cbor::Value;
+    namespace cv = cbor;
+
     bool all_have_schemas = (gens.schema().has_value() && ...);
     if (!all_have_schemas)
         return std::nullopt;
 
-    nlohmann::json elements = nlohmann::json::array();
-    (elements.push_back(nlohmann::json::parse(*gens.schema())), ...);
+    Value elements = array();
+    (elements.push_back(*gens.schema()), ...);
 
-    nlohmann::json schema = {{"type", "tuple"}, {"elements", elements}};
+    Value schema = map({{"type", cv::text("tuple")}, {"elements", elements}});
 
-    return schema.dump();
+    return schema;
 }
 
 template <typename Tuple, typename GenTuple, size_t... Is>
@@ -513,7 +591,7 @@ Generator<std::tuple<Ts...>> tuples(Generator<Ts>... gens) {
     auto maybe_schema = detail::make_tuple_schema(gens...);
 
     if (maybe_schema) {
-        return from_schema<ResultTuple>(*maybe_schema);
+        return from_schema<ResultTuple>(std::move(*maybe_schema));
     }
 
     auto gen_tuple = std::make_tuple(std::move(gens)...);
@@ -542,13 +620,48 @@ Generator<std::tuple<Ts...>> tuples(Generator<Ts>... gens) {
  * @return Generator that picks uniformly from elements
  */
 template <typename T> Generator<T> sampled_from(std::vector<T> elements) {
+    using cbor::array;
+    using cbor::boolean;
+    using cbor::floating;
+    using cbor::integer;
+    using cbor::map;
+    using cbor::map_insert;
+    using cbor::null;
+    using cbor::Value;
+    namespace cv = cbor;
+
     internal::assume(!elements.empty());
 
-    if constexpr (std::is_same_v<T, bool> ||
-                  std::is_same_v<T, std::nullptr_t> ||
-                  std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
-        nlohmann::json schema = {{"sampled_from", elements}};
-        return from_schema<T>(schema.dump());
+    if constexpr (std::is_same_v<T, bool>) {
+        Value arr = array();
+        for (const auto& e : elements)
+            arr.push_back(boolean(e));
+        Value schema = map({{"sampled_from", arr}});
+        return from_schema<T>(std::move(schema));
+    } else if constexpr (std::is_same_v<T, std::nullptr_t>) {
+        Value arr = array();
+        for (size_t i = 0; i < elements.size(); ++i)
+            arr.push_back(null());
+        Value schema = map({{"sampled_from", arr}});
+        return from_schema<T>(std::move(schema));
+    } else if constexpr (std::is_integral_v<T>) {
+        Value arr = array();
+        for (const auto& e : elements)
+            arr.push_back(integer(e));
+        Value schema = map({{"sampled_from", arr}});
+        return from_schema<T>(std::move(schema));
+    } else if constexpr (std::is_floating_point_v<T>) {
+        Value arr = array();
+        for (const auto& e : elements)
+            arr.push_back(floating(e));
+        Value schema = map({{"sampled_from", arr}});
+        return from_schema<T>(std::move(schema));
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        Value arr = array();
+        for (const auto& e : elements)
+            arr.push_back(cv::text(e));
+        Value schema = map({{"sampled_from", arr}});
+        return from_schema<T>(std::move(schema));
     } else {
         auto index_gen = integers<size_t>(
             {.min_value = 0, .max_value = elements.size() - 1});
@@ -582,19 +695,29 @@ namespace detail {
 
 template <typename T>
 auto make_one_of_schema(const std::vector<Generator<T>>& gens)
-    -> std::optional<std::string> {
+    -> std::optional<cbor::Value> {
+    using cbor::array;
+    using cbor::boolean;
+    using cbor::floating;
+    using cbor::integer;
+    using cbor::map;
+    using cbor::map_insert;
+    using cbor::null;
+    using cbor::Value;
+    namespace cv = cbor;
+
     for (const auto& gen : gens) {
         if (!gen.schema())
             return std::nullopt;
     }
 
-    nlohmann::json one_of = nlohmann::json::array();
+    Value one_of_arr = array();
     for (const auto& gen : gens) {
-        one_of.push_back(nlohmann::json::parse(*gen.schema()));
+        one_of_arr.push_back(*gen.schema());
     }
 
-    nlohmann::json schema = {{"one_of", one_of}};
-    return schema.dump();
+    Value schema = map({{"one_of", one_of_arr}});
+    return schema;
 }
 
 } // namespace detail
@@ -622,7 +745,7 @@ template <typename T> Generator<T> one_of(std::vector<Generator<T>> gens) {
     auto maybe_schema = detail::make_one_of_schema(gens);
 
     if (maybe_schema) {
-        return from_schema<T>(*maybe_schema);
+        return from_schema<T>(std::move(*maybe_schema));
     }
 
     auto index_gen =
