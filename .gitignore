@@ -4,3 +4,9 @@ build/
 __pycache__
 .claude/settings.local.json
 .cache
+
+# claude-reliability managed
+.claude/bin/
+.claude/*.local.md
+.claude/*.local.json
+.claude/*.local
