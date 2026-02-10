@@ -7,32 +7,32 @@
 
 namespace conformance {
 
-inline std::ofstream& get_metrics_file() {
-    static std::ofstream file;
-    static bool initialized = false;
-    if (!initialized) {
-        if (const char* path = std::getenv("CONFORMANCE_METRICS_FILE")) {
-            file.open(path, std::ios::app);
+    inline std::ofstream& get_metrics_file() {
+        static std::ofstream file;
+        static bool initialized = false;
+        if (!initialized) {
+            if (const char* path = std::getenv("CONFORMANCE_METRICS_FILE")) {
+                file.open(path, std::ios::app);
+            }
+            initialized = true;
         }
-        initialized = true;
+        return file;
     }
-    return file;
-}
 
-inline int get_test_cases() {
-    if (const char* val = std::getenv("CONFORMANCE_TEST_CASES")) {
-        return std::atoi(val);
+    inline int get_test_cases() {
+        if (const char* val = std::getenv("CONFORMANCE_TEST_CASES")) {
+            return std::atoi(val);
+        }
+        return 50; // default
     }
-    return 50; // default
-}
 
-// Write a complete metrics object for one test case
-inline void write_metrics(const nlohmann::json& metrics) {
-    auto& f = get_metrics_file();
-    if (f.is_open()) {
-        f << metrics.dump() << "\n";
-        f.flush();
+    // Write a complete metrics object for one test case
+    inline void write_metrics(const nlohmann::json& metrics) {
+        auto& f = get_metrics_file();
+        if (f.is_open()) {
+            f << metrics.dump() << "\n";
+            f.flush();
+        }
     }
-}
 
 } // namespace conformance
