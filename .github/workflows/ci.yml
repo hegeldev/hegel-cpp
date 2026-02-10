@@ -79,12 +79,13 @@ jobs:
       - name: Configure CMake
         run: |
           cmake -B build \
+            -DHEGEL_BUILD_DOCS=OFF \
             -DCMAKE_C_COMPILER=${{ matrix.cc }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
             ${{ matrix.cmake_flags }}
 
       - name: Build
-        run: cmake --build build -j$(nproc) -DHEGEL_BUILD_DOCS=OFF
+        run: cmake --build build -j$(nproc)
 
       - name: Run property tests
         run: ctest --test-dir build --output-on-failure
