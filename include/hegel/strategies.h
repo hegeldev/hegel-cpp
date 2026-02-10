@@ -206,6 +206,9 @@ Generator<std::string> datetimes();
  * Always returns the same value. Useful for creating fixed elements
  * in composite generators.
  *
+ * Uses a null schema with a value-returning transform, enabling
+ * schema composition through map() operations.
+ *
  * @code{.cpp}
  * auto answer = just(42);
  * auto greeting = just("hello");
@@ -216,24 +219,11 @@ Generator<std::string> datetimes();
  * @return Generator that always produces value
  */
 template <typename T> Generator<T> just(T value) {
-    if constexpr (std::is_same_v<T, bool>) {
-        nlohmann::json schema = {{"const", value}};
-        return from_function<T>([value]() { return value; }, std::move(schema));
-    } else if constexpr (std::is_same_v<T, std::nullptr_t>) {
-        nlohmann::json schema = {{"const", nullptr}};
-        return from_function<T>([value]() { return value; }, std::move(schema));
-    } else if constexpr (std::is_integral_v<T>) {
-        nlohmann::json schema = {{"const", value}};
-        return from_function<T>([value]() { return value; }, std::move(schema));
-    } else if constexpr (std::is_floating_point_v<T>) {
-        nlohmann::json schema = {{"const", value}};
-        return from_function<T>([value]() { return value; }, std::move(schema));
-    } else if constexpr (std::is_same_v<T, std::string>) {
-        nlohmann::json schema = {{"const", value}};
-        return from_function<T>([value]() { return value; }, std::move(schema));
-    } else {
-        return from_function<T>([value]() { return value; });
-    }
+    // Use null schema with value-returning transform
+    // This enables schema composition - the schema describes what
+    // the server generates (null), and we transform it to the value
+    nlohmann::json schema = {{"const", nullptr}};
+    return from_function<T>([value]() { return value; }, std::move(schema));
 }
 
 /// @overload just(const char*) - convenience overload for string literals
@@ -539,6 +529,10 @@ Generator<std::tuple<Ts...>> tuples(Generator<Ts>... gens) {
 /**
  * @brief Sample uniformly from a fixed set of values.
  *
+ * Uses index-based generation with an integer schema, enabling
+ * schema composition through map() operations. Works with any type
+ * including non-primitive types, and preserves object identity.
+ *
  * @code{.cpp}
  * auto color = sampled_from({"red", "green", "blue"});
  * auto digit = sampled_from({1, 2, 3, 4, 5});
@@ -551,45 +545,20 @@ Generator<std::tuple<Ts...>> tuples(Generator<Ts>... gens) {
 template <typename T> Generator<T> sampled_from(std::vector<T> elements) {
     internal::assume(!elements.empty());
 
-    if constexpr (std::is_same_v<T, bool>) {
-        nlohmann::json arr = nlohmann::json::array();
-        for (const auto& e : elements)
-            arr.push_back(e);
-        nlohmann::json schema = {{"sampled_from", arr}};
-        return from_schema<T>(std::move(schema));
-    } else if constexpr (std::is_same_v<T, std::nullptr_t>) {
-        nlohmann::json arr = nlohmann::json::array();
-        for (size_t i = 0; i < elements.size(); ++i)
-            arr.push_back(nullptr);
-        nlohmann::json schema = {{"sampled_from", arr}};
-        return from_schema<T>(std::move(schema));
-    } else if constexpr (std::is_integral_v<T>) {
-        nlohmann::json arr = nlohmann::json::array();
-        for (const auto& e : elements)
-            arr.push_back(e);
-        nlohmann::json schema = {{"sampled_from", arr}};
-        return from_schema<T>(std::move(schema));
-    } else if constexpr (std::is_floating_point_v<T>) {
-        nlohmann::json arr = nlohmann::json::array();
-        for (const auto& e : elements)
-            arr.push_back(e);
-        nlohmann::json schema = {{"sampled_from", arr}};
-        return from_schema<T>(std::move(schema));
-    } else if constexpr (std::is_same_v<T, std::string>) {
-        nlohmann::json arr = nlohmann::json::array();
-        for (const auto& e : elements)
-            arr.push_back(e);
-        nlohmann::json schema = {{"sampled_from", arr}};
-        return from_schema<T>(std::move(schema));
-    } else {
-        auto index_gen = integers<size_t>(
-            {.min_value = 0, .max_value = elements.size() - 1});
+    // Use index-based schema - server generates an index, we look up the value
+    // This enables schema composition and preserves object identity
+    nlohmann::json schema = {{"type", "integer"},
+                             {"minimum", 0},
+                             {"maximum", elements.size() - 1}};
 
-        return from_function<T>([elements, index_gen]() {
-            size_t idx = index_gen.generate();
+    return from_function<T>(
+        [elements = std::move(elements), schema]() {
+            nlohmann::json response = internal::communicate_with_socket(schema);
+            internal::assume(response.contains("result"));
+            size_t idx = response["result"].get<size_t>();
             return elements[idx];
-        });
-    }
+        },
+        schema);
 }
 
 /// @overload sampled_from(std::initializer_list<T>)

@@ -137,6 +137,9 @@ template <typename T> class Generator : IGenerator<T> {
      * This works by generating values from the Generator&lt;T&gt; and applying
      * a transformation to each value.
      *
+     * If the source generator has a schema, it is preserved through the
+     * transformation. This enables schema composition even after map().
+     *
      * This is used when you have a function to convert *values* between types.
      * Compare with flatmap().
      *
@@ -160,6 +163,17 @@ template <typename T> class Generator : IGenerator<T> {
         // F is of type T -> ResultType
         using ResultType = std::invoke_result_t<F, T>;
         auto inner = inner_;
+
+        // Preserve schema through map - the transform happens client-side
+        auto source_schema = inner_->schema();
+        if (source_schema) {
+            return from_function<ResultType>(
+                [inner, f = std::forward<F>(f)]() -> ResultType {
+                    return f(inner->generate());
+                },
+                *source_schema);
+        }
+
         return from_function<ResultType>(
             [inner, f = std::forward<F>(f)]() -> ResultType {
                 return f(inner->generate());
