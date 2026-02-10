@@ -12,13 +12,12 @@
 #include <rfl.hpp>
 #include <rfl/json.hpp>
 
-#include "cbor.h"
 #include "internal.h"
 
 namespace hegel::internal {
 /// Generate a schema for type T (wrapper around reflect-cpp)
-template <typename T> std::string type_schema() {
-    return rfl::json::to_schema<T>();
+template <typename T> nlohmann::json type_schema() {
+    return nlohmann::json::parse(rfl::json::to_schema<T>());
 }
 } // namespace hegel::internal
 
@@ -71,7 +70,7 @@ template <typename T> struct IGenerator {
      *
      * @return Optional containing the schema, or nullopt if not schema-based
      */
-    virtual std::optional<cbor::Value> schema() const = 0;
+    virtual std::optional<nlohmann::json> schema() const = 0;
 };
 
 /**
@@ -124,7 +123,7 @@ template <typename T> class Generator : IGenerator<T> {
      * @brief Get the CBOR schema for this generator, if any.
      * @return Optional containing the schema, or nullopt if not schema-based
      */
-    std::optional<cbor::Value> schema() const override {
+    std::optional<nlohmann::json> schema() const override {
         return inner_->schema();
     }
 
@@ -274,14 +273,14 @@ template <typename T> class FunctionBackedGenerator : public IGenerator<T> {
     /// @param fn function that will be called repeatedly to generate values
     /// @param schema schema for this generator; not used in generate(), but may
     /// be used when composing this generator
-    FunctionBackedGenerator(std::function<T()> fn, cbor::Value schema)
+    FunctionBackedGenerator(std::function<T()> fn, nlohmann::json schema)
         : gen_fn_(std::move(fn)), schema_(std::move(schema)) {}
 
     /**
      * @brief Get the CBOR schema for this generator, if any.
      * @return Optional containing the schema, or nullopt if not schema-based
      */
-    std::optional<cbor::Value> schema() const override { return schema_; }
+    std::optional<nlohmann::json> schema() const override { return schema_; }
 
     /**
      * @brief Generate a random value.
@@ -291,7 +290,7 @@ template <typename T> class FunctionBackedGenerator : public IGenerator<T> {
 
   private:
     std::function<T()> gen_fn_;
-    std::optional<cbor::Value> schema_;
+    std::optional<nlohmann::json> schema_;
 };
 
 /**
@@ -306,35 +305,37 @@ template <typename T> class FunctionBackedGenerator : public IGenerator<T> {
 template <typename T> class SchemaBackedGenerator : public IGenerator<T> {
   public:
     /// @brief Create, given the schema
-    SchemaBackedGenerator(cbor::Value schema) : schema_(std::move(schema)) {}
+    SchemaBackedGenerator(nlohmann::json schema) : schema_(std::move(schema)) {}
 
     /// Get the CBOR schema
-    std::optional<cbor::Value> schema() const override { return schema_; }
+    std::optional<nlohmann::json> schema() const override { return schema_; }
 
     /**
      * @brief Generate a random value of type T based on the schema.
      * @return A randomly generated value
      */
     T generate() const override {
-        cbor::Value response = internal::communicate_with_socket(schema_);
+        nlohmann::json response = internal::communicate_with_socket(schema_);
 
         // Check for error
-        if (auto error = cbor::map_get(response, "error")) {
+        if (response.contains("error")) {
             internal::assume(false);
         }
 
         // Extract the result value
-        auto result_opt = cbor::map_get(response, "result");
-        internal::assume(result_opt.has_value());
+        internal::assume(response.contains("result"));
+        auto& result = response["result"];
 
         if constexpr (std::is_arithmetic_v<T> ||
                       std::is_same_v<T, std::string>) {
             // Primitive types: extract directly from CBOR value.
             // This avoids a JSON round-trip that would lose NaN/infinity.
-            return result_opt->get<T>();
+            return result.get<T>();
         } else {
-            // Complex types: round-trip through JSON for reflect-cpp
-            std::string result_str = result_opt->dump();
+            // Complex types: bridge from nlohmann (our CBOR runtime) to
+            // reflect-cpp via JSON text. Safe here because complex types
+            // (structs) don't contain bare NaN/infinity values.
+            std::string result_str = result.dump();
             auto parse_result = rfl::json::read<T>(result_str);
             internal::assume(parse_result.has_value());
             return parse_result.value();
@@ -342,7 +343,7 @@ template <typename T> class SchemaBackedGenerator : public IGenerator<T> {
     }
 
   private:
-    cbor::Value schema_;
+    nlohmann::json schema_;
 };
 
 // =============================================================================
@@ -369,10 +370,7 @@ template <typename T> class SchemaBackedGenerator : public IGenerator<T> {
  * @return A SchemaBackedGenerator<T> instance
  */
 template <typename T> Generator<T> default_generator() {
-    // Get schema as text and parse to CBOR value
-    std::string schema_text = internal::type_schema<T>();
-    cbor::Value schema = cbor::Value::parse(schema_text);
-    return from_schema<T>(std::move(schema));
+    return from_schema<T>(internal::type_schema<T>());
 }
 
 /**
@@ -391,7 +389,7 @@ template <typename T> Generator<T> from_function(std::function<T()> fn) {
  * generate(), but may be used when composing generators.
  */
 template <typename T>
-Generator<T> from_function(std::function<T()> fn, cbor::Value schema) {
+Generator<T> from_function(std::function<T()> fn, nlohmann::json schema) {
     return Generator<T>(
         new FunctionBackedGenerator<T>(std::move(fn), std::move(schema)));
 }
@@ -407,9 +405,9 @@ Generator<T> from_function(std::function<T()> fn, cbor::Value schema) {
  *
  * @code{.cpp}
  * auto gen = hegel::generators::from_schema<int>(
- *     cbor::map({{"type", cbor::text("integer")},
- *                {"minimum", cbor::integer(0)},
- *                {"maximum", cbor::integer(100)}})
+ *     nlohmann::json{{"type", "integer"},
+ *                    {"minimum", 0},
+ *                    {"maximum", 100}}
  * );
  * int value = gen.generate();
  * @endcode
@@ -418,7 +416,7 @@ Generator<T> from_function(std::function<T()> fn, cbor::Value schema) {
  * @param schema CBOR schema describing the generation constraints
  * @return A Generator<T> that generates according to the schema
  */
-template <typename T> Generator<T> from_schema(cbor::Value schema) {
+template <typename T> Generator<T> from_schema(nlohmann::json schema) {
     return Generator<T>(new SchemaBackedGenerator<T>(std::move(schema)));
 }
 

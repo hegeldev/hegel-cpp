@@ -1,5 +1,4 @@
 #include <connection.h>
-#include <hegel/cbor.h>
 #include <protocol.h>
 
 #include <stdexcept>
@@ -58,18 +57,19 @@ void Connection::handshake() {
 // =============================================================================
 // Request / Reply
 // =============================================================================
-cbor::Value Connection::request(uint32_t channel, const cbor::Value& msg) {
-    auto payload = cbor::encode(msg);
+nlohmann::json Connection::request(uint32_t channel,
+                                   const nlohmann::json& msg) {
+    auto payload = protocol::cbor_encode(msg);
     uint32_t msg_id = alloc_message_id(channel);
     protocol::write_packet(fd_, channel, msg_id, false, payload);
 
     auto pkt = wait_for(channel, true);
-    return cbor::decode(pkt.payload);
+    return protocol::cbor_decode(pkt.payload);
 }
 
 void Connection::send_reply(uint32_t channel, uint32_t message_id,
-                            const cbor::Value& msg) {
-    auto payload = cbor::encode(msg);
+                            const nlohmann::json& msg) {
+    auto payload = protocol::cbor_encode(msg);
     protocol::write_packet(fd_, channel, message_id, true, payload);
 }
 
@@ -81,7 +81,7 @@ IncomingRequest Connection::recv_request(uint32_t channel) {
         throw std::runtime_error("hegel: channel closed by server");
     }
 
-    return IncomingRequest{pkt.message_id, cbor::decode(pkt.payload)};
+    return IncomingRequest{pkt.message_id, protocol::cbor_decode(pkt.payload)};
 }
 
 void Connection::close_channel(uint32_t channel) {

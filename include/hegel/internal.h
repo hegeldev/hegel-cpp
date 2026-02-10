@@ -16,11 +16,11 @@
 #include <stdexcept>
 #include <string>
 
-#include "cbor.h"
+#include <nlohmann/json.hpp>
 
 /// @cond INTERNAL
 namespace hegel::internal {
-cbor::Value communicate_with_socket(const cbor::Value& schema);
+nlohmann::json communicate_with_socket(const nlohmann::json& schema);
 
 /* Print a note message for debugging.
  *

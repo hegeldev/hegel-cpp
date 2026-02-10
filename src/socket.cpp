@@ -1,5 +1,4 @@
 #include <connection.h>
-#include <hegel/cbor.h>
 #include <hegel/internal.h>
 #include <hegel/options.h>
 #include <iostream>
@@ -46,9 +45,7 @@ void set_test_aborted(bool v) { test_aborted_ = v; }
 inline constexpr int ASSERTION_FAILURE_EXIT_CODE = 134;
 
 namespace hegel::internal {
-cbor::Value communicate_with_socket(const cbor::Value& schema) {
-    using namespace cbor;
-
+nlohmann::json communicate_with_socket(const nlohmann::json& schema) {
     auto* conn = impl::socket::get_embedded_connection();
     uint32_t data_channel = impl::socket::get_embedded_data_channel();
 
@@ -58,34 +55,36 @@ cbor::Value communicate_with_socket(const cbor::Value& schema) {
     }
 
     // Build generate request as CBOR
-    Value request = map({{"command", text("generate")}, {"schema", schema}});
+    nlohmann::json request = {{"command", "generate"}, {"schema", schema}};
 
     if (std::getenv("HEGEL_DEBUG")) {
         std::cerr << "REQUEST: " << request.dump() << "\n";
     }
 
     // Send request and get response
-    Value response = conn->request(data_channel, request);
+    nlohmann::json response = conn->request(data_channel, request);
 
     if (std::getenv("HEGEL_DEBUG")) {
         std::cerr << "RESPONSE: " << response.dump() << "\n";
     }
 
     // Handle errors
-    if (auto error = map_get(response, "error")) {
-        auto error_type = as_text(map_get(response, "type"));
+    if (response.contains("error")) {
+        std::string error_type = response.value("type", "");
         if (error_type == "StopTest" || error_type == "Overflow") {
             impl::socket::set_test_aborted(true);
             internal::stop_test();
         }
-        throw std::runtime_error("hegel: " +
-                                 as_text(*error).value_or("unknown error"));
+        std::string error_msg = response["error"].is_string()
+                                    ? response["error"].get<std::string>()
+                                    : "unknown error";
+        throw std::runtime_error("hegel: " + error_msg);
     }
 
     // Auto-log generated value during final replay (counterexample)
     if (impl::run_state::is_last_run()) {
-        if (auto result = map_get(response, "result")) {
-            std::cerr << "Generated: " << result->dump() << "\n";
+        if (response.contains("result")) {
+            std::cerr << "Generated: " << response["result"].dump() << "\n";
         }
     }
 

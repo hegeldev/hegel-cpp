@@ -5,7 +5,6 @@
 #include <base64.h>
 #include <connection.h>
 #include <functional>
-#include <hegel/cbor.h>
 #include <hegel/generators.h>
 #include <hegel/internal.h>
 #include <hegel/options.h>
@@ -29,17 +28,6 @@
 #endif
 
 namespace hegel {
-
-using impl::cbor::as_bool;
-using impl::cbor::as_text;
-using impl::cbor::as_uint;
-using impl::cbor::boolean;
-using impl::cbor::integer;
-using impl::cbor::map;
-using impl::cbor::map_get;
-using impl::cbor::null;
-using impl::cbor::text;
-using impl::cbor::Value;
 
 // =============================================================================
 // Child Process
@@ -145,10 +133,10 @@ static void hegel_parent(const std::string& socket_path,
     uint32_t test_channel = conn.create_channel();
     uint64_t test_cases = options.test_cases.value_or(100);
 
-    Value run_test_msg = map({{"command", text("run_test")},
-                              {"name", text("test")},
-                              {"test_cases", integer(test_cases)},
-                              {"channel", integer(test_channel)}});
+    nlohmann::json run_test_msg = {{"command", "run_test"},
+                                   {"name", "test"},
+                                   {"test_cases", test_cases},
+                                   {"channel", test_channel}};
     conn.request(0, run_test_msg);
 
     // Event loop on test channel
@@ -159,17 +147,15 @@ static void hegel_parent(const std::string& socket_path,
         auto event = conn.recv_request(test_channel);
         auto& payload = event.payload;
 
-        auto event_type = as_text(map_get(payload, "event"));
+        std::string event_type = payload.value("event", "");
 
         if (event_type == "test_case") {
             // Acknowledge test_case event
             conn.send_reply(test_channel, event.message_id,
-                            map({{"result", null()}}));
+                            nlohmann::json{{"result", nullptr}});
 
-            uint32_t data_channel = static_cast<uint32_t>(
-                as_uint(map_get(payload, "channel")).value_or(0));
-            bool is_final =
-                as_bool(map_get(payload, "is_final")).value_or(false);
+            uint32_t data_channel = payload.value("channel", uint32_t{0});
+            bool is_final = payload.value("is_final", false);
 
             // Set thread-local state
             impl::run_state::set_is_last_run(is_final);
@@ -195,10 +181,12 @@ static void hegel_parent(const std::string& socket_path,
 
             // Send mark_complete and close data channel (unless aborted)
             if (!impl::socket::is_test_aborted()) {
-                Value origin_value = origin.empty() ? null() : text(origin);
-                Value mark = map({{"command", text("mark_complete")},
-                                  {"status", text(status)},
-                                  {"origin", origin_value}});
+                nlohmann::json origin_value = origin.empty()
+                                                  ? nlohmann::json(nullptr)
+                                                  : nlohmann::json(origin);
+                nlohmann::json mark = {{"command", "mark_complete"},
+                                       {"status", status},
+                                       {"origin", origin_value}};
                 conn.request(data_channel, mark);
                 conn.close_channel(data_channel);
             }
@@ -214,15 +202,13 @@ static void hegel_parent(const std::string& socket_path,
         } else if (event_type == "test_done") {
             // Acknowledge test_done event
             conn.send_reply(test_channel, event.message_id,
-                            map({{"result", boolean(true)}}));
+                            nlohmann::json{{"result", true}});
 
-            auto results = map_get(payload, "results");
-            if (results) {
-                test_passed =
-                    as_bool(map_get(*results, "passed")).value_or(true);
-                final_replays_remaining = static_cast<int>(
-                    as_uint(map_get(*results, "interesting_test_cases"))
-                        .value_or(0));
+            if (payload.contains("results")) {
+                auto& results = payload["results"];
+                test_passed = results.value("passed", true);
+                final_replays_remaining =
+                    results.value("interesting_test_cases", 0);
             }
             if (final_replays_remaining <= 0) {
                 done = true;

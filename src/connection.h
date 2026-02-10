@@ -1,6 +1,6 @@
 #pragma once
 
-#include <hegel/cbor.h>
+#include <nlohmann/json.hpp>
 #include <protocol.h>
 
 #include <cstdint>
@@ -15,7 +15,7 @@ namespace hegel::impl {
 
 struct IncomingRequest {
     uint32_t message_id;
-    cbor::Value payload;
+    nlohmann::json payload;
 };
 
 class Connection {
@@ -33,11 +33,11 @@ class Connection {
     uint32_t create_channel();
 
     /// Send a CBOR request and wait for the reply
-    cbor::Value request(uint32_t channel, const cbor::Value& msg);
+    nlohmann::json request(uint32_t channel, const nlohmann::json& msg);
 
     /// Send a CBOR reply to a server-initiated request
     void send_reply(uint32_t channel, uint32_t message_id,
-                    const cbor::Value& msg);
+                    const nlohmann::json& msg);
 
     /// Wait for a server-initiated request on a channel
     IncomingRequest recv_request(uint32_t channel);
