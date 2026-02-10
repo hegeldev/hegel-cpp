@@ -93,7 +93,7 @@ static int connect_to_socket(const std::string& path) {
         throw std::runtime_error("hegel: failed to create socket");
     }
 
-    struct sockaddr_un addr {};
+    struct sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     if (path.size() >= sizeof(addr.sun_path)) {
         close(fd);

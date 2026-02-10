@@ -13,12 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install tools
-        run: |
-          sudo apt-get update && sudo apt-get install -y just
-
-          # all else equal, we'd prefer to get this from apt-get. But the version ubuntu
-          # carries is pretty old; this lets us install the latest.
-          pip install clang-format
+        run: sudo apt-get update && sudo apt-get install -y just
+      - uses: astral-sh/setup-uv@v6
       - name: format
         run: |
           just format
