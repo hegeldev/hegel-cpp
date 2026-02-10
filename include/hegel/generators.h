@@ -13,6 +13,7 @@
 #include <rfl/json.hpp>
 
 #include "internal.h"
+#include "nlohmann_reader.h"
 
 namespace hegel::internal {
 /// Generate a schema for type T (wrapper around reflect-cpp)
@@ -328,15 +329,9 @@ template <typename T> class SchemaBackedGenerator : public IGenerator<T> {
 
         if constexpr (std::is_arithmetic_v<T> ||
                       std::is_same_v<T, std::string>) {
-            // Primitive types: extract directly from CBOR value.
-            // This avoids a JSON round-trip that would lose NaN/infinity.
             return result.get<T>();
         } else {
-            // Complex types: bridge from nlohmann (our CBOR runtime) to
-            // reflect-cpp via JSON text. Safe here because complex types
-            // (structs) don't contain bare NaN/infinity values.
-            std::string result_str = result.dump();
-            auto parse_result = rfl::json::read<T>(result_str);
+            auto parse_result = internal::read_nlohmann<T>(result);
             internal::assume(parse_result.has_value());
             return parse_result.value();
         }
