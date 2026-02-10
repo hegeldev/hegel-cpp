@@ -327,12 +327,18 @@ template <typename T> class SchemaBackedGenerator : public IGenerator<T> {
         auto result_opt = cbor::map_get(response, "result");
         internal::assume(result_opt.has_value());
 
-        // Serialize result to string and deserialize to type T
-        std::string result_str = result_opt->dump();
-        auto parse_result = rfl::json::read<T>(result_str);
-        internal::assume(parse_result.has_value());
-
-        return parse_result.value();
+        if constexpr (std::is_arithmetic_v<T> ||
+                      std::is_same_v<T, std::string>) {
+            // Primitive types: extract directly from CBOR value.
+            // This avoids a JSON round-trip that would lose NaN/infinity.
+            return result_opt->get<T>();
+        } else {
+            // Complex types: round-trip through JSON for reflect-cpp
+            std::string result_str = result_opt->dump();
+            auto parse_result = rfl::json::read<T>(result_str);
+            internal::assume(parse_result.has_value());
+            return parse_result.value();
+        }
     }
 
   private:
