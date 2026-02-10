@@ -10,11 +10,7 @@ devcontainer
 external/
 
 .claude-reliability/
-.claude/reliability-config.yaml
-.claude/bin/
-.claude/*.local.md
-.claude/*.local.json
-.claude/*.local
+**/.claude/reliability-config.yaml
 
 # claude-reliability managed
 .claude/bin/

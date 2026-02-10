@@ -16,9 +16,11 @@
 #include <stdexcept>
 #include <string>
 
+#include <nlohmann/json.hpp>
+
 /// @cond INTERNAL
 namespace hegel::internal {
-    std::string communicate_with_socket(const std::string& schema);
+    nlohmann::json communicate_with_socket(const nlohmann::json& schema);
 
     /* Print a note message for debugging.
      *
@@ -61,12 +63,5 @@ namespace hegel::internal {
      */
     [[noreturn]] void stop_test();
 
-    // =============================================================================
-    // Response wrapper for socket communication
-    // =============================================================================
-    template <typename T> struct Response {
-        std::optional<T> result;
-        std::optional<std::string> error;
-    };
 } // namespace hegel::internal
 /// @endcond

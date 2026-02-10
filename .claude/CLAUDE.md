@@ -4,13 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the C++ SDK for Hegel, a universal property-based testing framework. The SDK communicates with a Python server (powered by Hypothesis) via Unix sockets to generate random test data and perform shrinking.
+This is the C++ SDK for Hegel, a universal property-based testing framework. The SDK communicates with a hegeld server (powered by Hypothesis) via a binary protocol over Unix sockets to generate random test data and perform shrinking.
 
 ## Build & Test Commands
 
 ```bash
 just test     # cmake -B build && cmake --build build && ctest
-just format   # clang-format on all .cpp/.hpp files
+just check    # build + test + format check (all CI checks)
+just format   # clang-format on all .cpp/.h files
 just docs     # Build Doxygen documentation
 ```
 
@@ -25,33 +26,43 @@ ctest --test-dir build -R test_name
 - C++20 compiler
 - CMake 3.14+
 - reflect-cpp v0.22.0 (automatic schema generation via reflection)
-- nlohmann/json v3.12.0 (JSON manipulation)
+- nlohmann/json v3.12.0 (JSON manipulation + CBOR serialization)
 - Google Test (for unit tests)
 
 ## Architecture
 
-### Execution Modes
+### Execution Model
 
-The SDK supports two modes:
+The SDK spawns `hegeld` as a subprocess and connects to it as a client:
+1. SDK creates a socket path and spawns hegeld
+2. hegeld binds to the socket and listens
+3. SDK connects as client
+4. Version negotiation: SDK sends `"Hegel/1.0"`, server responds `"Ok"`
+5. Control channel (0) receives `run_test`/`test_case`/`test_done` events
+6. Data channels handle `generate`/`start_span`/`stop_span`/`mark_complete`
 
-1. **Embedded Mode** (recommended): Test binary spawns `hegel` as a subprocess via `hegel::hegel()`. Creates a Unix socket server, forks the Hegel CLI, and handles test execution/shrinking internally.
+### Protocol
 
-2. **External Mode**: Hegel CLI runs the test binary as subprocess. The binary reads `HEGEL_SOCKET` environment variable and communicates with an existing server.
+Binary packet protocol with CBOR payloads over Unix socket:
+- 20-byte header: magic (`0x4845474C` / "HEGL"), CRC32, channel ID, message ID, payload length
+- CBOR-encoded payloads (nlohmann::json's `to_cbor()`/`from_cbor()`)
+- Channel multiplexing: control channel 0, client channels use odd IDs
+- Reply bit (`1 << 31`) in message ID field distinguishes requests from responses
 
 ### Key Components
 
-- **`hegel.h`** - Main include file, aggregates all SDK components
-- **`options.h`** - HegelOptions
-- **`embedded.h`** - `hegel()` function template that orchestrates embedded mode
-- **`generators.h`** - `Generator<T>` and `DefaultGenerator<T>` class templates with `map()`, `flatmap()`, `filter()` combinators
-- **`strategies.h`** - Strategy factory functions in `hegel::strategies` namespace (integers, floats, text, vectors, etc.)
-- **`detail.h`** - Internal socket communication, JSON protocol handling
-- **`grouping.h`** - Span management for shrinking
+- **`hegel.h`** - Main include, declares `hegel::hegel()` entry point
+- **`options.h`** - HegelOptions, Verbosity enum
+- **`generators.h`** - `IGenerator<T>`, `Generator<T>`, `SchemaBackedGenerator<T>`, `FunctionBackedGenerator<T>` with `map()`, `flatmap()`, `filter()` combinators
+- **`strategies.h`** - Strategy factory functions in `hegel::strategies` namespace
+- **`internal.h`** - `communicate_with_socket()`, `assume()`, `note()`, `stop_test()`
+- **`src/protocol.h`** - Binary packet protocol, Connection, Channel classes
+- **`src/socket.h`** - Low-level socket I/O
 
 ### Generator Pattern
 
 Generators have two paths:
-1. **Schema-based**: Generator has a JSON schema string, sends single request to server (preferred for shrinking)
+1. **Schema-based**: Generator has a CBOR schema value, sends single request to server (preferred for shrinking)
 2. **Function-based**: Generator wraps a callable, may make multiple requests (used after `map()`/`filter()`)
 
 ```cpp
@@ -62,14 +73,17 @@ auto gen = integers<int>({.min_value = 0, .max_value = 100});
 auto squared = gen.map([](int x) { return x * x; });
 ```
 
-### Protocol
-
-Newline-delimited JSON over Unix socket. The SDK sends JSON schemas and receives generated values. Key environment variables:
-- `HEGEL_SOCKET` - Unix socket path (set by Hegel CLI or embedded mode)
-- `HEGEL_REJECT_CODE` - Exit code for `assume(false)` in external mode
-
 ## Code Style
 
-- All public API is in `hegel` namespace, strategies in `hegel::strategies`
-- Parameter structs use designated initializers (C++20): `integers<int>({.min_value = 0})`
-- Dictionary keys must be strings (JSON schema limitation)
+Michael (mgibson) has carefully curated this codebase. Match his conventions exactly:
+
+- **Formatting**: LLVM base style, 4-space indentation, left-aligned pointers (`int*`). Run `just format` before committing.
+- **Headers**: Use `.h` extension (not `.hpp`)
+- **Namespaces**: `hegel` for public API, `hegel::strategies` for strategies, `hegel::internal` for internals referenced in public headers, `hegel::impl::*` for purely private implementation
+- **Includes**: Public headers use relative includes (`#include "options.h"`), source files use angle brackets for both public (`<hegel/internal.h>`) and private (`<socket.h>`) headers
+- **File organization**: Each focused `.cpp` has a corresponding `.h` in `src/`. Private headers live in `src/`, not `include/`
+- **Public API surface**: Minimal. Only what users need goes in `include/hegel/`. Internal details hidden via `@cond INTERNAL` / `@endcond` in Doxygen
+- **Section dividers**: Use `// =====...=====` comment blocks
+- **Parameter structs**: Designated initializers (C++20): `integers<int>({.min_value = 0})`
+- **Self-contained**: Prefer small standalone implementations over adding heavy dependencies
+- **No over-engineering**: Keep changes minimal and focused. Don't add abstractions beyond what's needed

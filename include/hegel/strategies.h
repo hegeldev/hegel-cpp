@@ -8,7 +8,6 @@
  * generating primitive types, collections, and composite data structures.
  */
 
-#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <variant>
@@ -60,10 +59,11 @@ namespace hegel::strategies {
         bool exclude_min =
             false; ///< If true, exclude min_value (exclusive bound)
         bool exclude_max =
-            false;             ///< If true, exclude max_value (exclusive bound)
-        bool allow_nan = true; ///< If true, allow NaN values. Default: true
-        bool allow_infinity =
-            true; ///< If true, allow infinity values. Default: true
+            false; ///< If true, exclude max_value (exclusive bound)
+        std::optional<bool>
+            allow_nan; ///< Allow NaN. Default: true if unbounded
+        std::optional<bool>
+            allow_infinity; ///< Allow infinity. Default: true if unbounded
     };
 
     /**
@@ -125,7 +125,7 @@ namespace hegel::strategies {
     };
 
     // =============================================================================
-    // Non-template strategy declarations (implemented in hegel.cpp)
+    // Non-template strategy declarations (implemented in strategies.cpp)
     // =============================================================================
 
     /// @name Primitive Strategies
@@ -220,14 +220,13 @@ namespace hegel::strategies {
      * @return Generator that always produces value
      */
     template <typename T> Generator<T> just(T value) {
-        nlohmann::json schema;
-
         if constexpr (std::is_same_v<T, bool> ||
                       std::is_same_v<T, std::nullptr_t> ||
-                      std::is_arithmetic_v<T> ||
+                      std::is_integral_v<T> || std::is_floating_point_v<T> ||
                       std::is_same_v<T, std::string>) {
-            schema = {{"const", value}};
-            return from_function<T>([value]() { return value; }, schema.dump());
+            nlohmann::json schema = {{"const", value}};
+            return from_function<T>([value]() { return value; },
+                                    std::move(schema));
         } else {
             return from_function<T>([value]() { return value; });
         }
@@ -254,15 +253,13 @@ namespace hegel::strategies {
     template <typename T = int64_t>
         requires std::is_integral_v<T>
     Generator<T> integers(IntegersParams<T> params = {}) {
-        nlohmann::json schema = {{"type", "integer"}};
-
         T min_val = params.min_value.value_or(std::numeric_limits<T>::min());
         T max_val = params.max_value.value_or(std::numeric_limits<T>::max());
 
-        schema["minimum"] = min_val;
-        schema["maximum"] = max_val;
+        nlohmann::json schema = {
+            {"type", "integer"}, {"minimum", min_val}, {"maximum", max_val}};
 
-        return from_schema<T>(schema.dump());
+        return from_schema<T>(std::move(schema));
     }
 
     /**
@@ -287,11 +284,16 @@ namespace hegel::strategies {
         // Determine width from type size (float = 32 bits, double = 64 bits)
         constexpr int width = sizeof(T) * 8;
 
+        bool bounded =
+            params.min_value.has_value() || params.max_value.has_value();
+        bool nan = params.allow_nan.value_or(!bounded);
+        bool inf = params.allow_infinity.value_or(!bounded);
+
         nlohmann::json schema = {{"type", "number"},
                                  {"exclude_minimum", params.exclude_min},
                                  {"exclude_maximum", params.exclude_max},
-                                 {"allow_nan", params.allow_nan},
-                                 {"allow_infinity", params.allow_infinity},
+                                 {"allow_nan", nan},
+                                 {"allow_infinity", inf},
                                  {"width", width}};
 
         if (params.min_value) {
@@ -302,7 +304,7 @@ namespace hegel::strategies {
             schema["maximum"] = *params.max_value;
         }
 
-        return from_schema<T>(schema.dump());
+        return from_schema<T>(std::move(schema));
     }
 
     /// @}
@@ -328,18 +330,16 @@ namespace hegel::strategies {
     Generator<std::vector<T>> vectors(Generator<T> elements,
                                       VectorsParams params = {}) {
         if (elements.schema()) {
-            nlohmann::json elem_schema =
-                nlohmann::json::parse(*elements.schema());
             // Use "set" type for unique, "list" type otherwise
             std::string schema_type = params.unique ? "set" : "list";
             nlohmann::json schema = {{"type", schema_type},
-                                     {"elements", elem_schema},
+                                     {"elements", *elements.schema()},
                                      {"min_size", params.min_size}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
 
-            return from_schema<std::vector<T>>(schema.dump());
+            return from_schema<std::vector<T>>(std::move(schema));
         }
 
         size_t max_size = params.max_size.value_or(100);
@@ -376,16 +376,14 @@ namespace hegel::strategies {
     template <typename T>
     Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
         if (elements.schema()) {
-            nlohmann::json elem_schema =
-                nlohmann::json::parse(*elements.schema());
             nlohmann::json schema = {{"type", "set"},
-                                     {"elements", elem_schema},
+                                     {"elements", *elements.schema()},
                                      {"min_size", params.min_size}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
 
-            auto vec_gen = from_schema<std::vector<T>>(schema.dump());
+            auto vec_gen = from_schema<std::vector<T>>(std::move(schema));
 
             return from_function<std::set<T>>([vec_gen]() {
                 auto vec = vec_gen.generate();
@@ -439,11 +437,10 @@ namespace hegel::strategies {
                                            Generator<V> values,
                                            DictionariesParams params = {}) {
         if (keys.schema() && values.schema()) {
-            nlohmann::json schema = {
-                {"type", "dict"},
-                {"keys", nlohmann::json::parse(*keys.schema())},
-                {"values", nlohmann::json::parse(*values.schema())},
-                {"min_size", params.min_size}};
+            nlohmann::json schema = {{"type", "dict"},
+                                     {"keys", *keys.schema()},
+                                     {"values", *values.schema()},
+                                     {"min_size", params.min_size}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
@@ -451,7 +448,7 @@ namespace hegel::strategies {
             // Wire format is [[key, value], ...], deserialize as vector of
             // pairs
             auto vec_gen =
-                from_schema<std::vector<std::pair<K, V>>>(schema.dump());
+                from_schema<std::vector<std::pair<K, V>>>(std::move(schema));
 
             return from_function<std::map<K, V>>([vec_gen]() {
                 auto pairs = vec_gen.generate();
@@ -482,17 +479,17 @@ namespace hegel::strategies {
 
         template <typename... Gens>
         auto make_tuple_schema(const Gens&... gens)
-            -> std::optional<std::string> {
+            -> std::optional<nlohmann::json> {
             bool all_have_schemas = (gens.schema().has_value() && ...);
             if (!all_have_schemas)
                 return std::nullopt;
 
             nlohmann::json elements = nlohmann::json::array();
-            (elements.push_back(nlohmann::json::parse(*gens.schema())), ...);
+            (elements.push_back(*gens.schema()), ...);
 
             nlohmann::json schema = {{"type", "tuple"}, {"elements", elements}};
 
-            return schema.dump();
+            return schema;
         }
 
         template <typename Tuple, typename GenTuple, size_t... Is>
@@ -525,7 +522,7 @@ namespace hegel::strategies {
         auto maybe_schema = detail::make_tuple_schema(gens...);
 
         if (maybe_schema) {
-            return from_schema<ResultTuple>(*maybe_schema);
+            return from_schema<ResultTuple>(std::move(*maybe_schema));
         }
 
         auto gen_tuple = std::make_tuple(std::move(gens)...);
@@ -558,10 +555,13 @@ namespace hegel::strategies {
 
         if constexpr (std::is_same_v<T, bool> ||
                       std::is_same_v<T, std::nullptr_t> ||
-                      std::is_arithmetic_v<T> ||
+                      std::is_integral_v<T> || std::is_floating_point_v<T> ||
                       std::is_same_v<T, std::string>) {
-            nlohmann::json schema = {{"sampled_from", elements}};
-            return from_schema<T>(schema.dump());
+            nlohmann::json arr = nlohmann::json::array();
+            for (const auto& e : elements)
+                arr.push_back(e);
+            nlohmann::json schema = {{"sampled_from", arr}};
+            return from_schema<T>(std::move(schema));
         } else {
             auto index_gen = integers<size_t>(
                 {.min_value = 0, .max_value = elements.size() - 1});
@@ -595,19 +595,19 @@ namespace hegel::strategies {
 
         template <typename T>
         auto make_one_of_schema(const std::vector<Generator<T>>& gens)
-            -> std::optional<std::string> {
+            -> std::optional<nlohmann::json> {
             for (const auto& gen : gens) {
                 if (!gen.schema())
                     return std::nullopt;
             }
 
-            nlohmann::json one_of = nlohmann::json::array();
+            nlohmann::json one_of_arr = nlohmann::json::array();
             for (const auto& gen : gens) {
-                one_of.push_back(nlohmann::json::parse(*gen.schema()));
+                one_of_arr.push_back(*gen.schema());
             }
 
-            nlohmann::json schema = {{"one_of", one_of}};
-            return schema.dump();
+            nlohmann::json schema = {{"one_of", one_of_arr}};
+            return schema;
         }
 
     } // namespace detail
@@ -635,7 +635,7 @@ namespace hegel::strategies {
         auto maybe_schema = detail::make_one_of_schema(gens);
 
         if (maybe_schema) {
-            return from_schema<T>(*maybe_schema);
+            return from_schema<T>(std::move(*maybe_schema));
         }
 
         auto index_gen =

@@ -13,6 +13,14 @@
 #include <rfl/json.hpp>
 
 #include "internal.h"
+#include "nlohmann_reader.h"
+
+namespace hegel::internal {
+    /// Generate a schema for type T (wrapper around reflect-cpp)
+    template <typename T> nlohmann::json type_schema() {
+        return nlohmann::json::parse(rfl::json::to_schema<T>());
+    }
+} // namespace hegel::internal
 
 /**
  * @brief Namespace containing abstractions for data generation.
@@ -56,7 +64,7 @@ namespace hegel::generators {
         virtual T generate() const = 0;
 
         /**
-         * @brief Get the JSON schema for this generator, if any.
+         * @brief Get the CBOR schema for this generator, if any.
          *
          * All IGenerators *may* have a schema, even if the schema isn't
          * directly used for generating; this functionality may be used for
@@ -65,7 +73,7 @@ namespace hegel::generators {
          * @return Optional containing the schema, or nullopt if not
          * schema-based
          */
-        virtual const std::optional<std::string_view> schema() const = 0;
+        virtual std::optional<nlohmann::json> schema() const = 0;
     };
 
     /**
@@ -116,11 +124,11 @@ namespace hegel::generators {
         T generate() const override { return inner_->generate(); }
 
         /**
-         * @brief Get the JSON schema for this generator, if any.
+         * @brief Get the CBOR schema for this generator, if any.
          * @return Optional containing the schema, or nullopt if not
          * schema-based
          */
-        const std::optional<std::string_view> schema() const override {
+        std::optional<nlohmann::json> schema() const override {
             return inner_->schema();
         }
 
@@ -272,15 +280,15 @@ namespace hegel::generators {
         /// @param fn function that will be called repeatedly to generate values
         /// @param schema schema for this generator; not used in generate(), but
         /// may be used when composing this generator
-        FunctionBackedGenerator(std::function<T()> fn, std::string schema)
+        FunctionBackedGenerator(std::function<T()> fn, nlohmann::json schema)
             : gen_fn_(std::move(fn)), schema_(std::move(schema)) {}
 
         /**
-         * @brief Get the JSON schema for this generator, if any.
+         * @brief Get the CBOR schema for this generator, if any.
          * @return Optional containing the schema, or nullopt if not
          * schema-based
          */
-        const std::optional<std::string_view> schema() const override {
+        std::optional<nlohmann::json> schema() const override {
             return schema_;
         }
 
@@ -292,7 +300,7 @@ namespace hegel::generators {
 
       private:
         std::function<T()> gen_fn_;
-        std::optional<std::string> schema_;
+        std::optional<nlohmann::json> schema_;
     };
 
     /**
@@ -308,12 +316,12 @@ namespace hegel::generators {
     template <typename T> class SchemaBackedGenerator : public IGenerator<T> {
       public:
         /// @brief Create, given the schema
-        SchemaBackedGenerator(std::string schema)
+        SchemaBackedGenerator(nlohmann::json schema)
             : schema_(std::move(schema)) {}
 
-        /// Get const reference to the JSON schema
-        const std::optional<std::string_view> schema() const override {
-            return std::string_view(schema_);
+        /// Get the CBOR schema
+        std::optional<nlohmann::json> schema() const override {
+            return schema_;
         }
 
         /**
@@ -321,23 +329,30 @@ namespace hegel::generators {
          * @return A randomly generated value
          */
         T generate() const override {
-            std::string response_json =
+            nlohmann::json response =
                 internal::communicate_with_socket(schema_);
 
-            auto parse_result =
-                rfl::json::read<internal::Response<T>>(response_json);
-            internal::assume(parse_result.has_value());
+            // Check for error
+            if (response.contains("error")) {
+                internal::assume(false);
+            }
 
-            const internal::Response<T>& response = parse_result.value();
+            // Extract the result value
+            internal::assume(response.contains("result"));
+            nlohmann::json& result = response["result"];
 
-            internal::assume(!response.error);
-            internal::assume(response.result.has_value());
-
-            return *response.result;
+            if constexpr (std::is_arithmetic_v<T> ||
+                          std::is_same_v<T, std::string>) {
+                return result.get<T>();
+            } else {
+                auto parse_result = internal::read_nlohmann<T>(result);
+                internal::assume(parse_result.has_value());
+                return parse_result.value();
+            }
         }
 
       private:
-        std::string schema_;
+        nlohmann::json schema_;
     };
 
     // =============================================================================
@@ -347,7 +362,7 @@ namespace hegel::generators {
     /**
      * @brief Create a generator for type T using automatic schema derivation.
      *
-     * Uses reflect-cpp to derive a JSON schema from the type's structure.
+     * Uses reflect-cpp to derive a schema from the type's structure.
      * Works with structs, classes, and standard library types.
      *
      * @code{.cpp}
@@ -364,7 +379,7 @@ namespace hegel::generators {
      * @return A SchemaBackedGenerator<T> instance
      */
     template <typename T> Generator<T> default_generator() {
-        return from_schema<T>(rfl::json::to_schema<T>());
+        return from_schema<T>(internal::type_schema<T>());
     }
 
     /**
@@ -376,20 +391,20 @@ namespace hegel::generators {
     }
 
     /**
-     * @brief Construct a generator from a function (with an associated JSON
+     * @brief Construct a generator from a function (with an associated CBOR
      * schema).
      * @param fn Function that produces values of type T
-     * @param schema JSON schema string for this generator. This isn't used in
+     * @param schema CBOR schema for this generator. This isn't used in
      * generate(), but may be used when composing generators.
      */
     template <typename T>
-    Generator<T> from_function(std::function<T()> fn, std::string schema) {
+    Generator<T> from_function(std::function<T()> fn, nlohmann::json schema) {
         return Generator<T>(
             new FunctionBackedGenerator<T>(std::move(fn), std::move(schema)));
     }
 
     /**
-     * @brief Create a from_function from an explicit JSON schema.
+     * @brief Create a generator from an explicit CBOR schema.
      *
      * Use this when you need fine-grained control over the generation
      * schema, or when working with types that don't support automatic
@@ -399,16 +414,18 @@ namespace hegel::generators {
      *
      * @code{.cpp}
      * auto gen = hegel::generators::from_schema<int>(
-     *     R"({"type":"integer","minimum":0,"maximum":100})"
+     *     nlohmann::json{{"type", "integer"},
+     *                    {"minimum", 0},
+     *                    {"maximum", 100}}
      * );
      * int value = gen.generate();
      * @endcode
      *
      * @tparam T The type to deserialize generated values into
-     * @param schema JSON schema string describing the generation constraints
+     * @param schema CBOR schema describing the generation constraints
      * @return A Generator<T> that generates according to the schema
      */
-    template <typename T> Generator<T> from_schema(std::string schema) {
+    template <typename T> Generator<T> from_schema(nlohmann::json schema) {
         return Generator<T>(new SchemaBackedGenerator<T>(std::move(schema)));
     }
 
