@@ -547,9 +547,8 @@ template <typename T> Generator<T> sampled_from(std::vector<T> elements) {
 
     // Use index-based schema - server generates an index, we look up the value
     // This enables schema composition and preserves object identity
-    nlohmann::json schema = {{"type", "integer"},
-                             {"minimum", 0},
-                             {"maximum", elements.size() - 1}};
+    nlohmann::json schema = {
+        {"type", "integer"}, {"minimum", 0}, {"maximum", elements.size() - 1}};
 
     return from_function<T>(
         [elements = std::move(elements), schema]() {
