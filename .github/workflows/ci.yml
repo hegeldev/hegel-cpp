@@ -84,7 +84,7 @@ jobs:
             ${{ matrix.cmake_flags }}
 
       - name: Build
-        run: cmake --build build -j$(nproc)
+        run: cmake --build build -j$(nproc) -DHEGEL_BUILD_DOCS=OFF
 
       - name: Run property tests
         run: ctest --test-dir build --output-on-failure
