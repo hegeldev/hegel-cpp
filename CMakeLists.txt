@@ -184,7 +184,9 @@ endif()
 # =============================================================================
 
 if(HEGEL_BUILD_TESTS)
-    add_subdirectory(tests EXCLUDE_FROM_ALL)
+    set(INSTALL_GTEST OFF CACHE BOOL "Disable installation of googletest" FORCE)
+    set(INSTALL_GMOCK OFF CACHE BOOL "Disable installation of googlemock" FORCE)
+    add_subdirectory(tests)
 endif()
 
 
@@ -193,7 +195,7 @@ endif()
 # =============================================================================
 
 if(HEGEL_BUILD_CONFORMANCE)
-    add_subdirectory(tests/conformance/cpp EXCLUDE_FROM_ALL)
+    add_subdirectory(tests/conformance/cpp)
 endif()
 
 # =============================================================================
