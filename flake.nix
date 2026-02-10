@@ -78,6 +78,7 @@
           nativeBuildInputs = [
             pkgs.cmake
             pkgs.ninja
+            pkgs.doxygen
           ];
 
           buildInputs = [
@@ -85,7 +86,7 @@
           ];
 
           cmakeFlags = (mkFetchContentFlags pkgs) ++ [
-            (lib.cmakeFeature "HEGEL_BUILD_DOCS" "OFF")
+            (lib.cmakeFeature "HEGEL_BUILD_DOCS" "ON")
             (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
           ];
 
