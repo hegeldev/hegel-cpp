@@ -23,6 +23,14 @@ int main(int argc, char* argv[]) {
             : std::optional<double>(args["max_value"].get<double>());
     bool exclude_min = args.value("exclude_min", false);
     bool exclude_max = args.value("exclude_max", false);
+    std::optional<bool> allow_nan =
+        args["allow_nan"].is_null()
+            ? std::nullopt
+            : std::optional<bool>(args["allow_nan"].get<bool>());
+    std::optional<bool> allow_infinity =
+        args["allow_infinity"].is_null()
+            ? std::nullopt
+            : std::optional<bool>(args["allow_infinity"].get<bool>());
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
@@ -32,6 +40,8 @@ int main(int argc, char* argv[]) {
                 .max_value = max_value,
                 .exclude_min = exclude_min,
                 .exclude_max = exclude_max,
+                .allow_nan = allow_nan,
+                .allow_infinity = allow_infinity,
             });
             auto value = gen.generate();
             conformance::write_metrics({

@@ -5,17 +5,17 @@
 // Note: the socket part of this namespace is implemented in socket.cpp
 
 namespace hegel::internal {
-void note(const std::string& message) {
-    if (impl::run_state::is_last_run()) {
-        std::cerr << message << std::endl;
+    void note(const std::string& message) {
+        if (impl::run_state::is_last_run()) {
+            std::cerr << message << std::endl;
+        }
     }
-}
 
-void assume(bool condition) {
-    if (!condition) {
-        stop_test();
+    void assume(bool condition) {
+        if (!condition) {
+            stop_test();
+        }
     }
-}
 
-[[noreturn]] void stop_test() { throw HegelReject(); }
+    [[noreturn]] void stop_test() { throw HegelReject(); }
 } // namespace hegel::internal

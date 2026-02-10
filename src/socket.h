@@ -1,13 +1,26 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 // =============================================================================
 // Socket Communication
 // =============================================================================
+namespace hegel::impl {
+    class Connection;
+}
+
 namespace hegel::impl::socket {
-void set_embedded_connection(int fd);
-void clear_embedded_connection();
-std::string read_line(int fd);
-void write_line(int fd, const std::string& line);
+    void set_embedded_connection(Connection* conn, uint32_t data_channel);
+    void clear_embedded_connection();
+    Connection* get_embedded_connection();
+    uint32_t get_embedded_data_channel();
+    bool is_test_aborted();
+    void set_test_aborted(bool v);
+
+    /// Wait for a socket file to appear on disk
+    bool wait_for_socket(const std::string& path, int timeout_ms);
+
+    /// Connect to a Unix domain socket, returning the file descriptor
+    int connect_to_socket(const std::string& path);
 } // namespace hegel::impl::socket
