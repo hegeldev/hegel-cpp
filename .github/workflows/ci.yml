@@ -79,6 +79,7 @@ jobs:
       - name: Configure CMake
         run: |
           cmake -B build \
+            -DHEGEL_BUILD_DOCS=OFF \
             -DCMAKE_C_COMPILER=${{ matrix.cc }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
             ${{ matrix.cmake_flags }}
@@ -105,17 +106,18 @@ jobs:
         with:
           ssh-key: ${{ secrets.HEGEL_DEPLOY_KEY }}
       - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
       - name: lint
-        run: nix run nixpkgs#nixfmt -- --check flake.nix tests/nix/flake.nix
+        run: nix run nixpkgs#nixfmt -- --check flake.nix
       - name: test
         working-directory: tests/nix
         run: |
-          # deleting the lock file allows nix to resolve the `path:../..` input value
-          # without erroring about unlocked values / irreproducible builds
-          rm -f flake.lock
-          nix build -L 2>&1 | tee build.log
+          nix-build . 2>&1 | tee build.log
+          result/bin/nix_test >> build.log
           # canary string to ensure we're actually building what we think we are.
           grep "test_nix_integration_canary" build.log
+          grep "All nix integration tests passed!" build.log
 
   docs:
     name: docs

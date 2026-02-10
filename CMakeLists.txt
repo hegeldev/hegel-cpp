@@ -8,7 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(HEGEL_BUILD_EXAMPLES "Build example executables" ON)
 option(HEGEL_BUILD_TESTS "Build unit tests" ON)
 option(HEGEL_BUILD_CONFORMANCE "Build conformance test binary" ON)
-option(HEGEL_BUILD_DOCS "Build documentation" OFF)
+option(HEGEL_BUILD_DOCS "Build documentation" ON)
 option(HEGEL_COVERAGE "Build with coverage instrumentation" OFF)
 
 if(HEGEL_COVERAGE)
@@ -184,6 +184,8 @@ endif()
 # =============================================================================
 
 if(HEGEL_BUILD_TESTS)
+    set(INSTALL_GTEST OFF CACHE BOOL "Disable installation of googletest" FORCE)
+    set(INSTALL_GMOCK OFF CACHE BOOL "Disable installation of googlemock" FORCE)
     add_subdirectory(tests)
 endif()
 
