@@ -94,7 +94,10 @@ namespace hegel::impl::socket {
 inline constexpr int ASSERTION_FAILURE_EXIT_CODE = 134;
 
 namespace hegel::internal {
-    nlohmann::json communicate_with_socket(const nlohmann::json& schema) {
+
+    /// Send a command request and handle errors/StopTest.
+    /// Returns the response JSON.
+    static nlohmann::json send_command(const nlohmann::json& request) {
         auto* conn = impl::socket::get_embedded_connection();
         uint32_t data_channel = impl::socket::get_embedded_data_channel();
 
@@ -103,14 +106,10 @@ namespace hegel::internal {
             std::exit(ASSERTION_FAILURE_EXIT_CODE);
         }
 
-        // Build generate request as CBOR
-        nlohmann::json request = {{"command", "generate"}, {"schema", schema}};
-
         if (std::getenv("HEGEL_DEBUG")) {
             std::cerr << "REQUEST: " << request.dump() << "\n";
         }
 
-        // Send request and get response
         nlohmann::json response = conn->request(data_channel, request);
 
         if (std::getenv("HEGEL_DEBUG")) {
@@ -130,6 +129,14 @@ namespace hegel::internal {
             throw std::runtime_error("hegel: " + error_msg);
         }
 
+        return response;
+    }
+
+    nlohmann::json communicate_with_socket(const nlohmann::json& schema) {
+        nlohmann::json request = {{"command", "generate"}, {"schema", schema}};
+
+        nlohmann::json response = send_command(request);
+
         // Auto-log generated value during final replay (counterexample)
         if (impl::run_state::is_last_run()) {
             if (response.contains("result")) {
@@ -138,6 +145,27 @@ namespace hegel::internal {
         }
 
         return response;
+    }
+
+    void start_span(uint64_t label) {
+        if (impl::socket::is_test_aborted())
+            return;
+        send_command({{"command", "start_span"}, {"label", label}});
+    }
+
+    void stop_span(bool discard) {
+        if (impl::socket::is_test_aborted())
+            return;
+        // Ignore errors from stop_span - we're already closing
+        try {
+            send_command({{"command", "stop_span"}, {"discard", discard}});
+        } catch (...) {
+        }
+    }
+
+    void target(double value, const std::string& label) {
+        send_command(
+            {{"command", "target"}, {"value", value}, {"label", label}});
     }
 
 } // namespace hegel::internal

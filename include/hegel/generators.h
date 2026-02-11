@@ -261,7 +261,10 @@ namespace hegel::generators {
             auto inner = inner_;
             return from_function<ResultType>(
                 [inner, f = std::forward<F>(f)]() -> ResultType {
-                    return f(inner->generate());
+                    internal::start_span(internal::labels::MAPPED);
+                    ResultType result = f(inner->generate());
+                    internal::stop_span();
+                    return result;
                 });
         }
 
@@ -282,7 +285,10 @@ namespace hegel::generators {
             auto inner = inner_;
             return from_function<ResultType>(
                 [inner, f = std::forward<F>(f)]() -> ResultType {
-                    return f(inner->generate()).generate();
+                    internal::start_span(internal::labels::FLAT_MAP);
+                    ResultType result = f(inner->generate()).generate();
+                    internal::stop_span();
+                    return result;
                 });
         }
 
@@ -291,6 +297,7 @@ namespace hegel::generators {
          *
          * Always loses the schema. For performance, if 3 consecutive values
          * fail the predicate, Hegel rejects the test case.
+         * Each attempt is wrapped in a FILTER span for proper shrinking.
          *
          * @param pred Predicate that values must satisfy
          * @return Generator<T> producing only values satisfying pred
@@ -299,12 +306,17 @@ namespace hegel::generators {
             auto inner = inner_;
             return from_function<T>([inner, pred]() -> T {
                 for (int i = 0; i < 3; ++i) {
+                    internal::start_span(internal::labels::FILTER);
                     T value = inner->generate();
                     if (pred(value)) {
+                        internal::stop_span();
                         return value;
                     }
+                    internal::stop_span(/*discard=*/true);
                 }
-                internal::stop_test();
+                internal::assume(false);
+                // unreachable
+                throw internal::HegelReject();
             });
         }
 

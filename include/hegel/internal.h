@@ -63,5 +63,49 @@ namespace hegel::internal {
      */
     [[noreturn]] void stop_test();
 
+    /**
+     * @brief Start a generation span for better shrinking.
+     *
+     * Spans group related generation calls, helping Hypothesis
+     * understand data structure for effective shrinking.
+     *
+     * @param label Numeric span label (see labels namespace)
+     */
+    void start_span(uint64_t label);
+
+    /**
+     * @brief End the current generation span.
+     *
+     * @param discard If true, tells Hypothesis this span's data
+     *        should be discarded (e.g., because a filter rejected it)
+     */
+    void stop_span(bool discard = false);
+
+    /**
+     * @brief Guide the test engine toward higher values of a metric.
+     *
+     * @param value The numeric value to maximize
+     * @param label A label for this target metric
+     */
+    void target(double value, const std::string& label = "");
+
+    /// Span label constants for generation structure tracking.
+    namespace labels {
+        constexpr uint64_t LIST = 1;
+        constexpr uint64_t LIST_ELEMENT = 2;
+        constexpr uint64_t SET = 3;
+        constexpr uint64_t SET_ELEMENT = 4;
+        constexpr uint64_t MAP = 5;
+        constexpr uint64_t MAP_ENTRY = 6;
+        constexpr uint64_t TUPLE = 7;
+        constexpr uint64_t ONE_OF = 8;
+        constexpr uint64_t OPTIONAL = 9;
+        constexpr uint64_t FIXED_DICT = 10;
+        constexpr uint64_t FLAT_MAP = 11;
+        constexpr uint64_t FILTER = 12;
+        constexpr uint64_t MAPPED = 13;
+        constexpr uint64_t SAMPLED_FROM = 14;
+    } // namespace labels
+
 } // namespace hegel::internal
 /// @endcond

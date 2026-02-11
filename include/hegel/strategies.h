@@ -366,6 +366,7 @@ namespace hegel::strategies {
             {.min_value = params.min_size, .max_value = max_size});
 
         return from_function<std::vector<T>>([elements, length_gen]() {
+            internal::start_span(internal::labels::LIST);
             size_t len = length_gen.generate();
             std::vector<T> result;
             result.reserve(len);
@@ -374,6 +375,7 @@ namespace hegel::strategies {
                 result.push_back(elements.generate());
             }
 
+            internal::stop_span();
             return result;
         });
     }
@@ -420,6 +422,7 @@ namespace hegel::strategies {
             {.min_value = params.min_size, .max_value = max_size});
 
         return from_function<std::set<T>>([elements, length_gen]() {
+            internal::start_span(internal::labels::SET);
             size_t target_len = length_gen.generate();
             std::set<T> result;
 
@@ -429,6 +432,7 @@ namespace hegel::strategies {
                 ++attempts;
             }
 
+            internal::stop_span();
             return result;
         });
     }
@@ -492,6 +496,7 @@ namespace hegel::strategies {
             {.min_value = params.min_size, .max_value = max_size});
 
         return from_function<std::map<K, V>>([keys, values, length_gen]() {
+            internal::start_span(internal::labels::MAP);
             size_t len = length_gen.generate();
             std::map<K, V> result;
 
@@ -501,6 +506,7 @@ namespace hegel::strategies {
                 result[std::move(key)] = std::move(value);
             }
 
+            internal::stop_span();
             return result;
         });
     }
@@ -577,8 +583,11 @@ namespace hegel::strategies {
         auto gen_tuple = std::make_tuple(std::move(gens)...);
 
         return from_function<ResultTuple>([gen_tuple]() {
-            return detail::generate_tuple_impl<ResultTuple>(
+            internal::start_span(internal::labels::TUPLE);
+            auto result = detail::generate_tuple_impl<ResultTuple>(
                 gen_tuple, std::index_sequence_for<Ts...>{});
+            internal::stop_span();
+            return result;
         });
     }
 
@@ -616,8 +625,11 @@ namespace hegel::strategies {
                 {.min_value = 0, .max_value = elements.size() - 1});
 
             return from_function<T>([elements, index_gen]() {
+                internal::start_span(internal::labels::SAMPLED_FROM);
                 size_t idx = index_gen.generate();
-                return elements[idx];
+                T result = elements[idx];
+                internal::stop_span();
+                return result;
             });
         }
     }
@@ -711,8 +723,11 @@ namespace hegel::strategies {
             integers<size_t>({.min_value = 0, .max_value = gens.size() - 1});
 
         return from_function<T>([gens, index_gen]() {
+            internal::start_span(internal::labels::ONE_OF);
             size_t idx = index_gen.generate();
-            return gens[idx].generate();
+            T result = gens[idx].generate();
+            internal::stop_span();
+            return result;
         });
     }
 
@@ -764,10 +779,13 @@ namespace hegel::strategies {
         auto index_gen = integers<size_t>({.min_value = 0, .max_value = N - 1});
 
         return from_function<ResultVariant>([gen_tuple, index_gen]() {
+            internal::start_span(internal::labels::ONE_OF);
             size_t idx = index_gen.generate();
-            return detail::generate_variant_impl<ResultVariant,
-                                                 decltype(gen_tuple)>(gen_tuple,
-                                                                      idx);
+            auto result = detail::generate_variant_impl<ResultVariant,
+                                                        decltype(gen_tuple)>(
+                gen_tuple, idx);
+            internal::stop_span();
+            return result;
         });
     }
 
@@ -827,11 +845,14 @@ namespace hegel::strategies {
 
         return from_function<std::optional<T>>(
             [gen, bool_gen]() -> std::optional<T> {
+                internal::start_span(internal::labels::OPTIONAL);
                 bool is_none = bool_gen.generate();
-                if (is_none) {
-                    return std::nullopt;
+                std::optional<T> result;
+                if (!is_none) {
+                    result = gen.generate();
                 }
-                return gen.generate();
+                internal::stop_span();
+                return result;
             });
     }
 
