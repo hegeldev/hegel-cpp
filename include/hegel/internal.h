@@ -105,6 +105,7 @@ namespace hegel::internal {
         constexpr uint64_t FILTER = 12;
         constexpr uint64_t MAPPED = 13;
         constexpr uint64_t SAMPLED_FROM = 14;
+        constexpr uint64_t ENUM_VARIANT = 15;
     } // namespace labels
 
 } // namespace hegel::internal
