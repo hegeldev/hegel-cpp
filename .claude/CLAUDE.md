@@ -53,7 +53,7 @@ Binary packet protocol with CBOR payloads over Unix socket:
 
 - **`hegel.h`** - Main include, declares `hegel::hegel()` entry point
 - **`options.h`** - HegelOptions, Verbosity enum
-- **`generators.h`** - `IGenerator<T>`, `Generator<T>`, `SchemaBackedGenerator<T>`, `FunctionBackedGenerator<T>` with `map()`, `flatmap()`, `filter()` combinators
+- **`generators.h`** - `BasicGenerator<T>`, `IGenerator<T>`, `Generator<T>`, `BasicBackedGenerator<T>`, `FunctionBackedGenerator<T>` with `map()`, `flatmap()`, `filter()` combinators
 - **`strategies.h`** - Strategy factory functions in `hegel::strategies` namespace
 - **`internal.h`** - `communicate_with_socket()`, `assume()`, `note()`, `stop_test()`
 - **`src/protocol.h`** - Binary packet protocol, Connection, Channel classes
@@ -61,16 +61,18 @@ Binary packet protocol with CBOR payloads over Unix socket:
 
 ### Generator Pattern
 
-Generators have two paths:
-1. **Schema-based**: Generator has a CBOR schema value, sends single request to server (preferred for shrinking)
-2. **Function-based**: Generator wraps a callable, may make multiple requests (used after `map()`/`filter()`)
+Generators use `BasicGenerator<T>` (schema + optional transform) for schema-based generation:
+1. **Basic generators**: Have a schema and optional client-side transform. Schema sent to server in single request (preferred for shrinking). `as_basic()` returns `std::optional<BasicGenerator<T>>`.
+2. **Function-based**: Generator wraps a callable, may make multiple requests (used after `flatmap()`/`filter()`)
+3. **map() preserves schemas**: When `map()` is called on a basic generator, the transform is composed rather than losing the schema.
 
 ```cpp
 // Schema-based - single request, good shrinking
 auto gen = integers<int>({.min_value = 0, .max_value = 100});
 
-// Function-based - loses schema after transformation
+// map() preserves the schema via BasicGenerator transform composition
 auto squared = gen.map([](int x) { return x * x; });
+// squared.as_basic() still returns a BasicGenerator (same schema, composed transform)
 ```
 
 ## Code Style

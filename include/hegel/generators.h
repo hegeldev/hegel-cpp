@@ -2,10 +2,10 @@
 
 /**
  * @file generators.h
- * @brief Generator and SchemaBackedGenerator class templates for Hegel SDK
+ * @brief Generator, BasicGenerator, and factory functions for Hegel SDK
  *
- * Contains the core Generator<T> and SchemaBackedGenerator<T> class templates,
- * the Response wrapper, and factory functions.
+ * Contains the core Generator<T>, BasicGenerator<T>, and IGenerator<T> class
+ * templates, and factory functions.
  */
 
 #include <memory>
@@ -30,28 +30,138 @@ namespace hegel::internal {
  * in hegel::strategies.
  */
 namespace hegel::generators {
+
+    // Forward declarations
+    template <typename T> class Generator;
+    template <typename T> Generator<T> from_function(std::function<T()> fn);
+
+    // =============================================================================
+    // BasicGenerator - Schema with optional client-side transform
+    // =============================================================================
+
+    /**
+     * @brief A basic generator: a schema plus an optional client-side
+     * transform.
+     *
+     * Basic generators enable schema-based generation even after
+     * transformations. The schema is sent to the server, and the transform (if
+     * any) is applied client-side to the raw value returned by the server.
+     *
+     * When map() is called on a basic generator, the transform is composed
+     * rather than losing the schema, which is the key optimization.
+     *
+     * @tparam T The type this generator produces
+     */
+    template <typename T> class BasicGenerator {
+      public:
+        /// Create with just a schema (identity transform)
+        explicit BasicGenerator(nlohmann::json schema)
+            : schema_(std::move(schema)) {}
+
+        /// Create with a schema and a transform
+        BasicGenerator(nlohmann::json schema,
+                       std::function<T(nlohmann::json&)> transform)
+            : schema_(std::move(schema)), transform_(std::move(transform)) {}
+
+        /// Get the schema
+        const nlohmann::json& schema() const { return schema_; }
+
+        /// Check if this generator has a transform
+        bool has_transform() const { return transform_.has_value(); }
+
+        /// Generate a value by communicating with the server
+        T generate() const {
+            nlohmann::json response =
+                internal::communicate_with_socket(schema_);
+
+            if (response.contains("error")) {
+                internal::assume(false);
+            }
+
+            internal::assume(response.contains("result"));
+            nlohmann::json& result = response["result"];
+
+            if (transform_) {
+                return (*transform_)(result);
+            } else {
+                // Default deserialization
+                if constexpr (std::is_arithmetic_v<T> ||
+                              std::is_same_v<T, std::string>) {
+                    return result.get<T>();
+                } else {
+                    auto parse_result = internal::read_nlohmann<T>(result);
+                    internal::assume(parse_result.has_value());
+                    return parse_result.value();
+                }
+            }
+        }
+
+        /// Apply the transform (or default deserialization) to a raw JSON value
+        T from_raw(nlohmann::json& raw) const {
+            if (transform_) {
+                return (*transform_)(raw);
+            } else {
+                if constexpr (std::is_arithmetic_v<T> ||
+                              std::is_same_v<T, std::string>) {
+                    return raw.get<T>();
+                } else {
+                    auto parse_result = internal::read_nlohmann<T>(raw);
+                    internal::assume(parse_result.has_value());
+                    return parse_result.value();
+                }
+            }
+        }
+
+        /// Compose a transform on top of this basic generator
+        template <typename F>
+        BasicGenerator<std::invoke_result_t<F, T>> map(F f) const {
+            using U = std::invoke_result_t<F, T>;
+
+            if (transform_) {
+                auto existing = *transform_;
+                return BasicGenerator<U>(
+                    schema_,
+                    [existing = std::move(existing), f = std::move(f)](
+                        nlohmann::json& raw) -> U { return f(existing(raw)); });
+            } else {
+                // Identity case: deserialize then apply f
+                return BasicGenerator<U>(
+                    schema_, [f = std::move(f)](nlohmann::json& raw) -> U {
+                        T value;
+                        if constexpr (std::is_arithmetic_v<T> ||
+                                      std::is_same_v<T, std::string>) {
+                            value = raw.get<T>();
+                        } else {
+                            auto parse_result = internal::read_nlohmann<T>(raw);
+                            internal::assume(parse_result.has_value());
+                            value = parse_result.value();
+                        }
+                        return f(std::move(value));
+                    });
+            }
+        }
+
+      private:
+        nlohmann::json schema_;
+        std::optional<std::function<T(nlohmann::json&)>> transform_;
+    };
+
+    // =============================================================================
+    // IGenerator - Base interface
+    // =============================================================================
+
     /**
      * @brief The base interface that defines Generators.
      *
      * IGenerator's core method is generate(), which produces a single value of
      * type T.
      *
-     * IGenerator also has a schema() method that returns the schema (if there
-     * is one).
+     * IGenerator also has as_basic() which returns an optional BasicGenerator
+     * for schema-based generation with optional transforms.
      *
-     * It's rare that you would need to implement IGenerator yourself; you would
-     * typically use pre-existing primitives from the library or compose them
-     * using compositors from the library. Even the library only uses IGenerator
-     * sparingly; most operations are exposed in Generator, a class that
-     * implements IGenerator.
-     *
-     * @tparam T The type to generate values for (must be reflect-cpp
-     * compatible)
-     * @see default_generator() Factory function for creating default type-based
-     * Generators
+     * @tparam T The type to generate values for
+     * @see Generator Sub-class that implements IGenerator
      * @see hegel::strategies Built-in functions that %generate data for you
-     * @see Generator Sub-class that implements IGenerator; the thing you
-     * typically interact with
      */
     template <typename T> struct IGenerator {
         IGenerator() {}
@@ -64,23 +174,29 @@ namespace hegel::generators {
         virtual T generate() const = 0;
 
         /**
-         * @brief Get the CBOR schema for this generator, if any.
+         * @brief Convert this generator to a basic generator, if possible.
          *
-         * All IGenerators *may* have a schema, even if the schema isn't
-         * directly used for generating; this functionality may be used for
-         * composing generators, for example.
+         * A basic generator has a schema and an optional client-side
+         * transform. When available, this enables single-request schema-based
+         * generation and allows combinators to compose schemas.
          *
-         * @return Optional containing the schema, or nullopt if not
-         * schema-based
+         * Returns nullopt for generators that cannot be expressed as a schema
+         * (e.g., after flat_map or filter).
          */
-        virtual std::optional<nlohmann::json> schema() const = 0;
+        virtual std::optional<BasicGenerator<T>> as_basic() const {
+            return std::nullopt;
+        }
     };
+
+    // =============================================================================
+    // Generator - Main user-facing class
+    // =============================================================================
 
     /**
      * @brief A Generator; this is the class that most methods return.
      *
      * Generator is the core abstraction for random data generation. It wraps
-     * an IGenerator (which produces values) and provides combinators  (map(),
+     * an IGenerator (which produces values) and provides combinators (map(),
      * flatmap(), filter()) for transforming and composing generators.
      *
      * @code{.cpp}
@@ -90,26 +206,17 @@ namespace hegel::generators {
      * auto int_gen = integers<int>({.min_value = 0, .max_value = 100});
      * int value = int_gen.generate();
      *
-     * // Transform with map
+     * // Transform with map (preserves schema via BasicGenerator)
      * auto squared = int_gen.map([](int x) { return x * x; });
      *
      * // Filter values
      * auto even = int_gen.filter([](int x) { return x % 2 == 0; });
-     *
-     * // Dependent generation with flatmap
-     * auto sized = integers<size_t>({.min_value = 1, .max_value = 10})
-     *     .flatmap([](size_t len) {
-     *         return text({.min_size = len, .max_size = len});
-     *     });
      * @endcode
      *
-     * @tparam T The type to generate values for (must be reflect-cpp
-     * compatible)
-     * @see default_generator() Factory function for creating default type-based
-     * Generators
+     * @tparam T The type to generate values for
      * @see hegel::strategies Built-in functions that %generate data for you
      */
-    template <typename T> class Generator : IGenerator<T> {
+    template <typename T> class Generator : public IGenerator<T> {
       public:
         /// @brief Create a Generator from a raw pointer
         Generator(IGenerator<T>* p) : IGenerator<T>(), inner_(p) {}
@@ -124,45 +231,33 @@ namespace hegel::generators {
         T generate() const override { return inner_->generate(); }
 
         /**
-         * @brief Get the CBOR schema for this generator, if any.
-         * @return Optional containing the schema, or nullopt if not
-         * schema-based
+         * @brief Convert to a basic generator, if possible.
          */
-        std::optional<nlohmann::json> schema() const override {
-            return inner_->schema();
+        std::optional<BasicGenerator<T>> as_basic() const override {
+            return inner_->as_basic();
         }
 
         /**
          * @brief Transform generated values with a function.
          *
-         * Given a Generator&lt;T&gt; and a function from T -> S, creates a
-         * Generator&lt;S&gt;.
-         *
-         * This works by generating values from the Generator&lt;T&gt; and
-         * applying a transformation to each value.
-         *
-         * This is used when you have a function to convert *values* between
-         * types. Compare with flatmap().
-         *
-         * Here's an example of how you'd use this with built-in strategies:
-         * @code{.cpp}
-         * Generator<double> halved =                           // Result type
-         * Generator<double> integers<int>()                                  //
-         * Input type Generator<int> .map(
-         *             [](int x) { return double(x) / 2.0; }    //
-         * transformation: double f(int x)
-         *         );
-         * @endcode
+         * If this generator is basic, the resulting generator preserves
+         * the schema by composing the transform (via BasicGenerator::map).
+         * Otherwise, falls back to a function-based generator.
          *
          * @tparam F Function type (T -> S)
-         * @param f Transformation function with signature S f(T)
-         * @return Generator&lt;S&gt; producing transformed values
+         * @param f Transformation function
+         * @return Generator<S> producing transformed values
          * @see flatmap()
          */
         template <typename F>
         Generator<std::invoke_result_t<F, T>> map(F&& f) const {
-            // F is of type T -> ResultType
             using ResultType = std::invoke_result_t<F, T>;
+
+            auto basic = inner_->as_basic();
+            if (basic) {
+                return from_basic<ResultType>(basic->map(f));
+            }
+
             auto inner = inner_;
             return from_function<ResultType>(
                 [inner, f = std::forward<F>(f)]() -> ResultType {
@@ -173,39 +268,15 @@ namespace hegel::generators {
         /**
          * @brief Chain generators for dependent generation.
          *
-         * Given a Generator&lt;T&gt; and a function from T ->
-         * Generator&lt;S&gt;, creates a Generator&lt;S&gt;. Useful when
-         * generation parameters depend on previously generated values.
+         * Given a Generator<T> and a function from T -> Generator<S>,
+         * creates a Generator<S>. Always loses the schema.
          *
-         * This is used when you have a function that creates a new Generator
-         * based on the value. Compare this with map().
-         *
-         *
-         * @code{.cpp}
-         * Generator<std::string> sized_string =                     // Result
-         * type Generator<std::string> integers<size_t>({.min_value = 1,
-         * .max_value = 10})   // Input type Generator<size_t> .flatmap(
-         *         [](size_t len) {                                  //
-         * transformation Generator<std::string> f(size_t len) return text({ //
-         * text() return type is Generator<std::string> .min_size = len, //
-         * Constructor parameters to text() depend on the value *len* .max_size
-         * = len
-         *             });
-         *     });
-         * @endcode
-         *
-         * @tparam F Function type (T -> Generator&lt;S&gt;)
-         * @param f Function that takes a T and returns a Generator&lt;S&gt;
-         * @return Generator&lt;S&gt; producing values from the chained
-         * generator
-         * @see map(), strategies::text()
+         * @tparam F Function type (T -> Generator<S>)
+         * @param f Function that takes a T and returns a Generator<S>
+         * @return Generator<S> producing values from the chained generator
+         * @see map()
          */
         template <typename F> std::invoke_result_t<F, T> flatmap(F&& f) const {
-            // Relevant types here:
-            //     ResultType: some type
-            //     gen_fn_:   () -> T
-            //     F:         T -> Generator<ResultType>
-            //     Function return type: Generator<ResultType>
             using ResultType =
                 decltype(std::declval<std::invoke_result_t<F, T>>().generate());
             auto inner = inner_;
@@ -218,30 +289,11 @@ namespace hegel::generators {
         /**
          * @brief Filter generated values by a predicate.
          *
-         * Creates a Generator that only produces values satisfying the
-         * predicate. The new Generator has the same type as this Generator.
+         * Always loses the schema. For performance, if 3 consecutive values
+         * fail the predicate, Hegel rejects the test case.
          *
-         * For performance reasons, if 3 consecutive values fail the predicate,
-         * Hegel rejects the test case.
-         *
-         * So for example, if you want sorted lists of length N, you should
-         * generate sorted lists of length N, not generate random lists and
-         * filter by a predicate of 'length == N && is_sorted'. (Although the
-         * latter is logically correct, it would be a performance nightmare, so
-         * Hegel doesn't let you do it that way.)
-         *
-         * @code{.cpp}
-         * Generator<int> even =                                  // Return type
-         * is same as input type integers<int>({.min_value = 0, .max_value =
-         * 100})  // Input type = Generator<int> .filter(
-         *         [](int x) { return x % 2 == 0; }               // bool
-         * predicate(int x)
-         *     );
-         * @endcode
-         *
-         * @param pred Predicate that values must satisfy. Signature: bool
-         * pred(T value)
-         * @return Generator&lt;T&gt; producing only values satisfying pred
+         * @param pred Predicate that values must satisfy
+         * @return Generator<T> producing only values satisfying pred
          */
         Generator<T> filter(std::function<bool(const T&)> pred) const {
             auto inner = inner_;
@@ -260,99 +312,57 @@ namespace hegel::generators {
         std::shared_ptr<IGenerator<T>> inner_;
     };
 
+    // =============================================================================
+    // Concrete generator implementations
+    // =============================================================================
+
     /**
-     * @brief A generator that uses a function to produce random values of type
-     * T.
-     *
-     * You shouldn't create this directly, but rather use the from_function()
-     * function.
+     * @brief A generator that uses a function to produce random values.
      *
      * @tparam T The type of values this generator produces
      */
     template <typename T> class FunctionBackedGenerator : public IGenerator<T> {
       public:
         /// @brief Create from a function
-        /// @param fn function that will be called repeatedly to generate values
         explicit FunctionBackedGenerator(std::function<T()> fn)
             : gen_fn_(std::move(fn)) {}
 
-        /// @brief Create from a function
-        /// @param fn function that will be called repeatedly to generate values
-        /// @param schema schema for this generator; not used in generate(), but
-        /// may be used when composing this generator
-        FunctionBackedGenerator(std::function<T()> fn, nlohmann::json schema)
-            : gen_fn_(std::move(fn)), schema_(std::move(schema)) {}
+        /// @brief Create from a function with an associated basic generator
+        FunctionBackedGenerator(std::function<T()> fn, BasicGenerator<T> basic)
+            : gen_fn_(std::move(fn)), basic_(std::move(basic)) {}
 
-        /**
-         * @brief Get the CBOR schema for this generator, if any.
-         * @return Optional containing the schema, or nullopt if not
-         * schema-based
-         */
-        std::optional<nlohmann::json> schema() const override {
-            return schema_;
+        std::optional<BasicGenerator<T>> as_basic() const override {
+            return basic_;
         }
 
-        /**
-         * @brief Generate a random value.
-         * @return A randomly generated value of type T
-         */
         T generate() const override { return gen_fn_(); }
 
       private:
         std::function<T()> gen_fn_;
-        std::optional<nlohmann::json> schema_;
+        std::optional<BasicGenerator<T>> basic_;
     };
 
     /**
-     * @brief A generator that generates data based on a schema.
+     * @brief A generator backed by a BasicGenerator.
      *
-     * You shouldn't create this directly, but rather use the from_schema() or
-     * default_generator() functions.
+     * Uses the BasicGenerator directly for generation - sends schema to server
+     * and applies optional transform.
      *
-     * @tparam T The type to generate values for (must be reflect-cpp
-     * compatible)
-     * @see default_generator() Factory function for creating DefaultGenerators
+     * @tparam T The type to generate values for
      */
-    template <typename T> class SchemaBackedGenerator : public IGenerator<T> {
+    template <typename T> class BasicBackedGenerator : public IGenerator<T> {
       public:
-        /// @brief Create, given the schema
-        SchemaBackedGenerator(nlohmann::json schema)
-            : schema_(std::move(schema)) {}
+        explicit BasicBackedGenerator(BasicGenerator<T> basic)
+            : basic_(std::move(basic)) {}
 
-        /// Get the CBOR schema
-        std::optional<nlohmann::json> schema() const override {
-            return schema_;
+        std::optional<BasicGenerator<T>> as_basic() const override {
+            return basic_;
         }
 
-        /**
-         * @brief Generate a random value of type T based on the schema.
-         * @return A randomly generated value
-         */
-        T generate() const override {
-            nlohmann::json response =
-                internal::communicate_with_socket(schema_);
-
-            // Check for error
-            if (response.contains("error")) {
-                internal::assume(false);
-            }
-
-            // Extract the result value
-            internal::assume(response.contains("result"));
-            nlohmann::json& result = response["result"];
-
-            if constexpr (std::is_arithmetic_v<T> ||
-                          std::is_same_v<T, std::string>) {
-                return result.get<T>();
-            } else {
-                auto parse_result = internal::read_nlohmann<T>(result);
-                internal::assume(parse_result.has_value());
-                return parse_result.value();
-            }
-        }
+        T generate() const override { return basic_.generate(); }
 
       private:
-        nlohmann::json schema_;
+        BasicGenerator<T> basic_;
     };
 
     // =============================================================================
@@ -363,23 +373,12 @@ namespace hegel::generators {
      * @brief Create a generator for type T using automatic schema derivation.
      *
      * Uses reflect-cpp to derive a schema from the type's structure.
-     * Works with structs, classes, and standard library types.
-     *
-     * @code{.cpp}
-     * struct Person {
-     *     std::string name;
-     *     int age;
-     * };
-     *
-     * auto gen = hegel::generators::default_generator<Person>();
-     * Person p = gen.generate();
-     * @endcode
      *
      * @tparam T The type to generate (must be reflect-cpp compatible)
-     * @return A SchemaBackedGenerator<T> instance
+     * @return A Generator<T> instance
      */
     template <typename T> Generator<T> default_generator() {
-        return from_schema<T>(internal::type_schema<T>());
+        return from_basic<T>(BasicGenerator<T>(internal::type_schema<T>()));
     }
 
     /**
@@ -391,42 +390,40 @@ namespace hegel::generators {
     }
 
     /**
-     * @brief Construct a generator from a function (with an associated CBOR
-     * schema).
+     * @brief Construct a generator from a function with a basic generator.
      * @param fn Function that produces values of type T
-     * @param schema CBOR schema for this generator. This isn't used in
-     * generate(), but may be used when composing generators.
+     * @param basic BasicGenerator for schema composition
      */
     template <typename T>
-    Generator<T> from_function(std::function<T()> fn, nlohmann::json schema) {
+    Generator<T> from_function(std::function<T()> fn, BasicGenerator<T> basic) {
         return Generator<T>(
-            new FunctionBackedGenerator<T>(std::move(fn), std::move(schema)));
+            new FunctionBackedGenerator<T>(std::move(fn), std::move(basic)));
     }
 
     /**
-     * @brief Create a generator from an explicit CBOR schema.
+     * @brief Create a generator from a BasicGenerator.
      *
-     * Use this when you need fine-grained control over the generation
-     * schema, or when working with types that don't support automatic
-     * schema derivation.
+     * Uses the BasicGenerator directly for both generation and composition.
      *
-     * @todo link to Hegel schema docs
+     * @tparam T The type to generate
+     * @param basic The BasicGenerator to wrap
+     * @return A Generator<T> backed by the BasicGenerator
+     */
+    template <typename T> Generator<T> from_basic(BasicGenerator<T> basic) {
+        return Generator<T>(new BasicBackedGenerator<T>(std::move(basic)));
+    }
+
+    /**
+     * @brief Create a generator from an explicit schema.
      *
-     * @code{.cpp}
-     * auto gen = hegel::generators::from_schema<int>(
-     *     nlohmann::json{{"type", "integer"},
-     *                    {"minimum", 0},
-     *                    {"maximum", 100}}
-     * );
-     * int value = gen.generate();
-     * @endcode
+     * Creates a BasicGenerator with the schema and wraps it.
      *
      * @tparam T The type to deserialize generated values into
-     * @param schema CBOR schema describing the generation constraints
+     * @param schema Schema describing the generation constraints
      * @return A Generator<T> that generates according to the schema
      */
     template <typename T> Generator<T> from_schema(nlohmann::json schema) {
-        return Generator<T>(new SchemaBackedGenerator<T>(std::move(schema)));
+        return from_basic<T>(BasicGenerator<T>(std::move(schema)));
     }
 
 } // namespace hegel::generators

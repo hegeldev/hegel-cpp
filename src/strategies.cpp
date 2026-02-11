@@ -10,8 +10,9 @@ namespace hegel::strategies {
 
     Generator<std::monostate> nulls() {
         nlohmann::json schema = {{"type", "null"}};
+        generators::BasicGenerator<std::monostate> basic(std::move(schema));
         return from_function<std::monostate>([]() { return std::monostate{}; },
-                                             std::move(schema));
+                                             std::move(basic));
     }
 
     Generator<bool> booleans() {
@@ -36,12 +37,13 @@ namespace hegel::strategies {
         if (params.max_size)
             schema["max_size"] = *params.max_size;
 
-        return from_function<std::vector<uint8_t>>(
-            [schema]() -> std::vector<uint8_t> {
-                std::string b64 = from_schema<std::string>(schema).generate();
+        generators::BasicGenerator<std::vector<uint8_t>> basic(
+            schema, [](nlohmann::json& raw) -> std::vector<uint8_t> {
+                std::string b64 = raw.get<std::string>();
                 return ::hegel::impl::base64_decode(b64);
-            },
-            schema);
+            });
+
+        return from_basic<std::vector<uint8_t>>(std::move(basic));
     }
 
     Generator<std::string> from_regex(const std::string& pattern,

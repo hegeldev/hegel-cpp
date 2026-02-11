@@ -30,6 +30,8 @@
  * @endcode
  */
 namespace hegel::strategies {
+    using hegel::generators::BasicGenerator;
+    using hegel::generators::from_basic;
     using hegel::generators::from_function;
     using hegel::generators::from_schema;
     using hegel::generators::Generator;
@@ -225,8 +227,9 @@ namespace hegel::strategies {
                       std::is_integral_v<T> || std::is_floating_point_v<T> ||
                       std::is_same_v<T, std::string>) {
             nlohmann::json schema = {{"const", value}};
+            BasicGenerator<T> basic(std::move(schema));
             return from_function<T>([value]() { return value; },
-                                    std::move(schema));
+                                    std::move(basic));
         } else {
             return from_function<T>([value]() { return value; });
         }
@@ -329,15 +332,30 @@ namespace hegel::strategies {
     template <typename T>
     Generator<std::vector<T>> vectors(Generator<T> elements,
                                       VectorsParams params = {}) {
-        if (elements.schema()) {
-            // Use "set" type for unique, "list" type otherwise
+        auto basic = elements.as_basic();
+        if (basic) {
             std::string schema_type = params.unique ? "set" : "list";
             nlohmann::json schema = {{"type", schema_type},
-                                     {"elements", *elements.schema()},
+                                     {"elements", basic->schema()},
                                      {"min_size", params.min_size}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
+
+            if (basic->has_transform()) {
+                auto elem_basic = *basic;
+                return from_basic<std::vector<T>>(
+                    BasicGenerator<std::vector<T>>(
+                        std::move(schema),
+                        [elem_basic](nlohmann::json& raw) -> std::vector<T> {
+                            std::vector<T> result;
+                            result.reserve(raw.size());
+                            for (auto& elem : raw) {
+                                result.push_back(elem_basic.from_raw(elem));
+                            }
+                            return result;
+                        }));
+            }
 
             return from_schema<std::vector<T>>(std::move(schema));
         }
@@ -375,20 +393,26 @@ namespace hegel::strategies {
      */
     template <typename T>
     Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
-        if (elements.schema()) {
+        auto basic = elements.as_basic();
+        if (basic) {
             nlohmann::json schema = {{"type", "set"},
-                                     {"elements", *elements.schema()},
+                                     {"elements", basic->schema()},
                                      {"min_size", params.min_size}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
 
-            auto vec_gen = from_schema<std::vector<T>>(std::move(schema));
-
-            return from_function<std::set<T>>([vec_gen]() {
-                auto vec = vec_gen.generate();
-                return std::set<T>(vec.begin(), vec.end());
-            });
+            // Always need a transform to convert array -> set
+            auto elem_basic = *basic;
+            return from_basic<std::set<T>>(BasicGenerator<std::set<T>>(
+                std::move(schema),
+                [elem_basic](nlohmann::json& raw) -> std::set<T> {
+                    std::set<T> result;
+                    for (auto& elem : raw) {
+                        result.insert(elem_basic.from_raw(elem));
+                    }
+                    return result;
+                }));
         }
 
         size_t max_size = params.max_size.value_or(20);
@@ -436,24 +460,31 @@ namespace hegel::strategies {
     Generator<std::map<K, V>> dictionaries(Generator<K> keys,
                                            Generator<V> values,
                                            DictionariesParams params = {}) {
-        if (keys.schema() && values.schema()) {
+        auto key_basic = keys.as_basic();
+        auto val_basic = values.as_basic();
+        if (key_basic && val_basic) {
             nlohmann::json schema = {{"type", "dict"},
-                                     {"keys", *keys.schema()},
-                                     {"values", *values.schema()},
+                                     {"keys", key_basic->schema()},
+                                     {"values", val_basic->schema()},
                                      {"min_size", params.min_size}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
 
-            // Wire format is [[key, value], ...], deserialize as vector of
-            // pairs
-            auto vec_gen =
-                from_schema<std::vector<std::pair<K, V>>>(std::move(schema));
-
-            return from_function<std::map<K, V>>([vec_gen]() {
-                auto pairs = vec_gen.generate();
-                return std::map<K, V>(pairs.begin(), pairs.end());
-            });
+            // Wire format is [[key, value], ...], always need transform
+            auto kb = *key_basic;
+            auto vb = *val_basic;
+            return from_basic<std::map<K, V>>(BasicGenerator<std::map<K, V>>(
+                std::move(schema),
+                [kb, vb](nlohmann::json& raw) -> std::map<K, V> {
+                    std::map<K, V> result;
+                    for (auto& pair : raw) {
+                        K key = kb.from_raw(pair[0]);
+                        V value = vb.from_raw(pair[1]);
+                        result[std::move(key)] = std::move(value);
+                    }
+                    return result;
+                }));
         }
 
         size_t max_size = params.max_size.value_or(20);
@@ -477,19 +508,10 @@ namespace hegel::strategies {
     /// @cond INTERNAL
     namespace detail {
 
-        template <typename... Gens>
-        auto make_tuple_schema(const Gens&... gens)
-            -> std::optional<nlohmann::json> {
-            bool all_have_schemas = (gens.schema().has_value() && ...);
-            if (!all_have_schemas)
-                return std::nullopt;
-
-            nlohmann::json elements = nlohmann::json::array();
-            (elements.push_back(*gens.schema()), ...);
-
-            nlohmann::json schema = {{"type", "tuple"}, {"elements", elements}};
-
-            return schema;
+        template <typename Tuple, typename BasicTuple, size_t... Is>
+        Tuple tuple_from_raw_impl(const BasicTuple& basics, nlohmann::json& raw,
+                                  std::index_sequence<Is...>) {
+            return Tuple{std::get<Is>(basics).from_raw(raw[Is])...};
         }
 
         template <typename Tuple, typename GenTuple, size_t... Is>
@@ -519,10 +541,37 @@ namespace hegel::strategies {
     Generator<std::tuple<Ts...>> tuples(Generator<Ts>... gens) {
         using ResultTuple = std::tuple<Ts...>;
 
-        auto maybe_schema = detail::make_tuple_schema(gens...);
+        auto basics = std::make_tuple(gens.as_basic()...);
+        bool all_basic = std::apply(
+            [](const auto&... b) { return (b.has_value() && ...); }, basics);
 
-        if (maybe_schema) {
-            return from_schema<ResultTuple>(std::move(*maybe_schema));
+        if (all_basic) {
+            nlohmann::json elements = nlohmann::json::array();
+            std::apply(
+                [&elements](const auto&... b) {
+                    (elements.push_back(b->schema()), ...);
+                },
+                basics);
+            nlohmann::json schema = {{"type", "tuple"}, {"elements", elements}};
+
+            bool any_transform = std::apply(
+                [](const auto&... b) { return (b->has_transform() || ...); },
+                basics);
+
+            if (any_transform) {
+                auto basic_copies = std::apply(
+                    [](auto&... b) { return std::make_tuple(*b...); }, basics);
+
+                return from_basic<ResultTuple>(BasicGenerator<ResultTuple>(
+                    std::move(schema),
+                    [basic_copies](nlohmann::json& raw) -> ResultTuple {
+                        return detail::tuple_from_raw_impl<ResultTuple>(
+                            basic_copies, raw,
+                            std::index_sequence_for<Ts...>{});
+                    }));
+            }
+
+            return from_schema<ResultTuple>(std::move(schema));
         }
 
         auto gen_tuple = std::make_tuple(std::move(gens)...);
@@ -590,33 +639,12 @@ namespace hegel::strategies {
         return sampled_from(std::move(strings));
     }
 
-    /// @cond INTERNAL
-    namespace detail {
-
-        template <typename T>
-        auto make_one_of_schema(const std::vector<Generator<T>>& gens)
-            -> std::optional<nlohmann::json> {
-            for (const auto& gen : gens) {
-                if (!gen.schema())
-                    return std::nullopt;
-            }
-
-            nlohmann::json one_of_arr = nlohmann::json::array();
-            for (const auto& gen : gens) {
-                one_of_arr.push_back(*gen.schema());
-            }
-
-            nlohmann::json schema = {{"one_of", one_of_arr}};
-            return schema;
-        }
-
-    } // namespace detail
-    /// @endcond
-
     /**
      * @brief Choose from multiple generators of the same type.
      *
      * Randomly selects one generator and uses it to produce a value.
+     * When all generators are basic, composes schemas for efficient
+     * single-request generation with proper shrinking.
      *
      * @code{.cpp}
      * auto range = one_of({
@@ -632,10 +660,51 @@ namespace hegel::strategies {
     template <typename T> Generator<T> one_of(std::vector<Generator<T>> gens) {
         assume(!gens.empty());
 
-        auto maybe_schema = detail::make_one_of_schema(gens);
+        // Check if all generators are basic
+        bool all_basic = true;
+        bool any_transform = false;
+        for (const auto& gen : gens) {
+            auto basic = gen.as_basic();
+            if (!basic) {
+                all_basic = false;
+                break;
+            }
+            if (basic->has_transform())
+                any_transform = true;
+        }
 
-        if (maybe_schema) {
-            return from_schema<T>(std::move(*maybe_schema));
+        if (all_basic && !any_transform) {
+            // Simple case: all identity transforms, compose schemas directly
+            nlohmann::json one_of_arr = nlohmann::json::array();
+            for (const auto& gen : gens) {
+                one_of_arr.push_back(gen.as_basic()->schema());
+            }
+            return from_schema<T>({{"one_of", one_of_arr}});
+        }
+
+        if (all_basic) {
+            // Use tagged tuples for branches with transforms
+            nlohmann::json tagged_schemas = nlohmann::json::array();
+            std::vector<BasicGenerator<T>> basic_copies;
+            for (size_t i = 0; i < gens.size(); ++i) {
+                auto basic = *gens[i].as_basic();
+                nlohmann::json tag_schema = {
+                    {"type", "tuple"},
+                    {"elements", nlohmann::json::array(
+                                     {{{"const", static_cast<int64_t>(i)}},
+                                      basic.schema()})}};
+                tagged_schemas.push_back(std::move(tag_schema));
+                basic_copies.push_back(std::move(basic));
+            }
+            nlohmann::json schema = {{"one_of", tagged_schemas}};
+
+            return from_basic<T>(
+                BasicGenerator<T>(std::move(schema),
+                                  [basic_copies = std::move(basic_copies)](
+                                      nlohmann::json& raw) -> T {
+                                      size_t tag = raw[0].get<size_t>();
+                                      return basic_copies[tag].from_raw(raw[1]);
+                                  }));
         }
 
         auto index_gen =
@@ -706,7 +775,8 @@ namespace hegel::strategies {
      * @brief Generate optional values (present or absent).
      *
      * Randomly produces either a value from the given generator or
-     * std::nullopt.
+     * std::nullopt. When the inner generator is basic, composes schemas
+     * for efficient single-request generation.
      *
      * @code{.cpp}
      * auto maybe_int = optional_(integers<int>());
@@ -719,6 +789,40 @@ namespace hegel::strategies {
      */
     template <typename T>
     Generator<std::optional<T>> optional_(Generator<T> gen) {
+        auto basic = gen.as_basic();
+        if (basic) {
+            if (!basic->has_transform()) {
+                // Simple case: compose schemas directly
+                nlohmann::json schema = {
+                    {"one_of", nlohmann::json::array(
+                                   {{{"type", "null"}}, basic->schema()})}};
+                return from_schema<std::optional<T>>(std::move(schema));
+            }
+
+            // Use tagged tuples when inner has transform
+            nlohmann::json null_schema = {
+                {"type", "tuple"},
+                {"elements",
+                 nlohmann::json::array({{{"const", 0}}, {{"type", "null"}}})}};
+            nlohmann::json value_schema = {
+                {"type", "tuple"},
+                {"elements",
+                 nlohmann::json::array({{{"const", 1}}, basic->schema()})}};
+            nlohmann::json schema = {
+                {"one_of", nlohmann::json::array({null_schema, value_schema})}};
+
+            auto elem_basic = *basic;
+            return from_basic<std::optional<T>>(
+                BasicGenerator<std::optional<T>>(
+                    std::move(schema),
+                    [elem_basic](nlohmann::json& raw) -> std::optional<T> {
+                        size_t tag = raw[0].get<size_t>();
+                        if (tag == 0)
+                            return std::nullopt;
+                        return elem_basic.from_raw(raw[1]);
+                    }));
+        }
+
         auto bool_gen = booleans();
 
         return from_function<std::optional<T>>(
