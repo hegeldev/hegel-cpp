@@ -1,7 +1,9 @@
 #include <connection.h>
+#include <cstdlib>
 #include <hegel/internal.h>
 #include <hegel/options.h>
 #include <iostream>
+#include <protocol.h>
 #include <run_state.h>
 #include <socket.h>
 #include <stdexcept>
@@ -28,9 +30,21 @@ namespace hegel::impl::socket {
     // =============================================================================
     // Functions
     // =============================================================================
-    void set_embedded_connection(Connection* conn, uint32_t data_channel) {
+    static bool is_protocol_debug_env() {
+        const char* val = std::getenv("HEGEL_PROTOCOL_DEBUG");
+        if (!val)
+            return false;
+        std::string v(val);
+        std::transform(v.begin(), v.end(), v.begin(), ::tolower);
+        return v == "1" || v == "true";
+    }
+
+    void set_embedded_connection(Connection* conn, uint32_t data_channel,
+                                 options::Verbosity verbosity) {
         embedded_conn_ = conn;
         embedded_data_channel_ = data_channel;
+        protocol::set_protocol_debug(verbosity == options::Verbosity::Debug ||
+                                     is_protocol_debug_env());
         test_aborted_ = false;
     }
 
@@ -106,14 +120,14 @@ namespace hegel::internal {
         // Build generate request as CBOR
         nlohmann::json request = {{"command", "generate"}, {"schema", schema}};
 
-        if (std::getenv("HEGEL_DEBUG")) {
+        if (impl::protocol::protocol_debug_enabled()) {
             std::cerr << "REQUEST: " << request.dump() << "\n";
         }
 
         // Send request and get response
         nlohmann::json response = conn->request(data_channel, request);
 
-        if (std::getenv("HEGEL_DEBUG")) {
+        if (impl::protocol::protocol_debug_enabled()) {
             std::cerr << "RESPONSE: " << response.dump() << "\n";
         }
 

@@ -115,7 +115,8 @@ namespace hegel {
 
                 // Set thread-local state
                 impl::run_state::set_is_last_run(is_final);
-                impl::socket::set_embedded_connection(&conn, data_channel);
+                impl::socket::set_embedded_connection(&conn, data_channel,
+                                                      options.verbosity);
 
                 // Run test
                 std::string status = "VALID";

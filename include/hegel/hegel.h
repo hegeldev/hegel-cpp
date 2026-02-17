@@ -21,9 +21,6 @@
  * int value = int_gen.generate();
  * @endcode
  *
- * @section env Environment Variables
- * - `HEGEL_DEBUG`: If set, prints packet metadata to stderr for debugging
- *
  * @section deps Dependencies
  * - reflect-cpp (https://github.com/getml/reflect-cpp) - C++20 reflection
  * - nlohmann library - CBOR serialization

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <hegel/options.h>
 #include <string>
 
 // =============================================================================
@@ -11,7 +12,8 @@ namespace hegel::impl {
 }
 
 namespace hegel::impl::socket {
-    void set_embedded_connection(Connection* conn, uint32_t data_channel);
+    void set_embedded_connection(Connection* conn, uint32_t data_channel,
+                                 options::Verbosity verbosity);
     void clear_embedded_connection();
     Connection* get_embedded_connection();
     uint32_t get_embedded_data_channel();
