@@ -36,9 +36,8 @@ namespace hegel {
         uint64_t test_cases = options.test_cases.value_or(100);
 
         std::vector<std::string> args = {
-            hegel_path,     socket_path,
-            "--verbosity",  options::verbosity_to_string(options.verbosity),
-            "--test-cases", std::to_string(test_cases)};
+            hegel_path, socket_path, "--verbosity",
+            options::verbosity_to_string(options.verbosity)};
 
         std::vector<char*> argv;
         for (auto& a : args) {
