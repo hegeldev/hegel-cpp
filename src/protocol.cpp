@@ -3,7 +3,6 @@
 #include <arpa/inet.h>
 #include <array>
 #include <cerrno>
-#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -14,6 +13,14 @@
 // Binary Packet Protocol
 // =============================================================================
 namespace hegel::impl::protocol {
+
+    // =============================================================================
+    // Protocol Debug
+    // =============================================================================
+    static thread_local bool protocol_debug_ = false;
+
+    void set_protocol_debug(bool enabled) { protocol_debug_ = enabled; }
+    bool protocol_debug_enabled() { return protocol_debug_; }
 
     // =============================================================================
     // CRC32 (table-driven, polynomial 0xEDB88320)
@@ -110,7 +117,7 @@ namespace hegel::impl::protocol {
         uint32_t net_checksum = htonl(checksum);
         std::memcpy(header + 4, &net_checksum, 4);
 
-        if (std::getenv("HEGEL_DEBUG")) {
+        if (protocol_debug_enabled()) {
             std::cerr << "SEND ch=" << channel << " msg=" << message_id
                       << " reply=" << is_reply << " len=" << length << "\n";
         }
@@ -174,7 +181,7 @@ namespace hegel::impl::protocol {
         bool is_reply = (raw_msg_id & REPLY_BIT) != 0;
         uint32_t message_id = raw_msg_id & ~REPLY_BIT;
 
-        if (std::getenv("HEGEL_DEBUG")) {
+        if (protocol_debug_enabled()) {
             std::cerr << "RECV ch=" << channel << " msg=" << message_id
                       << " reply=" << is_reply << " len=" << length << "\n";
         }

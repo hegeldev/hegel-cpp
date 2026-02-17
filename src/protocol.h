@@ -55,4 +55,11 @@ namespace hegel::impl::protocol {
             nlohmann::json::cbor_tag_handler_t::ignore);
     }
 
+    // =============================================================================
+    // Protocol Debug
+    // =============================================================================
+
+    void set_protocol_debug(bool enabled);
+    bool protocol_debug_enabled();
+
 } // namespace hegel::impl::protocol
