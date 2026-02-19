@@ -257,7 +257,7 @@ namespace hegel::strategies {
         T max_val = params.max_value.value_or(std::numeric_limits<T>::max());
 
         nlohmann::json schema = {
-            {"type", "integer"}, {"minimum", min_val}, {"maximum", max_val}};
+            {"type", "integer"}, {"min_value", min_val}, {"max_value", max_val}};
 
         return from_schema<T>(std::move(schema));
     }
@@ -284,24 +284,24 @@ namespace hegel::strategies {
         // Determine width from type size (float = 32 bits, double = 64 bits)
         constexpr int width = sizeof(T) * 8;
 
-        bool bounded =
-            params.min_value.has_value() || params.max_value.has_value();
-        bool nan = params.allow_nan.value_or(!bounded);
-        bool inf = params.allow_infinity.value_or(!bounded);
+        bool has_min = params.min_value.has_value();
+        bool has_max = params.max_value.has_value();
+        bool nan = params.allow_nan.value_or(!has_min && !has_max);
+        bool inf = params.allow_infinity.value_or(!has_min || !has_max);
 
         nlohmann::json schema = {{"type", "number"},
-                                 {"exclude_minimum", params.exclude_min},
-                                 {"exclude_maximum", params.exclude_max},
+                                 {"exclude_min", params.exclude_min},
+                                 {"exclude_max", params.exclude_max},
                                  {"allow_nan", nan},
                                  {"allow_infinity", inf},
                                  {"width", width}};
 
         if (params.min_value) {
-            schema["minimum"] = *params.min_value;
+            schema["min_value"] = *params.min_value;
         }
 
         if (params.max_value) {
-            schema["maximum"] = *params.max_value;
+            schema["max_value"] = *params.max_value;
         }
 
         return from_schema<T>(std::move(schema));
