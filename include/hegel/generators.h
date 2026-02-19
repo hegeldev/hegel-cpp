@@ -415,8 +415,8 @@ namespace hegel::generators {
      * @code{.cpp}
      * auto gen = hegel::generators::from_schema<int>(
      *     nlohmann::json{{"type", "integer"},
-     *                    {"minimum", 0},
-     *                    {"maximum", 100}}
+     *                    {"min_value", 0},
+     *                    {"max_value", 100}}
      * );
      * int value = gen.generate();
      * @endcode
