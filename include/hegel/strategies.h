@@ -256,8 +256,9 @@ namespace hegel::strategies {
         T min_val = params.min_value.value_or(std::numeric_limits<T>::min());
         T max_val = params.max_value.value_or(std::numeric_limits<T>::max());
 
-        nlohmann::json schema = {
-            {"type", "integer"}, {"min_value", min_val}, {"max_value", max_val}};
+        nlohmann::json schema = {{"type", "integer"},
+                                 {"min_value", min_val},
+                                 {"max_value", max_val}};
 
         return from_schema<T>(std::move(schema));
     }
