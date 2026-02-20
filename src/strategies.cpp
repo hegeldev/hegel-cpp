@@ -1,5 +1,4 @@
 #include "hegel/generators.h"
-#include <base64.h>
 #include <hegel/strategies.h>
 
 // =============================================================================
@@ -38,8 +37,10 @@ namespace hegel::strategies {
 
         return from_function<std::vector<uint8_t>>(
             [schema]() -> std::vector<uint8_t> {
-                std::string b64 = from_schema<std::string>(schema).generate();
-                return ::hegel::impl::base64_decode(b64);
+                nlohmann::json response =
+                    internal::communicate_with_socket(schema);
+                internal::assume(response.contains("result"));
+                return response["result"].get_binary();
             },
             schema);
     }

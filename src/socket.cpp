@@ -102,9 +102,6 @@ namespace hegel::impl::socket {
     }
 } // namespace hegel::impl::socket
 
-// =============================================================================
-// Constants
-// =============================================================================
 namespace hegel::internal {
     nlohmann::json communicate_with_socket(const nlohmann::json& schema) {
         auto* conn = impl::socket::get_embedded_connection();

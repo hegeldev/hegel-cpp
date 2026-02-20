@@ -4,7 +4,6 @@
 
 #include <hegel/hegel.h>
 
-#include <base64.h>
 #include <connection.h>
 #include <filesystem>
 #include <functional>
