@@ -51,5 +51,7 @@ namespace hegel::options {
 
         /// Path to the hegel binary. Default: "hegel" (uses PATH)
         std::optional<std::string> hegel_path;
+
+        std::optional<uint64_t> seed;
     };
 } // namespace hegel::options
