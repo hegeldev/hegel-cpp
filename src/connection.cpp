@@ -38,19 +38,37 @@ namespace hegel::impl {
     // =============================================================================
     // Handshake
     // =============================================================================
+    static constexpr const char* MIN_PROTOCOL_VERSION = "0.1";
+    static constexpr const char* MAX_PROTOCOL_VERSION = "0.1";
+    static constexpr const char* HANDSHAKE_STRING = "hegel_handshake_start";
+
     void Connection::handshake() {
-        // Send "Hegel/1.0" as raw bytes on channel 0
-        std::string version = "Hegel/1.0";
-        std::vector<uint8_t> payload(version.begin(), version.end());
+        std::string hs(HANDSHAKE_STRING);
+        std::vector<uint8_t> payload(hs.begin(), hs.end());
         uint32_t msg_id = alloc_message_id(0);
         protocol::write_packet(fd_, 0, msg_id, false, payload);
 
         // Wait for reply on channel 0
         auto pkt = wait_for(0, true);
         std::string response(pkt.payload.begin(), pkt.payload.end());
-        if (response != "Ok") {
-            throw std::runtime_error("hegel: version negotiation failed: " +
+
+        std::string prefix = "Hegel/";
+        if (!response.starts_with(prefix)) {
+            throw std::runtime_error("hegel: Bad handshake response: " +
                                      response);
+        }
+
+        std::string server_version = response.substr(prefix.size());
+        double v = std::stod(server_version);
+        double lo = std::stod(MIN_PROTOCOL_VERSION);
+        double hi = std::stod(MAX_PROTOCOL_VERSION);
+        if (v < lo || v > hi) {
+            throw std::runtime_error(
+                std::string("hegel-cpp supports protocol versions ") +
+                MIN_PROTOCOL_VERSION + " through " + MAX_PROTOCOL_VERSION +
+                ", but got server version " + server_version +
+                ". Upgrading hegel-cpp or downgrading your hegel cli "
+                "might help.");
         }
     }
 
