@@ -89,6 +89,7 @@ namespace hegel {
         uint32_t test_channel = conn.create_channel();
         uint64_t test_cases = options.test_cases.value_or(100);
         uint64_t seed = options.seed.value_or(0);
+        std::cout << std::format("The seed is: {}", seed); << std::endl;
 
         nlohmann::json run_test_msg = {{"command", "run_test"},
                                        {"name", "test"},
