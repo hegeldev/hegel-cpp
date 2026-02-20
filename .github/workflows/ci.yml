@@ -80,7 +80,7 @@ jobs:
 
       - name: Install hegel
         run: |
-          pip install git+ssh://git@github.com/antithesishq/hegel.git
+          pip install git+ssh://git@github.com/antithesishq/hegel.git@binary-cbor-bytestrings
 
       - name: Configure CMake
         run: |
@@ -144,7 +144,7 @@ jobs:
           python-version: '3.13'
 
       - name: Install hegel
-        run: pip install git+ssh://git@github.com/antithesishq/hegel.git
+        run: pip install git+ssh://git@github.com/antithesishq/hegel.git@binary-cbor-bytestrings
 
       - name: Configure CMake
         run: cmake -B build -DHEGEL_BUILD_DOCS=ON

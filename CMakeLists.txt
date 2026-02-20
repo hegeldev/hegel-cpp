@@ -87,7 +87,7 @@ else()
       message(STATUS "using local hegel from ${HEGEL_LOCAL_DIR}")
       set(HEGEL_INSTALL_SOURCE "${HEGEL_LOCAL_DIR}")
     else()
-      set(HEGEL_INSTALL_SOURCE "git+ssh://git@github.com/antithesishq/hegel.git")
+      set(HEGEL_INSTALL_SOURCE "git+ssh://git@github.com/antithesishq/hegel.git@binary-cbor-bytestrings")
     endif()
 
     execute_process(
@@ -148,7 +148,6 @@ add_library(hegel
   STATIC
     src/hegel.cpp
     src/strategies.cpp
-    src/base64.cpp
     src/socket.cpp
     src/run_state.cpp
     src/internal.cpp
