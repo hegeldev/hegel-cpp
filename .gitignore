@@ -8,6 +8,8 @@ __pycache__
 .devcontainer/
 devcontainer
 external/
+result
+result/
 
 .claude-reliability/
 **/.claude/reliability-config.yaml
