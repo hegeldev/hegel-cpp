@@ -86,7 +86,7 @@ else()
       message(STATUS "using local hegel from ${HEGEL_LOCAL_DIR}")
       set(HEGEL_INSTALL_SOURCE "${HEGEL_LOCAL_DIR}")
     else()
-      set(HEGEL_INSTALL_SOURCE "/home/echoumcp1/hegel-core")
+      set(HEGEL_INSTALL_SOURCE "git+ssh://git@github.com/antithesishq/hegel.git")
     endif()
 
     execute_process(
