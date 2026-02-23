@@ -37,11 +37,11 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1771509849,
-        "narHash": "sha256-5aigi2Sk9KwWcc2nmSbtedWOwoogHaZpeRwba7KrLcc=",
+        "lastModified": 1771863210,
+        "narHash": "sha256-MO2WNtT9EY29g/8DpkIBA6pN8//ElI+M96F20xzbp/E=",
         "ref": "refs/heads/main",
-        "rev": "acff66b647adb9fad38f0eb63cd8a41e76dd9370",
-        "revCount": 179,
+        "rev": "9fce841845a6e29a68f2f1e5fe7c1852cddce947",
+        "revCount": 202,
         "type": "git",
         "url": "ssh://git@github.com/antithesishq/hegel"
       },

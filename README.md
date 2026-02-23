@@ -4,7 +4,7 @@ Hegel C++ SDK.
 
 ## Installation
 
-To install, add the following to your `CMakeLists.txt`:
+To install, add the following to the `CMakeLists.txt` in your project:
 
 ```cmake
 include(FetchContent)
