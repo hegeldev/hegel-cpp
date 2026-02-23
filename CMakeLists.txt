@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(HEGEL_BUILD_EXAMPLES "Build example executables" ON)
 option(HEGEL_BUILD_TESTS "Build unit tests" ON)
 option(HEGEL_BUILD_CONFORMANCE "Build conformance test binary" ON)
 option(HEGEL_BUILD_DOCS "Build documentation" ON)
@@ -87,7 +86,7 @@ else()
       message(STATUS "using local hegel from ${HEGEL_LOCAL_DIR}")
       set(HEGEL_INSTALL_SOURCE "${HEGEL_LOCAL_DIR}")
     else()
-      set(HEGEL_INSTALL_SOURCE "git+ssh://git@github.com/antithesishq/hegel.git")
+      set(HEGEL_INSTALL_SOURCE "/home/echoumcp1/hegel-core")
     endif()
 
     execute_process(
@@ -169,14 +168,6 @@ target_compile_features(hegel PUBLIC cxx_std_20)
 target_compile_definitions(hegel PUBLIC
     HEGEL_DEFAULT_PATH="${HEGEL_BINARY_PATH}"
 )
- 
-# =============================================================================
-# Examples
-# =============================================================================
-
-if(HEGEL_BUILD_EXAMPLES)
-    add_subdirectory(examples)
-endif()
 
 # =============================================================================
 # Tests with Google Test
