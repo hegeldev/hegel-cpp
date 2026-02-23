@@ -96,6 +96,32 @@ jobs:
       - name: Run property tests
         run: ctest --test-dir build --output-on-failure
 
+  conformance:
+    name: conformance
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/base
+        with:
+          ssh-key: ${{ secrets.HEGEL_DEPLOY_KEY }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install hegel
+        run: |
+          pip install git+ssh://git@github.com/antithesishq/hegel.git
+
+      - name: Configure CMake
+        run: cmake -B build -DHEGEL_BUILD_DOCS=OFF
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
       - name: Run conformance tests
         timeout-minutes: 10
         working-directory: tests/conformance

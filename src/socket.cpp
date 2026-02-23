@@ -102,19 +102,13 @@ namespace hegel::impl::socket {
     }
 } // namespace hegel::impl::socket
 
-// =============================================================================
-// Constants
-// =============================================================================
-inline constexpr int ASSERTION_FAILURE_EXIT_CODE = 134;
-
 namespace hegel::internal {
     nlohmann::json communicate_with_socket(const nlohmann::json& schema) {
         auto* conn = impl::socket::get_embedded_connection();
         uint32_t data_channel = impl::socket::get_embedded_data_channel();
 
         if (!conn) {
-            std::cerr << "hegel: no connection set\n";
-            std::exit(ASSERTION_FAILURE_EXIT_CODE);
+            throw std::runtime_error("hegel: no connection set");
         }
 
         // Build generate request as CBOR

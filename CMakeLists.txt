@@ -148,7 +148,6 @@ add_library(hegel
   STATIC
     src/hegel.cpp
     src/strategies.cpp
-    src/base64.cpp
     src/socket.cpp
     src/run_state.cpp
     src/internal.cpp
