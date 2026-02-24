@@ -62,14 +62,16 @@
           fs = pkgs.lib.fileset;
           defaultSrc = fs.toSource {
             root = ./.;
-            fileset = fs.unions (map fs.maybeMissing [
-              ./cmake
-              ./CMakeLists.txt
-              ./src
-              ./include
-              ./tests
-              ./docs
-            ]);
+            fileset = fs.unions (
+              map fs.maybeMissing [
+                ./cmake
+                ./CMakeLists.txt
+                ./src
+                ./include
+                ./tests
+                ./docs
+              ]
+            );
           };
         in
         stdenv.mkDerivation {
