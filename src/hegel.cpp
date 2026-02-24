@@ -107,9 +107,10 @@ namespace hegel {
             if (event_type == "test_case") {
                 // Acknowledge test_case event
                 conn.write_reply(test_channel, event.message_id,
-                                nlohmann::json{{"result", nullptr}});
+                                 nlohmann::json{{"result", nullptr}});
 
-                uint32_t data_channel = payload.value("channel_id", uint32_t{0});
+                uint32_t data_channel =
+                    payload.value("channel_id", uint32_t{0});
                 bool is_final = payload.value("is_final", false);
 
                 // Set thread-local state
@@ -158,7 +159,7 @@ namespace hegel {
             } else if (event_type == "test_done") {
                 // Acknowledge test_done event
                 conn.write_reply(test_channel, event.message_id,
-                                nlohmann::json{{"result", true}});
+                                 nlohmann::json{{"result", true}});
 
                 if (payload.contains("results")) {
                     auto& results = payload["results"];

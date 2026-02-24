@@ -86,7 +86,7 @@ namespace hegel::impl {
     }
 
     void Connection::write_reply(uint32_t channel, uint32_t message_id,
-                                const nlohmann::json& msg) {
+                                 const nlohmann::json& msg) {
         auto payload = protocol::cbor_encode(msg);
         protocol::write_packet(fd_, channel, message_id, true, payload);
     }
