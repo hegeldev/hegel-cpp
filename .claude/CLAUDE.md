@@ -87,3 +87,29 @@ Michael (mgibson) has carefully curated this codebase. Match his conventions exa
 - **Parameter structs**: Designated initializers (C++20): `integers<int>({.min_value = 0})`
 - **Self-contained**: Prefer small standalone implementations over adding heavy dependencies
 - **No over-engineering**: Keep changes minimal and focused. Don't add abstractions beyond what's needed
+
+### Error Handling: `assume()` vs exceptions
+
+`hegel::internal::assume(condition)` is **only** for filtering generated test data that doesn't meet preconditions. It signals to the framework that the current test case should be silently discarded (via `HegelReject`), not counted as a failure. It must never be used to handle errors in the SDK implementation itself.
+
+**Correct use** - filtering generated values in tests:
+```cpp
+auto x = integers<int>().generate();
+assume(x != std::numeric_limits<int32_t>::min());  // Skip edge case
+```
+
+**Wrong use** - masking server/protocol errors:
+```cpp
+// BAD: silently swallows a server error as if it were bad test data
+internal::assume(response.contains("result"));
+
+// GOOD: surface the error so it can be diagnosed and fixed
+if (!response.contains("result")) {
+    throw std::runtime_error("Server response missing 'result' field");
+}
+```
+
+Rules of thumb:
+- Server returned an error or malformed response? Throw `std::runtime_error`.
+- Caller passed invalid arguments (e.g. empty vector)? Throw `std::invalid_argument`.
+- Generated test data doesn't meet a precondition? Use `assume()`.

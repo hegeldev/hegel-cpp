@@ -334,11 +334,15 @@ namespace hegel::generators {
 
             // Check for error
             if (response.contains("error")) {
-                internal::assume(false);
+                throw std::runtime_error("Server returned error: " +
+                                         response["error"].dump());
             }
 
             // Extract the result value
-            internal::assume(response.contains("result"));
+            if (!response.contains("result")) {
+                throw std::runtime_error(
+                    "Server response missing 'result' field");
+            }
             nlohmann::json& result = response["result"];
 
             if constexpr (std::is_arithmetic_v<T> ||
@@ -346,7 +350,11 @@ namespace hegel::generators {
                 return result.get<T>();
             } else {
                 auto parse_result = internal::read_nlohmann<T>(result);
-                internal::assume(parse_result.has_value());
+                if (!parse_result.has_value()) {
+                    throw std::runtime_error(
+                        "Failed to parse server response into "
+                        "requested type");
+                }
                 return parse_result.value();
             }
         }
