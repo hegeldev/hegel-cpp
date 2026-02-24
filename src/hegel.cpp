@@ -91,6 +91,7 @@ namespace hegel {
         nlohmann::json run_test_msg = {{"command", "run_test"},
                                        {"name", "test"},
                                        {"test_cases", test_cases},
+                                       {"seed", options.seed},
                                        {"channel_id", test_channel}};
         conn.request(0, run_test_msg);
 
