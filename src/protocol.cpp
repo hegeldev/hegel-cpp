@@ -182,7 +182,7 @@ namespace hegel::impl::protocol {
         uint32_t message_id = raw_msg_id & ~REPLY_BIT;
 
         if (protocol_debug_enabled()) {
-            std::cerr << "RECV ch=" << channel << " msg=" << message_id
+            std::cerr << "RECEIVE channel=" << channel << " message_id=" << message_id
                       << " reply=" << is_reply << " len=" << length << "\n";
         }
 
