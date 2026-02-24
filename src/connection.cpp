@@ -49,8 +49,8 @@ namespace hegel::impl {
         protocol::write_packet(fd_, 0, msg_id, false, payload);
 
         // Wait for reply on channel 0
-        auto pkt = wait_for(0, true);
-        std::string response(pkt.payload.begin(), pkt.payload.end());
+        auto packet = wait_for(0, true);
+        std::string response(packet.payload.begin(), packet.payload.end());
 
         std::string prefix = "Hegel/";
         if (!response.starts_with(prefix)) {
@@ -81,27 +81,27 @@ namespace hegel::impl {
         uint32_t msg_id = alloc_message_id(channel);
         protocol::write_packet(fd_, channel, msg_id, false, payload);
 
-        auto pkt = wait_for(channel, true);
-        return protocol::cbor_decode(pkt.payload);
+        auto packet = wait_for(channel, true);
+        return protocol::cbor_decode(packet.payload);
     }
 
-    void Connection::send_reply(uint32_t channel, uint32_t message_id,
-                                const nlohmann::json& msg) {
+    void Connection::write_reply(uint32_t channel, uint32_t message_id,
+                                 const nlohmann::json& msg) {
         auto payload = protocol::cbor_encode(msg);
         protocol::write_packet(fd_, channel, message_id, true, payload);
     }
 
     IncomingRequest Connection::recv_request(uint32_t channel) {
-        auto pkt = wait_for(channel, false);
+        auto packet = wait_for(channel, false);
 
         // Check for close-channel signal
-        if (pkt.payload.size() == 1 &&
-            pkt.payload[0] == protocol::CLOSE_PAYLOAD) {
+        if (packet.payload.size() == 1 &&
+            packet.payload[0] == protocol::CLOSE_PAYLOAD) {
             throw std::runtime_error("hegel: channel closed by server");
         }
 
-        return IncomingRequest{pkt.message_id,
-                               protocol::cbor_decode(pkt.payload)};
+        return IncomingRequest{packet.message_id,
+                               protocol::cbor_decode(packet.payload)};
     }
 
     void Connection::close_channel(uint32_t channel) {
@@ -118,19 +118,19 @@ namespace hegel::impl {
         auto& queue = pending_[channel];
         for (auto it = queue.begin(); it != queue.end(); ++it) {
             if (it->is_reply == want_reply) {
-                auto pkt = std::move(*it);
+                auto packet = std::move(*it);
                 queue.erase(it);
-                return pkt;
+                return packet;
             }
         }
 
         // Read packets until we get the one we want
         while (true) {
-            auto pkt = protocol::read_packet(fd_);
-            if (pkt.channel == channel && pkt.is_reply == want_reply) {
-                return pkt;
+            auto packet = protocol::read_packet(fd_);
+            if (packet.channel == channel && packet.is_reply == want_reply) {
+                return packet;
             }
-            pending_[pkt.channel].push_back(std::move(pkt));
+            pending_[packet.channel].push_back(std::move(packet));
         }
     }
 
