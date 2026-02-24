@@ -51,29 +51,31 @@
         {
           pkgs,
           stdenv ? pkgs.stdenv,
-        }@args:
+          pname ? "hegel-cpp",
+          version ? "0.1.0",
+          src ? null,
+        }:
         let
           lib = pkgs.lib;
           system = pkgs.system;
 
           fs = pkgs.lib.fileset;
-          baseSrc = fs.unions [
-            ./cmake
-            ./CMakeLists.txt
-            ./src
-            ./include
-            ./tests
-            ./docs
-          ];
+          defaultSrc = fs.toSource {
+            root = ./.;
+            fileset = fs.unions (map fs.maybeMissing [
+              ./cmake
+              ./CMakeLists.txt
+              ./src
+              ./include
+              ./tests
+              ./docs
+            ]);
+          };
         in
         stdenv.mkDerivation {
-          pname = "hegel-cpp";
-          version = "0.1.0";
+          inherit pname version;
 
-          src = fs.toSource {
-            root = ./.;
-            fileset = baseSrc;
-          };
+          src = if src != null then src else defaultSrc;
 
           nativeBuildInputs = [
             pkgs.cmake
