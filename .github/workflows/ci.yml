@@ -38,7 +38,7 @@ jobs:
           git diff --exit-code
 
   build-and-test:
-    name: ${{ matrix.compiler }} ${{ matrix.stdlib && format('(with {0})', matrix.stdlib) || '' }}
+    name: ${{ matrix.compiler }} ${{ matrix.stdlib && format('(with {0})', matrix.stdlib) || '' }} ${{ matrix.extra_label || '' }}
     runs-on: ubuntu-24.04
 
     strategy:
@@ -69,6 +69,13 @@ jobs:
             stdlib: libc++
             packages: clang-18 libc++-18-dev libc++abi-18-dev
             cmake_flags: -DCMAKE_CXX_FLAGS="-stdlib=libc++"
+
+          # GCC 13 (with libstdc++) (with oldest nlohmann/json we support)
+          - compiler: g++-13
+            cc: gcc-13
+            cxx: g++-13
+            extra_label: (nlohmann 3.11)
+            cmake_flags: -DNLOHMANN_JSON_VERSION=3.10.0
 
     steps:
       - name: Checkout
