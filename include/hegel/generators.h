@@ -26,8 +26,8 @@ namespace hegel::internal {
  * @brief Namespace containing abstractions for data generation.
  *
  * You wouldn't typically use the *classes* in this namespace directly,
- * but rather use the default_generator() function and the strategies
- * in hegel::strategies.
+ * but rather use the default_generator() function and the generator
+ * functions like integers(), text(), etc.
  */
 namespace hegel::generators {
     /**
@@ -49,7 +49,7 @@ namespace hegel::generators {
      * compatible)
      * @see default_generator() Factory function for creating default type-based
      * Generators
-     * @see hegel::strategies Built-in functions that %generate data for you
+     * @see hegel::generators Built-in functions that %generate data for you
      * @see Generator Sub-class that implements IGenerator; the thing you
      * typically interact with
      */
@@ -84,7 +84,7 @@ namespace hegel::generators {
      * flatmap(), filter()) for transforming and composing generators.
      *
      * @code{.cpp}
-     * using namespace hegel::strategies;
+     * using namespace hegel::generators;
      *
      * // Create a generator
      * auto int_gen = integers<int>({.min_value = 0, .max_value = 100});
@@ -107,7 +107,7 @@ namespace hegel::generators {
      * compatible)
      * @see default_generator() Factory function for creating default type-based
      * Generators
-     * @see hegel::strategies Built-in functions that %generate data for you
+     * @see hegel::generators Built-in functions that %generate data for you
      */
     template <typename T> class Generator : IGenerator<T> {
       public:
@@ -198,7 +198,7 @@ namespace hegel::generators {
          * @param f Function that takes a T and returns a Generator&lt;S&gt;
          * @return Generator&lt;S&gt; producing values from the chained
          * generator
-         * @see map(), strategies::text()
+         * @see map(), text()
          */
         template <typename F> std::invoke_result_t<F, T> flatmap(F&& f) const {
             // Relevant types here:

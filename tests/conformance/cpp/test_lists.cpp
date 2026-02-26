@@ -30,8 +30,8 @@ int main(int argc, char* argv[]) {
 
     hegel::hegel(
         [=]() {
-            auto gen = hegel::strategies::vectors(
-                hegel::strategies::integers<int>(
+            auto gen = hegel::generators::vectors(
+                hegel::generators::integers<int>(
                     {.min_value = min_value, .max_value = max_value}),
                 {.min_size = min_size, .max_size = max_size});
 

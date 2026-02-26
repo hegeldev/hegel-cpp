@@ -15,8 +15,8 @@
  * auto gen = hegel::default_generator<Person>();
  * Person p = gen.generate();
  *
- * // Strategy-based generation
- * using namespace hegel::strategies;
+ * // Generator-based generation
+ * using namespace hegel::generators;
  * auto int_gen = integers<int>({.min_value = 0, .max_value = 100});
  * int value = int_gen.generate();
  * @endcode
@@ -61,7 +61,7 @@ namespace hegel {
      *
      * int main() {
      *     hegel::hegel([]() {
-     *         using namespace hegel::strategies;
+     *         using namespace hegel::generators;
      *         auto x = integers<int>({.min_value = 0, .max_value =
      * 100}).generate(); auto y = integers<int>({.min_value = 0, .max_value =
      * 100}).generate();

@@ -4,7 +4,7 @@
  * @file strategies.h
  * @brief Strategy functions for data generation
  *
- * Contains all strategy functions in the hegel::strategies namespace for
+ * Contains all strategy functions in the hegel::generators namespace for
  * generating primitive types, collections, and composite data structures.
  */
 
@@ -22,17 +22,14 @@
  * strategy functions directly.
  *
  * @code{.cpp}
- * using namespace hegel::strategies;
+ * using namespace hegel::generators;
  *
  * auto int_gen = integers<int>({.min_value = 0, .max_value = 100});
  * auto str_gen = text({.min_size = 1, .max_size = 50});
  * auto bool_gen = booleans();
  * @endcode
  */
-namespace hegel::strategies {
-    using hegel::generators::from_function;
-    using hegel::generators::from_schema;
-    using hegel::generators::Generator;
+namespace hegel::generators {
 
     // =============================================================================
     // Parameter structs
@@ -125,7 +122,7 @@ namespace hegel::strategies {
     };
 
     // =============================================================================
-    // Non-template strategy declarations (implemented in strategies.cpp)
+    // Non-template strategy declarations (implemented in generators.cpp)
     // =============================================================================
 
     /// @name Primitive Strategies
@@ -851,4 +848,4 @@ namespace hegel::strategies {
 
     /// @}
 
-} // namespace hegel::strategies
+} // namespace hegel::generators

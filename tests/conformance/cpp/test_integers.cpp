@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
 
     hegel::hegel(
         [=]() {
-            auto gen = hegel::strategies::integers<int>(
+            auto gen = hegel::generators::integers<int>(
                 {.min_value = min_value, .max_value = max_value});
             auto value = gen.generate();
             conformance::write_metrics({{"value", value}});

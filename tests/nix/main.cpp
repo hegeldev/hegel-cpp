@@ -3,7 +3,7 @@
 #include <iostream>
 #include <stdexcept>
 
-using namespace hegel::strategies;
+using namespace hegel::generators;
 using hegel::internal::note;
 
 // Canary string that CI greps for to verify we built the right thing

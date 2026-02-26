@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
 
     hegel::hegel(
         [&]() {
-            auto gen = hegel::strategies::sampled_from(options);
+            auto gen = hegel::generators::sampled_from(options);
             auto value = gen.generate();
             conformance::write_metrics({{"value", value}});
         },
