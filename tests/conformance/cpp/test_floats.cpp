@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
 
     hegel::hegel(
         [=]() {
-            auto gen = hegel::strategies::floats<double>({
+            auto gen = hegel::generators::floats<double>({
                 .min_value = min_value,
                 .max_value = max_value,
                 .exclude_min = exclude_min,

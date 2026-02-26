@@ -5,7 +5,7 @@
 // Strategy implementations
 // =============================================================================
 
-namespace hegel::strategies {
+namespace hegel::generators {
 
     Generator<std::monostate> nulls() {
         nlohmann::json schema = {{"type", "null"}};
@@ -91,4 +91,4 @@ namespace hegel::strategies {
         return from_schema<std::string>(nlohmann::json{{"type", "datetime"}});
     }
 
-} // namespace hegel::strategies
+} // namespace hegel::generators

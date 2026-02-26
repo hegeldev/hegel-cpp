@@ -28,10 +28,10 @@ int main(int argc, char* argv[]) {
             nlohmann::json metrics;
 
             if (key_type == "integer") {
-                auto gen = hegel::strategies::dictionaries(
-                    hegel::strategies::integers<int>(
+                auto gen = hegel::generators::dictionaries(
+                    hegel::generators::integers<int>(
                         {.min_value = min_key, .max_value = max_key}),
-                    hegel::strategies::integers<int>(
+                    hegel::generators::integers<int>(
                         {.min_value = min_value, .max_value = max_value}),
                     {.min_size = min_size, .max_size = max_size});
 
@@ -57,9 +57,9 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 // string keys
-                auto gen = hegel::strategies::dictionaries(
-                    hegel::strategies::text(),
-                    hegel::strategies::integers<int>(
+                auto gen = hegel::generators::dictionaries(
+                    hegel::generators::text(),
+                    hegel::generators::integers<int>(
                         {.min_value = min_value, .max_value = max_value}),
                     {.min_size = min_size, .max_size = max_size});
 

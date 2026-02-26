@@ -2,7 +2,7 @@
 
 #include <hegel/hegel.h>
 
-using namespace hegel::strategies;
+using namespace hegel::generators;
 
 TEST(Settings, DefaultRuns100TestCases) {
     int count = 0;

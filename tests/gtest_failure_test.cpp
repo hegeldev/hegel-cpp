@@ -12,7 +12,7 @@
 
 #include <hegel/hegel.h>
 
-using namespace hegel::strategies;
+using namespace hegel::generators;
 
 TEST(FailureReporting, ShowsCounterexample) {
     hegel::hegel(

@@ -146,7 +146,7 @@ FetchContent_MakeAvailable(reflectcpp nlohmann_json)
 add_library(hegel
   STATIC
     src/hegel.cpp
-    src/strategies.cpp
+    src/generators.cpp
     src/socket.cpp
     src/run_state.cpp
     src/internal.cpp
