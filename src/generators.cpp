@@ -39,7 +39,10 @@ namespace hegel::generators {
             [schema]() -> std::vector<uint8_t> {
                 nlohmann::json response =
                     internal::communicate_with_socket(schema);
-                internal::assume(response.contains("result"));
+                if (!response.contains("result")) {
+                    throw std::runtime_error(
+                        "Server response missing 'result' field");
+                }
                 return response["result"].get_binary();
             },
             schema);

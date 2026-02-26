@@ -91,8 +91,12 @@ namespace hegel {
         nlohmann::json run_test_msg = {{"command", "run_test"},
                                        {"name", "test"},
                                        {"test_cases", test_cases},
-                                       {"seed", options.seed},
                                        {"channel_id", test_channel}};
+        if (options.seed.has_value()) {
+            run_test_msg["seed"] = options.seed.value();
+        } else {
+            run_test_msg["seed"] = nullptr;
+        }
         conn.request(0, run_test_msg);
 
         // Event loop on test channel

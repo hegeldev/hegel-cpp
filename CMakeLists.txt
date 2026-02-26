@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(hegel-cpp VERSION 0.1.0 LANGUAGES CXX)
+project(hegel-cpp VERSION 0.1.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -131,10 +131,11 @@ set(REFLECTCPP_XML OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_YAML OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_INSTALL ON)
 
+set(NLOHMANN_JSON_VERSION "3.12.0" CACHE STRING "nlohmann/json version tag")
 FetchContent_Declare(
     nlohmann_json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.12.0
+    GIT_TAG v${NLOHMANN_JSON_VERSION}
 )
 
 FetchContent_MakeAvailable(reflectcpp nlohmann_json)
@@ -161,8 +162,8 @@ target_include_directories(hegel PUBLIC
     PRIVATE
         src
 )
-target_link_libraries(hegel 
-  PUBLIC reflectcpp 
+target_link_libraries(hegel
+  PUBLIC reflectcpp
 )
 target_compile_features(hegel PUBLIC cxx_std_20)
 target_compile_definitions(hegel PUBLIC

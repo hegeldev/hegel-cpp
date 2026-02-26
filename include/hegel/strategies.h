@@ -549,7 +549,10 @@ namespace hegel::generators {
      * @return Generator that picks uniformly from elements
      */
     template <typename T> Generator<T> sampled_from(std::vector<T> elements) {
-        internal::assume(!elements.empty());
+        if (elements.empty()) {
+            throw std::invalid_argument(
+                "sampled_from requires a non-empty vector");
+        }
 
         if constexpr (std::is_same_v<T, bool> ||
                       std::is_same_v<T, std::nullptr_t> ||
@@ -628,7 +631,10 @@ namespace hegel::generators {
      * @return Generator that delegates to a randomly chosen generator
      */
     template <typename T> Generator<T> one_of(std::vector<Generator<T>> gens) {
-        assume(!gens.empty());
+        if (gens.empty()) {
+            throw std::invalid_argument(
+                "one_of requires a non-empty vector of generators");
+        }
 
         auto maybe_schema = detail::make_one_of_schema(gens);
 
