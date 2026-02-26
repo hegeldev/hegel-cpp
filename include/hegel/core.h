@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * @file generators.h
+ * @file core.h
  * @brief Generator and SchemaBackedGenerator class templates for Hegel SDK
  *
  * Contains the core Generator<T> and SchemaBackedGenerator<T> class templates,

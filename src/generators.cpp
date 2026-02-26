@@ -1,8 +1,10 @@
-#include "hegel/generators.h"
-#include <hegel/strategies.h>
+#include <hegel/core.h>
+#include <hegel/generators/formats.h>
+#include <hegel/generators/primitives.h>
+#include <hegel/generators/strings.h>
 
 // =============================================================================
-// Strategy implementations
+// Primitive strategy implementations
 // =============================================================================
 
 namespace hegel::generators {
@@ -17,6 +19,10 @@ namespace hegel::generators {
         nlohmann::json schema = {{"type", "boolean"}};
         return from_schema<bool>(std::move(schema));
     }
+
+    // =============================================================================
+    // String strategy implementations
+    // =============================================================================
 
     Generator<std::string> text(TextParams params) {
         nlohmann::json schema = {{"type", "string"},
@@ -54,6 +60,10 @@ namespace hegel::generators {
             {"type", "regex"}, {"pattern", pattern}, {"fullmatch", fullmatch}};
         return from_schema<std::string>(std::move(schema));
     }
+
+    // =============================================================================
+    // Format string strategy implementations
+    // =============================================================================
 
     Generator<std::string> emails() {
         return from_schema<std::string>(nlohmann::json{{"type", "email"}});

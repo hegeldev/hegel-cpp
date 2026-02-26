@@ -30,12 +30,17 @@
 // HegelOptions and supporting classes
 #include "options.h"
 
-// Data generator primitives
-#include "generators.h"
+// Core generator types
+#include "core.h"
 
-// All strategy functions
-// inetgers<>, booleans, floats<>, etc.
-#include "strategies.h"
+// Generator functions by category
+#include "generators/builds.h"
+#include "generators/collections.h"
+#include "generators/combinators.h"
+#include "generators/formats.h"
+#include "generators/numeric.h"
+#include "generators/primitives.h"
+#include "generators/strings.h"
 
 #include <functional>
 
