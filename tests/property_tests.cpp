@@ -18,8 +18,8 @@
 #include <sstream>
 
 using namespace hegel::generators;
-using hegel::internal::assume;
-using hegel::internal::note;
+using hegel::assume;
+using hegel::note;
 
 // =============================================================================
 // Algebraic Properties

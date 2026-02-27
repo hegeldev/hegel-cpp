@@ -51,6 +51,11 @@
  */
 namespace hegel {
 
+    // Public API re-exports from hegel::internal
+    using internal::assume;
+    using internal::note;
+    using internal::stop_test;
+
     /**
      * @brief Run property-based tests using Hegel in embedded mode.
      *
