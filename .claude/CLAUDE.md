@@ -53,8 +53,8 @@ Binary packet protocol with CBOR payloads over Unix socket:
 
 - **`hegel.h`** - Main include, declares `hegel::hegel()` entry point
 - **`options.h`** - HegelOptions, Verbosity enum
-- **`generators.h`** - `IGenerator<T>`, `Generator<T>`, `SchemaBackedGenerator<T>`, `FunctionBackedGenerator<T>` with `map()`, `flatmap()`, `filter()` combinators
-- **`strategies.h`** - Strategy factory functions in `hegel::strategies` namespace
+- **`generators.h`** - `IGenerator<T>`, `Generator<T>`, `SchemaBackedGenerator<T>`, `FunctionBackedGenerator<T>` with `map()`, `flat_map()`, `filter()` combinators
+- **`strategies.h`** - Strategy factory functions in `hegel::generators` namespace
 - **`internal.h`** - `communicate_with_socket()`, `assume()`, `note()`, `stop_test()`
 - **`src/protocol.h`** - Binary packet protocol, Connection, Channel classes
 - **`src/socket.h`** - Low-level socket I/O
@@ -79,7 +79,7 @@ Michael (mgibson) has carefully curated this codebase. Match his conventions exa
 
 - **Formatting**: LLVM base style, 4-space indentation, left-aligned pointers (`int*`). Run `just format` before committing.
 - **Headers**: Use `.h` extension (not `.hpp`)
-- **Namespaces**: `hegel` for public API, `hegel::strategies` for strategies, `hegel::internal` for internals referenced in public headers, `hegel::impl::*` for purely private implementation
+- **Namespaces**: `hegel` for public API, `hegel::generators` for generators and strategies, `hegel::internal` for internals referenced in public headers, `hegel::impl::*` for purely private implementation
 - **Includes**: Public headers use relative includes (`#include "options.h"`), source files use angle brackets for both public (`<hegel/internal.h>`) and private (`<socket.h>`) headers
 - **File organization**: Each focused `.cpp` has a corresponding `.h` in `src/`. Private headers live in `src/`, not `include/`
 - **Public API surface**: Minimal. Only what users need goes in `include/hegel/`. Internal details hidden via `@cond INTERNAL` / `@endcond` in Doxygen

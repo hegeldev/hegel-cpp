@@ -4,7 +4,7 @@
 #include <stdexcept>
 
 using namespace hegel::generators;
-using hegel::internal::note;
+using hegel::note;
 
 // Canary string that CI greps for to verify we built the right thing
 void test_nix_integration_canary() {

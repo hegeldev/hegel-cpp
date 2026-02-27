@@ -1,10 +1,5 @@
 # Changelog
 
-## 0.1.4 - 2026-02-26
-
-Split out some internal header files for organization.
-
-
 ## 0.1.3 - 2026-02-26
 
 Rename the `strategies` namespace to `generators`.

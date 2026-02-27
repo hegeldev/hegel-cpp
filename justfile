@@ -1,13 +1,38 @@
+setup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -n "${HEGEL_BINARY:-}" ]; then
+        mkdir -p "$HOME/.local/bin"
+        ln -sf "$HEGEL_BINARY" "$HOME/.local/bin/hegel"
+    else
+        uv tool install "hegel @ git+ssh://git@github.com/antithesishq/hegel.git"
+    fi
+
+build:
+    cmake -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build
+
 test:
     cmake -B build
     cmake --build build
     ctest --test-dir build/tests --output-on-failure -j{{ num_cpus() }}
+
+lint: format-check
+    @echo "Lint checks passed (format-check)"
 
 check:
     cmake -B build
     cmake --build build
     ctest --test-dir build/tests --output-on-failure -j{{ num_cpus() }}
     just format-check
+
+build-conformance: build
+    @echo "Conformance tests built as part of main build"
+
+conformance: build-conformance
+    uv run --with "hegel @ git+ssh://git@github.com/antithesishq/hegel.git" \
+        --with pytest --with pytest-subtests --with hypothesis \
+        pytest tests/conformance/test_conformance.py --durations=20 --durations-min=1.0
 
 docs:
     cmake -B build -DHEGEL_BUILD_DOCS=ON

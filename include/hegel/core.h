@@ -26,8 +26,8 @@ namespace hegel::internal {
  * @brief Namespace containing abstractions for data generation.
  *
  * You wouldn't typically use the *classes* in this namespace directly,
- * but rather use the default_generator() function and the generator
- * functions like integers(), text(), etc.
+ * but rather use the default_generator() function and the strategies
+ * in hegel::strategies.
  */
 namespace hegel::generators {
     /**
@@ -81,7 +81,7 @@ namespace hegel::generators {
      *
      * Generator is the core abstraction for random data generation. It wraps
      * an IGenerator (which produces values) and provides combinators  (map(),
-     * flatmap(), filter()) for transforming and composing generators.
+     * flat_map(), filter()) for transforming and composing generators.
      *
      * @code{.cpp}
      * using namespace hegel::generators;
@@ -96,9 +96,9 @@ namespace hegel::generators {
      * // Filter values
      * auto even = int_gen.filter([](int x) { return x % 2 == 0; });
      *
-     * // Dependent generation with flatmap
+     * // Dependent generation with flat_map
      * auto sized = integers<size_t>({.min_value = 1, .max_value = 10})
-     *     .flatmap([](size_t len) {
+     *     .flat_map([](size_t len) {
      *         return text({.min_size = len, .max_size = len});
      *     });
      * @endcode
@@ -142,7 +142,7 @@ namespace hegel::generators {
          * applying a transformation to each value.
          *
          * This is used when you have a function to convert *values* between
-         * types. Compare with flatmap().
+         * types. Compare with flat_map().
          *
          * Here's an example of how you'd use this with built-in strategies:
          * @code{.cpp}
@@ -157,7 +157,7 @@ namespace hegel::generators {
          * @tparam F Function type (T -> S)
          * @param f Transformation function with signature S f(T)
          * @return Generator&lt;S&gt; producing transformed values
-         * @see flatmap()
+         * @see flat_map()
          */
         template <typename F>
         Generator<std::invoke_result_t<F, T>> map(F&& f) const {
@@ -184,7 +184,7 @@ namespace hegel::generators {
          * @code{.cpp}
          * Generator<std::string> sized_string =                     // Result
          * type Generator<std::string> integers<size_t>({.min_value = 1,
-         * .max_value = 10})   // Input type Generator<size_t> .flatmap(
+         * .max_value = 10})   // Input type Generator<size_t> .flat_map(
          *         [](size_t len) {                                  //
          * transformation Generator<std::string> f(size_t len) return text({ //
          * text() return type is Generator<std::string> .min_size = len, //
@@ -200,7 +200,7 @@ namespace hegel::generators {
          * generator
          * @see map(), text()
          */
-        template <typename F> std::invoke_result_t<F, T> flatmap(F&& f) const {
+        template <typename F> std::invoke_result_t<F, T> flat_map(F&& f) const {
             // Relevant types here:
             //     ResultType: some type
             //     gen_fn_:   () -> T
