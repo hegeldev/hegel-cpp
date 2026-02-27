@@ -1,13 +1,11 @@
 setup:
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ ! -d .venv ]; then
-        uv venv .venv
-    fi
     if [ -n "${HEGEL_BINARY:-}" ]; then
-        ln -sf "$HEGEL_BINARY" .venv/bin/hegel
+        mkdir -p "$HOME/.local/bin"
+        ln -sf "$HEGEL_BINARY" "$HOME/.local/bin/hegel"
     else
-        uv pip install --python .venv/bin/python "hegel @ git+ssh://git@github.com/antithesishq/hegel.git"
+        uv tool install "hegel @ git+ssh://git@github.com/antithesishq/hegel.git"
     fi
 
 build:
@@ -32,9 +30,8 @@ build-conformance: build
     @echo "Conformance tests built as part of main build"
 
 conformance: build-conformance
-    #!/usr/bin/env bash
-    set -euo pipefail
-    PATH=".venv/bin:$PATH" pytest tests/conformance/test_conformance.py --durations=20 --durations-min=1.0
+    uv run --with pytest --with pytest-subtests --with hypothesis \
+        pytest tests/conformance/test_conformance.py --durations=20 --durations-min=1.0
 
 docs:
     cmake -B build -DHEGEL_BUILD_DOCS=ON

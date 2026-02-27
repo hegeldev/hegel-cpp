@@ -35,9 +35,12 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install hegel
-        run: |
-          pip install git+ssh://git@github.com/antithesishq/hegel.git
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+
+      - name: Install just
+        run: sudo apt-get update && sudo apt-get install -y just
+
+      - run: just setup
 
       - name: Configure CMake
         run: cmake -B build -DHEGEL_BUILD_DOCS=ON
