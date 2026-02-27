@@ -30,7 +30,8 @@ build-conformance: build
     @echo "Conformance tests built as part of main build"
 
 conformance: build-conformance
-    uv run --with pytest --with pytest-subtests --with hypothesis \
+    uv run --with "hegel @ git+ssh://git@github.com/antithesishq/hegel.git" \
+        --with pytest --with pytest-subtests --with hypothesis \
         pytest tests/conformance/test_conformance.py --durations=20 --durations-min=1.0
 
 docs:
