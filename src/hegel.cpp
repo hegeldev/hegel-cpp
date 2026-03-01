@@ -67,13 +67,13 @@ namespace hegel {
             if (waitpid(child_pid, &status, WNOHANG) == child_pid) {
                 std::filesystem::remove_all(temp_dir);
                 throw std::runtime_error(
-                    "hegel: hegeld exited before creating socket (exit code " +
+                    "Hegel server exited before creating socket (exit code " +
                     std::to_string(WIFEXITED(status) ? WEXITSTATUS(status)
                                                      : -1) +
                     ")");
             }
             std::filesystem::remove_all(temp_dir);
-            throw std::runtime_error("hegel: timed out waiting for socket at " +
+            throw std::runtime_error("Timed out waiting for socket at " +
                                      socket_path);
         }
 

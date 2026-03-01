@@ -63,11 +63,11 @@ namespace hegel::impl::protocol {
             if (n < 0) {
                 if (errno == EINTR)
                     continue;
-                throw std::runtime_error("hegel: write failed");
+                throw std::runtime_error("Write failed");
             }
             if (n == 0) {
                 throw std::runtime_error(
-                    "hegel: write failed (zero bytes written)");
+                    "Write failed (zero bytes written)");
             }
             total += static_cast<size_t>(n);
         }
@@ -80,11 +80,11 @@ namespace hegel::impl::protocol {
             if (n < 0) {
                 if (errno == EINTR)
                     continue;
-                throw std::runtime_error("hegel: read failed");
+                throw std::runtime_error("Read failed");
             }
             if (n == 0) {
                 throw std::runtime_error(
-                    "hegel: read failed (connection closed)");
+                    "Read failed (connection closed)");
             }
             total += static_cast<size_t>(n);
         }
@@ -144,12 +144,12 @@ namespace hegel::impl::protocol {
         uint32_t length = ntohl(fields[4]);
 
         if (magic != MAGIC) {
-            throw std::runtime_error("hegel: bad magic in packet header");
+            throw std::runtime_error("Bad magic in packet header");
         }
 
         // Read payload (cap at 64MB to prevent runaway allocations)
         if (length > 64 * 1024 * 1024) {
-            throw std::runtime_error("hegel: payload too large");
+            throw std::runtime_error("Payload too large");
         }
         std::vector<uint8_t> payload(length);
         if (length > 0) {
@@ -160,7 +160,7 @@ namespace hegel::impl::protocol {
         uint8_t term;
         read_all(fd, &term, 1);
         if (term != TERMINATOR) {
-            throw std::runtime_error("hegel: missing packet terminator");
+            throw std::runtime_error("Missing packet terminator");
         }
 
         // Verify CRC: zero checksum field, compute over header + payload
@@ -175,7 +175,7 @@ namespace hegel::impl::protocol {
         }
         uint32_t computed = crc32(crc_buf.data(), crc_buf.size());
         if (computed != checksum) {
-            throw std::runtime_error("hegel: CRC32 mismatch");
+            throw std::runtime_error("CRC32 mismatch");
         }
 
         bool is_reply = (raw_msg_id & REPLY_BIT) != 0;

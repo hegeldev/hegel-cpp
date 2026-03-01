@@ -54,7 +54,7 @@ namespace hegel::impl {
 
         std::string prefix = "Hegel/";
         if (!response.starts_with(prefix)) {
-            throw std::runtime_error("hegel: Bad handshake response: " +
+            throw std::runtime_error("Bad handshake response: " +
                                      response);
         }
 
@@ -97,7 +97,7 @@ namespace hegel::impl {
         // Check for close-channel signal
         if (packet.payload.size() == 1 &&
             packet.payload[0] == protocol::CLOSE_PAYLOAD) {
-            throw std::runtime_error("hegel: channel closed by server");
+            throw std::runtime_error("Channel closed by server");
         }
 
         return IncomingRequest{packet.message_id,
