@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 - 2026-03-02
+
+Better error message when calling `assume()` or `note()` outside of a test.
+
+
 ## 0.2.0 - 2026-02-27
 
 - Renamed `hegel::strategies` namespace to `hegel::generators`, consolidating all strategy factory functions into the existing generators namespace.
