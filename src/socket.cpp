@@ -80,14 +80,14 @@ namespace hegel::impl::socket {
     int connect_to_socket(const std::string& path) {
         int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
         if (fd < 0) {
-            throw std::runtime_error("hegel: failed to create socket");
+            throw std::runtime_error("Failed to create socket");
         }
 
         struct sockaddr_un addr{};
         addr.sun_family = AF_UNIX;
         if (path.size() >= sizeof(addr.sun_path)) {
             ::close(fd);
-            throw std::runtime_error("hegel: socket path too long");
+            throw std::runtime_error("Socket path too long");
         }
         std::copy(path.begin(), path.end(), addr.sun_path);
         addr.sun_path[path.size()] = '\0';
@@ -95,7 +95,7 @@ namespace hegel::impl::socket {
         if (::connect(fd, reinterpret_cast<struct sockaddr*>(&addr),
                       sizeof(addr)) < 0) {
             ::close(fd);
-            throw std::runtime_error("hegel: failed to connect to " + path);
+            throw std::runtime_error("Failed to connect to " + path);
         }
 
         return fd;
@@ -108,7 +108,8 @@ namespace hegel::internal {
         uint32_t data_channel = impl::socket::get_embedded_data_channel();
 
         if (!conn) {
-            throw std::runtime_error("hegel: no connection set");
+            throw std::runtime_error(
+                "generate() cannot be called outside of a Hegel test");
         }
 
         // Build generate request as CBOR
@@ -135,7 +136,7 @@ namespace hegel::internal {
             std::string error_msg = response["error"].is_string()
                                         ? response["error"].get<std::string>()
                                         : "unknown error";
-            throw std::runtime_error("hegel: " + error_msg);
+            throw std::runtime_error(error_msg);
         }
 
         // Auto-log generated value during final replay (counterexample)

@@ -30,6 +30,14 @@ include(GoogleTest)
 gtest_discover_tests(property_tests)
 gtest_discover_tests(test_settings)
 
+add_executable(test_hegel test_hegel.cpp)
+target_link_libraries(test_hegel
+    PRIVATE
+        hegel
+        GTest::gtest_main
+)
+gtest_discover_tests(test_hegel)
+
 add_executable(gtest_failure_test gtest_failure_test.cpp)
 target_link_libraries(gtest_failure_test 
     PRIVATE 
