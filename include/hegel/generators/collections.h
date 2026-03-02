@@ -70,11 +70,10 @@ namespace hegel::generators {
     Generator<std::vector<T>> vectors(Generator<T> elements,
                                       VectorsParams params = {}) {
         if (elements.schema()) {
-            // Use "set" type for unique, "list" type otherwise
-            std::string schema_type = params.unique ? "set" : "list";
-            nlohmann::json schema = {{"type", schema_type},
+            nlohmann::json schema = {{"type", "list"},
                                      {"elements", *elements.schema()},
-                                     {"min_size", params.min_size}};
+                                     {"min_size", params.min_size},
+                                     {"unique", params.unique}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
@@ -116,9 +115,10 @@ namespace hegel::generators {
     template <typename T>
     Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
         if (elements.schema()) {
-            nlohmann::json schema = {{"type", "set"},
+            nlohmann::json schema = {{"type", "list"},
                                      {"elements", *elements.schema()},
-                                     {"min_size", params.min_size}};
+                                     {"min_size", params.min_size},
+                                     {"unique", true}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
