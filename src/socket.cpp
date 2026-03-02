@@ -108,7 +108,8 @@ namespace hegel::internal {
         uint32_t data_channel = impl::socket::get_embedded_data_channel();
 
         if (!conn) {
-            throw std::runtime_error("hegel: no connection set");
+            throw std::runtime_error(
+                "generate() cannot be called outside of a Hegel test");
         }
 
         // Build generate request as CBOR

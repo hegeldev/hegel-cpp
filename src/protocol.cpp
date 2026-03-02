@@ -66,8 +66,7 @@ namespace hegel::impl::protocol {
                 throw std::runtime_error("Write failed");
             }
             if (n == 0) {
-                throw std::runtime_error(
-                    "Write failed (zero bytes written)");
+                throw std::runtime_error("Write failed (zero bytes written)");
             }
             total += static_cast<size_t>(n);
         }
@@ -83,8 +82,7 @@ namespace hegel::impl::protocol {
                 throw std::runtime_error("Read failed");
             }
             if (n == 0) {
-                throw std::runtime_error(
-                    "Read failed (connection closed)");
+                throw std::runtime_error("Read failed (connection closed)");
             }
             total += static_cast<size_t>(n);
         }

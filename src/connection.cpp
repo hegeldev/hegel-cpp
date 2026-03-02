@@ -54,8 +54,7 @@ namespace hegel::impl {
 
         std::string prefix = "Hegel/";
         if (!response.starts_with(prefix)) {
-            throw std::runtime_error("Bad handshake response: " +
-                                     response);
+            throw std::runtime_error("Bad handshake response: " + response);
         }
 
         std::string server_version = response.substr(prefix.size());
