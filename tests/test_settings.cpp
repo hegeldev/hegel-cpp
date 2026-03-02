@@ -8,7 +8,7 @@ TEST(Settings, DefaultRuns100TestCases) {
     int count = 0;
 
     hegel::hegel([&count] {
-        integers<int>().generate();
+        hegel::draw(integers<int>());
         count++;
     });
 

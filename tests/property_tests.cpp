@@ -19,6 +19,7 @@
 
 using namespace hegel::generators;
 using hegel::assume;
+using hegel::draw;
 using hegel::note;
 
 // =============================================================================
@@ -27,8 +28,8 @@ using hegel::note;
 
 TEST(AlgebraicProperties, AdditionIsCommutative) {
     hegel::hegel([] {
-        auto x = integers<int32_t>().generate();
-        auto y = integers<int32_t>().generate();
+        auto x = draw(integers<int32_t>());
+        auto y = draw(integers<int32_t>());
         note("Testing: " + std::to_string(x) + " + " + std::to_string(y));
 
         // Use wrapping arithmetic to avoid undefined behavior
@@ -40,8 +41,8 @@ TEST(AlgebraicProperties, AdditionIsCommutative) {
 
 TEST(AlgebraicProperties, MultiplicationIsCommutative) {
     hegel::hegel([] {
-        auto x = integers<int32_t>().generate();
-        auto y = integers<int32_t>().generate();
+        auto x = draw(integers<int32_t>());
+        auto y = draw(integers<int32_t>());
         note("Testing: " + std::to_string(x) + " * " + std::to_string(y));
 
         int32_t lhs = x * y;
@@ -54,9 +55,9 @@ TEST(AlgebraicProperties, AdditionIsAssociative) {
     hegel::hegel([] {
         // Use smaller integers to avoid overflow
         auto gen = integers<int16_t>();
-        auto x = gen.generate();
-        auto y = gen.generate();
-        auto z = gen.generate();
+        auto x = draw(gen);
+        auto y = draw(gen);
+        auto z = draw(gen);
         note("Testing: (" + std::to_string(x) + " + " + std::to_string(y) +
              ") + " + std::to_string(z));
 
@@ -69,7 +70,7 @@ TEST(AlgebraicProperties, AdditionIsAssociative) {
 
 TEST(AlgebraicProperties, ZeroIsAdditiveIdentity) {
     hegel::hegel([] {
-        auto x = integers<int64_t>().generate();
+        auto x = draw(integers<int64_t>());
         note("Testing: " + std::to_string(x) + " + 0");
 
         ASSERT_EQ(x + 0, x) << "Zero should be additive identity";
@@ -79,7 +80,7 @@ TEST(AlgebraicProperties, ZeroIsAdditiveIdentity) {
 
 TEST(AlgebraicProperties, OneIsMultiplicativeIdentity) {
     hegel::hegel([] {
-        auto x = integers<int64_t>().generate();
+        auto x = draw(integers<int64_t>());
         note("Testing: " + std::to_string(x) + " * 1");
 
         ASSERT_EQ(x * 1, x) << "One should be multiplicative identity";
@@ -93,8 +94,8 @@ TEST(AlgebraicProperties, OneIsMultiplicativeIdentity) {
 
 TEST(SortingInvariants, SortedOutputIsSorted) {
     hegel::hegel([] {
-        auto v = vectors(integers<int>(), {.min_size = 0, .max_size = 100})
-                     .generate();
+        auto v =
+            draw(vectors(integers<int>(), {.min_size = 0, .max_size = 100}));
         note("Testing vector of size " + std::to_string(v.size()));
 
         std::vector<int> sorted = v;
@@ -107,8 +108,8 @@ TEST(SortingInvariants, SortedOutputIsSorted) {
 
 TEST(SortingInvariants, SortPreservesLength) {
     hegel::hegel([] {
-        auto v = vectors(integers<int>(), {.min_size = 0, .max_size = 100})
-                     .generate();
+        auto v =
+            draw(vectors(integers<int>(), {.min_size = 0, .max_size = 100}));
         size_t original_size = v.size();
 
         std::sort(v.begin(), v.end());
@@ -120,8 +121,8 @@ TEST(SortingInvariants, SortPreservesLength) {
 
 TEST(SortingInvariants, SortPreservesElements) {
     hegel::hegel([] {
-        auto v = vectors(integers<int>(), {.min_size = 0, .max_size = 50})
-                     .generate();
+        auto v =
+            draw(vectors(integers<int>(), {.min_size = 0, .max_size = 50}));
         std::multiset<int> original(v.begin(), v.end());
 
         std::sort(v.begin(), v.end());
@@ -133,8 +134,8 @@ TEST(SortingInvariants, SortPreservesElements) {
 
 TEST(SortingInvariants, SortIsIdempotent) {
     hegel::hegel([] {
-        auto v = vectors(integers<int>(), {.min_size = 0, .max_size = 50})
-                     .generate();
+        auto v =
+            draw(vectors(integers<int>(), {.min_size = 0, .max_size = 50}));
 
         std::sort(v.begin(), v.end());
         std::vector<int> once_sorted = v;
@@ -151,7 +152,7 @@ TEST(SortingInvariants, SortIsIdempotent) {
 
 TEST(StringProperties, ReverseReverseIsIdentity) {
     hegel::hegel([] {
-        auto s = text({.max_size = 100}).generate();
+        auto s = draw(text({.max_size = 100}));
         note("Testing string of length " + std::to_string(s.size()));
 
         std::string reversed = s;
@@ -164,8 +165,8 @@ TEST(StringProperties, ReverseReverseIsIdentity) {
 
 TEST(StringProperties, ConcatenationLengthIsSum) {
     hegel::hegel([] {
-        auto s1 = text({.max_size = 50}).generate();
-        auto s2 = text({.max_size = 50}).generate();
+        auto s1 = draw(text({.max_size = 50}));
+        auto s2 = draw(text({.max_size = 50}));
 
         std::string concatenated = s1 + s2;
 
@@ -176,15 +177,13 @@ TEST(StringProperties, ConcatenationLengthIsSum) {
 
 TEST(StringProperties, SubstringIsContained) {
     hegel::hegel([] {
-        auto s = text({.min_size = 5, .max_size = 100}).generate();
+        auto s = draw(text({.min_size = 5, .max_size = 100}));
         assume(s.size() >= 5);
 
-        auto start =
-            integers<size_t>({.min_value = 0, .max_value = s.size() - 1})
-                .generate();
-        auto len =
-            integers<size_t>({.min_value = 1, .max_value = s.size() - start})
-                .generate();
+        auto start = draw(
+            integers<size_t>({.min_value = 0, .max_value = s.size() - 1}));
+        auto len = draw(
+            integers<size_t>({.min_value = 1, .max_value = s.size() - start}));
 
         std::string sub = s.substr(start, len);
 
@@ -199,9 +198,8 @@ TEST(StringProperties, SubstringIsContained) {
 
 TEST(CollectionProperties, SetHasNoDuplicates) {
     hegel::hegel([] {
-        auto s = sets(integers<int>({.min_value = 0, .max_value = 1000}),
-                      {.min_size = 0, .max_size = 50})
-                     .generate();
+        auto s = draw(sets(integers<int>({.min_value = 0, .max_value = 1000}),
+                           {.min_size = 0, .max_size = 50}));
 
         std::vector<int> elements(s.begin(), s.end());
         std::set<int> unique(elements.begin(), elements.end());
@@ -213,9 +211,9 @@ TEST(CollectionProperties, SetHasNoDuplicates) {
 
 TEST(CollectionProperties, UniqueVectorHasNoDuplicates) {
     hegel::hegel([] {
-        auto v = vectors(integers<int>({.min_value = 0, .max_value = 10000}),
-                         {.min_size = 0, .max_size = 100, .unique = true})
-                     .generate();
+        auto v = draw(
+            vectors(integers<int>({.min_value = 0, .max_value = 10000}),
+                    {.min_size = 0, .max_size = 100, .unique = true}));
 
         std::set<int> unique(v.begin(), v.end());
 
@@ -226,9 +224,9 @@ TEST(CollectionProperties, UniqueVectorHasNoDuplicates) {
 
 TEST(CollectionProperties, MapKeysAreUnique) {
     hegel::hegel([] {
-        auto m = dictionaries(text({.min_size = 1, .max_size = 20}),
-                              integers<int>(), {.min_size = 0, .max_size = 20})
-                     .generate();
+        auto m =
+            draw(dictionaries(text({.min_size = 1, .max_size = 20}),
+                              integers<int>(), {.min_size = 0, .max_size = 20}));
 
         std::vector<std::string> keys;
         for (const auto& [k, v] : m) {
@@ -243,9 +241,9 @@ TEST(CollectionProperties, MapKeysAreUnique) {
 
 TEST(CollectionProperties, VectorSumIsOrderIndependent) {
     hegel::hegel([] {
-        auto v = vectors(integers<int>({.min_value = -1000, .max_value = 1000}),
-                         {.min_size = 0, .max_size = 50})
-                     .generate();
+        auto v = draw(
+            vectors(integers<int>({.min_value = -1000, .max_value = 1000}),
+                    {.min_size = 0, .max_size = 50}));
 
         int64_t sum1 = std::accumulate(v.begin(), v.end(), int64_t{0});
 
@@ -266,7 +264,7 @@ TEST(CollectionProperties, VectorSumIsOrderIndependent) {
 
 TEST(NumericProperties, AbsoluteValueIsNonNegative) {
     hegel::hegel([] {
-        auto x = integers<int32_t>().generate();
+        auto x = draw(integers<int32_t>());
         // Avoid INT_MIN which has no positive counterpart
         assume(x != std::numeric_limits<int32_t>::min());
         note("Testing abs(" + std::to_string(x) + ")");
@@ -277,8 +275,8 @@ TEST(NumericProperties, AbsoluteValueIsNonNegative) {
 
 TEST(NumericProperties, MaxIsGreaterOrEqual) {
     hegel::hegel([] {
-        auto x = integers<int>().generate();
-        auto y = integers<int>().generate();
+        auto x = draw(integers<int>());
+        auto y = draw(integers<int>());
         note("Testing max(" + std::to_string(x) + ", " + std::to_string(y) +
              ")");
 
@@ -291,8 +289,8 @@ TEST(NumericProperties, MaxIsGreaterOrEqual) {
 
 TEST(NumericProperties, MinIsLessOrEqual) {
     hegel::hegel([] {
-        auto x = integers<int>().generate();
-        auto y = integers<int>().generate();
+        auto x = draw(integers<int>());
+        auto y = draw(integers<int>());
 
         int m = std::min(x, y);
         ASSERT_LE(m, x) << "Min should be <= first argument";
@@ -303,9 +301,9 @@ TEST(NumericProperties, MinIsLessOrEqual) {
 
 TEST(NumericProperties, ClampIsInRange) {
     hegel::hegel([] {
-        auto lo = integers<int>({.min_value = -100, .max_value = 0}).generate();
-        auto hi = integers<int>({.min_value = 0, .max_value = 100}).generate();
-        auto x = integers<int>().generate();
+        auto lo = draw(integers<int>({.min_value = -100, .max_value = 0}));
+        auto hi = draw(integers<int>({.min_value = 0, .max_value = 100}));
+        auto x = draw(integers<int>());
 
         if (lo > hi)
             std::swap(lo, hi);
@@ -323,7 +321,7 @@ TEST(NumericProperties, ClampIsInRange) {
 
 TEST(RoundTrip, IntToStringToInt) {
     hegel::hegel([] {
-        auto x = integers<int>().generate();
+        auto x = draw(integers<int>());
         note("Testing round-trip for " + std::to_string(x));
 
         std::string s = std::to_string(x);
@@ -337,7 +335,7 @@ TEST(RoundTrip, DoubleToStringToDouble) {
     hegel::hegel([] {
         // Use bounded floats to avoid special values
         auto x =
-            floats<double>({.min_value = -1e10, .max_value = 1e10}).generate();
+            draw(floats<double>({.min_value = -1e10, .max_value = 1e10}));
 
         // Skip special values that may be generated despite bounds
         if (std::isnan(x) || std::isinf(x)) {
@@ -381,7 +379,7 @@ TEST(DataStructureProperties, PointDistanceIsNonNegative) {
         auto gen = builds<Point>(
             integers<int>({.min_value = -1000, .max_value = 1000}),
             integers<int>({.min_value = -1000, .max_value = 1000}));
-        auto p = gen.generate();
+        auto p = draw(gen);
         note("Testing point (" + std::to_string(p.x) + ", " +
              std::to_string(p.y) + ")");
 
@@ -394,7 +392,7 @@ TEST(DataStructureProperties, PointDistanceIsNonNegative) {
 
 TEST(DataStructureProperties, OptionalHasValueOrNot) {
     hegel::hegel([] {
-        auto opt = optional_(integers<int>()).generate();
+        auto opt = draw(optional_(integers<int>()));
 
         // This is a tautology, but demonstrates optional generation
         ASSERT_TRUE(opt.has_value() || !opt.has_value())
@@ -418,7 +416,7 @@ TEST(FilterMapProperties, FilteredValuesMatchPredicate) {
             integers<int>({.min_value = 0, .max_value = 100}).filter([](int x) {
                 return x % 2 == 0;
             });
-        auto x = gen.generate();
+        auto x = draw(gen);
 
         ASSERT_EQ(x % 2, 0) << "Filtered values should be even";
         ASSERT_GE(x, 0) << "Value should be in original range";
@@ -432,7 +430,7 @@ TEST(FilterMapProperties, MappedValuesAreTransformed) {
             integers<int>({.min_value = 1, .max_value = 10}).map([](int x) {
                 return x * x;
             });
-        auto x = gen.generate();
+        auto x = draw(gen);
 
         // Result should be a perfect square between 1 and 100
         int root = static_cast<int>(std::sqrt(x));

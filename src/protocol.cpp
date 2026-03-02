@@ -1,8 +1,10 @@
 #include <protocol.h>
 
+#include <algorithm>
 #include <arpa/inet.h>
 #include <array>
 #include <cerrno>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -21,6 +23,20 @@ namespace hegel::impl::protocol {
 
     void set_protocol_debug(bool enabled) { protocol_debug_ = enabled; }
     bool protocol_debug_enabled() { return protocol_debug_; }
+
+    static bool is_protocol_debug_env() {
+        const char* val = std::getenv("HEGEL_PROTOCOL_DEBUG");
+        if (!val)
+            return false;
+        std::string v(val);
+        std::transform(v.begin(), v.end(), v.begin(), ::tolower);
+        return v == "1" || v == "true";
+    }
+
+    void init_protocol_debug(options::Verbosity verbosity) {
+        set_protocol_debug(verbosity == options::Verbosity::Debug ||
+                           is_protocol_debug_env());
+    }
 
     // =============================================================================
     // CRC32 (table-driven, polynomial 0xEDB88320)

@@ -149,7 +149,7 @@ add_library(hegel
     src/hegel.cpp
     src/generators.cpp
     src/socket.cpp
-    src/run_state.cpp
+    src/data.cpp
     src/internal.cpp
     src/protocol.cpp
     src/connection.cpp

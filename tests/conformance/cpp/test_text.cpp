@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
         [=]() {
             auto gen = hegel::generators::text(
                 {.min_size = min_size, .max_size = max_size});
-            auto value = gen.generate();
+            auto value = hegel::draw(gen);
             conformance::write_metrics({{"length", count_codepoints(value)}});
         },
         {.test_cases = test_cases});

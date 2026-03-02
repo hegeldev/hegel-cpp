@@ -11,8 +11,8 @@ namespace hegel::generators {
 
     Generator<std::monostate> nulls() {
         nlohmann::json schema = {{"type", "null"}};
-        return from_function<std::monostate>([]() { return std::monostate{}; },
-                                             std::move(schema));
+        return from_function<std::monostate>(
+            [](TestCaseData*) { return std::monostate{}; }, std::move(schema));
     }
 
     Generator<bool> booleans() {
@@ -42,9 +42,9 @@ namespace hegel::generators {
             schema["max_size"] = *params.max_size;
 
         return from_function<std::vector<uint8_t>>(
-            [schema]() -> std::vector<uint8_t> {
+            [schema](TestCaseData* data) -> std::vector<uint8_t> {
                 nlohmann::json response =
-                    internal::communicate_with_socket(schema);
+                    internal::communicate_with_socket(schema, data);
                 if (!response.contains("result")) {
                     throw std::runtime_error(
                         "Server response missing 'result' field");

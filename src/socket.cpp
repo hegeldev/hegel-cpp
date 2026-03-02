@@ -1,15 +1,12 @@
 #include <connection.h>
-#include <cstdlib>
 #include <hegel/internal.h>
-#include <hegel/options.h>
 #include <iostream>
 #include <protocol.h>
-#include <run_state.h>
 #include <socket.h>
 #include <stdexcept>
+#include <data.h>
 #include <thread>
 
-#include <algorithm>
 #include <chrono>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -20,47 +17,6 @@
 // Socket Communication
 // =============================================================================
 namespace hegel::impl::socket {
-    // =============================================================================
-    // Thread-local State
-    // =============================================================================
-    static thread_local Connection* embedded_conn_ = nullptr;
-    static thread_local uint32_t embedded_data_channel_ = 0;
-    static thread_local bool test_aborted_ = false;
-
-    // =============================================================================
-    // Functions
-    // =============================================================================
-    static bool is_protocol_debug_env() {
-        const char* val = std::getenv("HEGEL_PROTOCOL_DEBUG");
-        if (!val)
-            return false;
-        std::string v(val);
-        std::transform(v.begin(), v.end(), v.begin(), ::tolower);
-        return v == "1" || v == "true";
-    }
-
-    void set_embedded_connection(Connection* conn, uint32_t data_channel,
-                                 options::Verbosity verbosity) {
-        embedded_conn_ = conn;
-        embedded_data_channel_ = data_channel;
-        protocol::set_protocol_debug(verbosity == options::Verbosity::Debug ||
-                                     is_protocol_debug_env());
-        test_aborted_ = false;
-    }
-
-    void clear_embedded_connection() {
-        embedded_conn_ = nullptr;
-        embedded_data_channel_ = 0;
-    }
-
-    Connection* get_embedded_connection() { return embedded_conn_; }
-
-    uint32_t get_embedded_data_channel() { return embedded_data_channel_; }
-
-    bool is_test_aborted() { return test_aborted_; }
-
-    void set_test_aborted(bool v) { test_aborted_ = v; }
-
     // =============================================================================
     // Socket Setup
     // =============================================================================
@@ -103,14 +59,11 @@ namespace hegel::impl::socket {
 } // namespace hegel::impl::socket
 
 namespace hegel::internal {
-    nlohmann::json communicate_with_socket(const nlohmann::json& schema) {
-        auto* conn = impl::socket::get_embedded_connection();
-        uint32_t data_channel = impl::socket::get_embedded_data_channel();
-
-        if (!conn) {
-            throw std::runtime_error(
-                "generate() cannot be called outside of a Hegel test");
-        }
+    nlohmann::json
+    communicate_with_socket(const nlohmann::json& schema,
+                            impl::data::TestCaseData* data) {
+        auto* conn = data->connection;
+        uint32_t data_channel = data->data_channel;
 
         // Build generate request as CBOR
         nlohmann::json request = {{"command", "generate"}, {"schema", schema}};
@@ -130,7 +83,7 @@ namespace hegel::internal {
         if (response.contains("error")) {
             std::string error_type = response.value("type", "");
             if (error_type == "StopTest" || error_type == "Overflow") {
-                impl::socket::set_test_aborted(true);
+                data->test_aborted = true;
                 internal::stop_test();
             }
             std::string error_msg = response["error"].is_string()
@@ -140,7 +93,7 @@ namespace hegel::internal {
         }
 
         // Auto-log generated value during final replay (counterexample)
-        if (impl::run_state::is_last_run()) {
+        if (data->is_last_run) {
             if (response.contains("result")) {
                 std::cerr << "Generated: " << response["result"].dump() << "\n";
             }
