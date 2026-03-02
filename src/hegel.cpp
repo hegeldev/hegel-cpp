@@ -5,13 +5,13 @@
 #include <hegel/hegel.h>
 
 #include <connection.h>
+#include <data.h>
 #include <filesystem>
 #include <functional>
 #include <iostream>
 #include <protocol.h>
 #include <socket.h>
 #include <stdexcept>
-#include <data.h>
 #include <thread>
 
 #include <cerrno>

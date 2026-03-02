@@ -180,8 +180,8 @@ TEST(StringProperties, SubstringIsContained) {
         auto s = draw(text({.min_size = 5, .max_size = 100}));
         assume(s.size() >= 5);
 
-        auto start = draw(
-            integers<size_t>({.min_value = 0, .max_value = s.size() - 1}));
+        auto start =
+            draw(integers<size_t>({.min_value = 0, .max_value = s.size() - 1}));
         auto len = draw(
             integers<size_t>({.min_value = 1, .max_value = s.size() - start}));
 
@@ -211,9 +211,9 @@ TEST(CollectionProperties, SetHasNoDuplicates) {
 
 TEST(CollectionProperties, UniqueVectorHasNoDuplicates) {
     hegel::hegel([] {
-        auto v = draw(
-            vectors(integers<int>({.min_value = 0, .max_value = 10000}),
-                    {.min_size = 0, .max_size = 100, .unique = true}));
+        auto v =
+            draw(vectors(integers<int>({.min_value = 0, .max_value = 10000}),
+                         {.min_size = 0, .max_size = 100, .unique = true}));
 
         std::set<int> unique(v.begin(), v.end());
 
@@ -224,9 +224,9 @@ TEST(CollectionProperties, UniqueVectorHasNoDuplicates) {
 
 TEST(CollectionProperties, MapKeysAreUnique) {
     hegel::hegel([] {
-        auto m =
-            draw(dictionaries(text({.min_size = 1, .max_size = 20}),
-                              integers<int>(), {.min_size = 0, .max_size = 20}));
+        auto m = draw(dictionaries(text({.min_size = 1, .max_size = 20}),
+                                   integers<int>(),
+                                   {.min_size = 0, .max_size = 20}));
 
         std::vector<std::string> keys;
         for (const auto& [k, v] : m) {
@@ -241,9 +241,9 @@ TEST(CollectionProperties, MapKeysAreUnique) {
 
 TEST(CollectionProperties, VectorSumIsOrderIndependent) {
     hegel::hegel([] {
-        auto v = draw(
-            vectors(integers<int>({.min_value = -1000, .max_value = 1000}),
-                    {.min_size = 0, .max_size = 50}));
+        auto v =
+            draw(vectors(integers<int>({.min_value = -1000, .max_value = 1000}),
+                         {.min_size = 0, .max_size = 50}));
 
         int64_t sum1 = std::accumulate(v.begin(), v.end(), int64_t{0});
 
@@ -334,8 +334,7 @@ TEST(RoundTrip, IntToStringToInt) {
 TEST(RoundTrip, DoubleToStringToDouble) {
     hegel::hegel([] {
         // Use bounded floats to avoid special values
-        auto x =
-            draw(floats<double>({.min_value = -1e10, .max_value = 1e10}));
+        auto x = draw(floats<double>({.min_value = -1e10, .max_value = 1e10}));
 
         // Skip special values that may be generated despite bounds
         if (std::isnan(x) || std::isinf(x)) {

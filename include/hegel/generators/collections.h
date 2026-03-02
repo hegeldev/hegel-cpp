@@ -126,31 +126,29 @@ namespace hegel::generators {
 
             auto vec_gen = from_schema<std::vector<T>>(std::move(schema));
 
-            return from_function<std::set<T>>(
-                [vec_gen](TestCaseData* data) {
-                    auto vec = vec_gen.do_draw(data);
-                    return std::set<T>(vec.begin(), vec.end());
-                });
+            return from_function<std::set<T>>([vec_gen](TestCaseData* data) {
+                auto vec = vec_gen.do_draw(data);
+                return std::set<T>(vec.begin(), vec.end());
+            });
         }
 
         size_t max_size = params.max_size.value_or(20);
         auto length_gen = integers<size_t>(
             {.min_value = params.min_size, .max_value = max_size});
 
-        return from_function<std::set<T>>(
-            [elements, length_gen](TestCaseData* data) {
-                size_t target_len = length_gen.do_draw(data);
-                std::set<T> result;
+        return from_function<std::set<T>>([elements,
+                                           length_gen](TestCaseData* data) {
+            size_t target_len = length_gen.do_draw(data);
+            std::set<T> result;
 
-                size_t attempts = 0;
-                while (result.size() < target_len &&
-                       attempts < target_len * 10) {
-                    result.insert(elements.do_draw(data));
-                    ++attempts;
-                }
+            size_t attempts = 0;
+            while (result.size() < target_len && attempts < target_len * 10) {
+                result.insert(elements.do_draw(data));
+                ++attempts;
+            }
 
-                return result;
-            });
+            return result;
+        });
     }
 
     /**
@@ -194,11 +192,10 @@ namespace hegel::generators {
             auto vec_gen =
                 from_schema<std::vector<std::pair<K, V>>>(std::move(schema));
 
-            return from_function<std::map<K, V>>(
-                [vec_gen](TestCaseData* data) {
-                    auto pairs = vec_gen.do_draw(data);
-                    return std::map<K, V>(pairs.begin(), pairs.end());
-                });
+            return from_function<std::map<K, V>>([vec_gen](TestCaseData* data) {
+                auto pairs = vec_gen.do_draw(data);
+                return std::map<K, V>(pairs.begin(), pairs.end());
+            });
         }
 
         size_t max_size = params.max_size.value_or(20);
@@ -239,8 +236,7 @@ namespace hegel::generators {
         }
 
         template <typename Tuple, typename GenTuple, size_t... Is>
-        Tuple draw_tuple_impl(const GenTuple& gens,
-                              std::index_sequence<Is...>,
+        Tuple draw_tuple_impl(const GenTuple& gens, std::index_sequence<Is...>,
                               TestCaseData* data) {
             return Tuple{std::get<Is>(gens).do_draw(data)...};
         }
@@ -274,11 +270,10 @@ namespace hegel::generators {
 
         auto gen_tuple = std::make_tuple(std::move(gens)...);
 
-        return from_function<ResultTuple>(
-            [gen_tuple](TestCaseData* data) {
-                return detail::draw_tuple_impl<ResultTuple>(
-                    gen_tuple, std::index_sequence_for<Ts...>{}, data);
-            });
+        return from_function<ResultTuple>([gen_tuple](TestCaseData* data) {
+            return detail::draw_tuple_impl<ResultTuple>(
+                gen_tuple, std::index_sequence_for<Ts...>{}, data);
+        });
     }
 
     /// @}

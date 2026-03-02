@@ -173,8 +173,10 @@ namespace hegel::generators {
             using ResultType = std::invoke_result_t<F, T>;
             auto inner = inner_;
             return from_function<ResultType>(
-                [inner, f = std::forward<F>(f)](TestCaseData* data)
-                    -> ResultType { return f(inner->do_draw(data)); });
+                [inner,
+                 f = std::forward<F>(f)](TestCaseData* data) -> ResultType {
+                    return f(inner->do_draw(data));
+                });
         }
 
         /**
@@ -218,8 +220,8 @@ namespace hegel::generators {
                     std::declval<TestCaseData*>()));
             auto inner = inner_;
             return from_function<ResultType>(
-                [inner, f = std::forward<F>(f)](TestCaseData* data)
-                    -> ResultType {
+                [inner,
+                 f = std::forward<F>(f)](TestCaseData* data) -> ResultType {
                     return f(inner->do_draw(data)).do_draw(data);
                 });
         }
@@ -282,8 +284,7 @@ namespace hegel::generators {
       public:
         /// @brief Create from a function
         /// @param fn function that will be called repeatedly to draw values
-        explicit FunctionBackedGenerator(
-            std::function<T(TestCaseData*)> fn)
+        explicit FunctionBackedGenerator(std::function<T(TestCaseData*)> fn)
             : gen_fn_(std::move(fn)) {}
 
         /// @brief Create from a function
