@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2 - 2026-03-03
+
+Replace `gen.generate()` with `draw(gen)`.
+
+
 ## 0.2.1 - 2026-03-02
 
 Better error message when calling `assume()` or `note()` outside of a test.
