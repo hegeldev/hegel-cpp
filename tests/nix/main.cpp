@@ -13,8 +13,8 @@ void test_nix_integration_canary() {
 
 void test_addition_is_commutative() {
     hegel::hegel([] {
-        auto x = integers<int>().generate();
-        auto y = integers<int>().generate();
+        auto x = hegel::draw(integers<int>());
+        auto y = hegel::draw(integers<int>());
         note("x = " + std::to_string(x) + ", y = " + std::to_string(y));
 
         if (x + y != y + x) {
@@ -26,7 +26,7 @@ void test_addition_is_commutative() {
 
 void test_zero_is_identity() {
     hegel::hegel([] {
-        auto x = integers<int>().generate();
+        auto x = hegel::draw(integers<int>());
         note("x = " + std::to_string(x));
 
         if (x + 0 != x) {

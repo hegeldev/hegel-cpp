@@ -48,8 +48,8 @@ namespace hegel::generators {
             auto index_gen = integers<size_t>(
                 {.min_value = 0, .max_value = elements.size() - 1});
 
-            return from_function<T>([elements, index_gen]() {
-                size_t idx = index_gen.generate();
+            return from_function<T>([elements, index_gen](TestCaseData* data) {
+                size_t idx = index_gen.do_draw(data);
                 return elements[idx];
             });
         }
@@ -126,9 +126,9 @@ namespace hegel::generators {
         auto index_gen =
             integers<size_t>({.min_value = 0, .max_value = gens.size() - 1});
 
-        return from_function<T>([gens, index_gen]() {
-            size_t idx = index_gen.generate();
-            return gens[idx].generate();
+        return from_function<T>([gens, index_gen](TestCaseData* data) {
+            size_t idx = index_gen.do_draw(data);
+            return gens[idx].do_draw(data);
         });
     }
 
@@ -142,13 +142,14 @@ namespace hegel::generators {
     namespace detail {
 
         template <typename Variant, typename GenTuple, size_t I = 0>
-        Variant generate_variant_impl(const GenTuple& gens, size_t idx) {
+        Variant draw_variant_impl(const GenTuple& gens, size_t idx,
+                                  TestCaseData* data) {
             if constexpr (I < std::tuple_size_v<GenTuple>) {
                 if (idx == I) {
-                    return std::get<I>(gens).generate();
+                    return std::get<I>(gens).do_draw(data);
                 }
-                return generate_variant_impl<Variant, GenTuple, I + 1>(gens,
-                                                                       idx);
+                return draw_variant_impl<Variant, GenTuple, I + 1>(gens, idx,
+                                                                   data);
             } else {
                 return Variant{};
             }
@@ -179,11 +180,12 @@ namespace hegel::generators {
         auto gen_tuple = std::make_tuple(std::move(gens)...);
         auto index_gen = integers<size_t>({.min_value = 0, .max_value = N - 1});
 
-        return from_function<ResultVariant>([gen_tuple, index_gen]() {
-            size_t idx = index_gen.generate();
-            return detail::generate_variant_impl<ResultVariant,
-                                                 decltype(gen_tuple)>(gen_tuple,
-                                                                      idx);
+        return from_function<ResultVariant>([gen_tuple,
+                                             index_gen](TestCaseData* data) {
+            size_t idx = index_gen.do_draw(data);
+            return detail::draw_variant_impl<ResultVariant,
+                                             decltype(gen_tuple)>(gen_tuple,
+                                                                  idx, data);
         });
     }
 
@@ -207,12 +209,12 @@ namespace hegel::generators {
         auto bool_gen = booleans();
 
         return from_function<std::optional<T>>(
-            [gen, bool_gen]() -> std::optional<T> {
-                bool is_none = bool_gen.generate();
+            [gen, bool_gen](TestCaseData* data) -> std::optional<T> {
+                bool is_none = bool_gen.do_draw(data);
                 if (is_none) {
                     return std::nullopt;
                 }
-                return gen.generate();
+                return gen.do_draw(data);
             });
     }
 

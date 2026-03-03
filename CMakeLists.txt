@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(hegel-cpp VERSION 0.2.1 LANGUAGES CXX)
+project(hegel-cpp VERSION 0.2.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -149,7 +149,7 @@ add_library(hegel
     src/hegel.cpp
     src/generators.cpp
     src/socket.cpp
-    src/run_state.cpp
+    src/data.cpp
     src/internal.cpp
     src/protocol.cpp
     src/connection.cpp

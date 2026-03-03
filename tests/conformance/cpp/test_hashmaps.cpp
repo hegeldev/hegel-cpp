@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
                         {.min_value = min_value, .max_value = max_value}),
                     {.min_size = min_size, .max_size = max_size});
 
-                auto dict = gen.generate();
+                auto dict = hegel::draw(gen);
 
                 metrics["size"] = dict.size();
                 if (!dict.empty()) {
@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
                         {.min_value = min_value, .max_value = max_value}),
                     {.min_size = min_size, .max_size = max_size});
 
-                auto dict = gen.generate();
+                auto dict = hegel::draw(gen);
 
                 metrics["size"] = dict.size();
                 if (!dict.empty()) {

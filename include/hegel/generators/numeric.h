@@ -103,7 +103,7 @@ namespace hegel::generators {
         bool nan = params.allow_nan.value_or(!has_min && !has_max);
         bool inf = params.allow_infinity.value_or(!has_min || !has_max);
 
-        nlohmann::json schema = {{"type", "number"},
+        nlohmann::json schema = {{"type", "float"},
                                  {"exclude_min", params.exclude_min},
                                  {"exclude_max", params.exclude_max},
                                  {"allow_nan", nan},

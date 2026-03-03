@@ -5,10 +5,11 @@
 #include <hegel/hegel.h>
 
 #include <connection.h>
+#include <data.h>
 #include <filesystem>
 #include <functional>
 #include <iostream>
-#include <run_state.h>
+#include <protocol.h>
 #include <socket.h>
 #include <stdexcept>
 #include <thread>
@@ -84,6 +85,8 @@ namespace hegel {
         // Version negotiation
         conn.handshake();
 
+        impl::protocol::init_protocol_debug(options.verbosity);
+
         // Create test channel and start test
         uint32_t test_channel = conn.create_channel();
         uint64_t test_cases = options.test_cases.value_or(100);
@@ -118,10 +121,15 @@ namespace hegel {
                     payload.value("channel_id", uint32_t{0});
                 bool is_final = payload.value("is_final", false);
 
-                // Set thread-local state
-                impl::run_state::set_is_last_run(is_final);
-                impl::socket::set_embedded_connection(&conn, data_channel,
-                                                      options.verbosity);
+                // Set up per-test-case state
+                impl::data::TestCaseData data{
+                    .connection = &conn,
+                    .data_channel = data_channel,
+                    .is_last_run = is_final,
+                    .test_aborted = false,
+                    .verbosity = options.verbosity,
+                };
+                impl::data::set(&data);
 
                 // Run test
                 std::string status = "VALID";
@@ -138,11 +146,11 @@ namespace hegel {
                     origin = "Unknown exception";
                 }
 
-                // Clear thread-local state
-                impl::socket::clear_embedded_connection();
+                // Clear per-test-case state
+                impl::data::clear();
 
                 // Send mark_complete and close data channel (unless aborted)
-                if (!impl::socket::is_test_aborted()) {
+                if (!data.test_aborted) {
                     nlohmann::json origin_value = origin.empty()
                                                       ? nlohmann::json(nullptr)
                                                       : nlohmann::json(origin);
@@ -152,7 +160,6 @@ namespace hegel {
                     conn.request(data_channel, mark);
                     conn.close_channel(data_channel);
                 }
-                impl::socket::set_test_aborted(false);
 
                 if (is_final) {
                     final_replays_remaining--;
