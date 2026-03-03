@@ -59,12 +59,12 @@ namespace hegel::generators {
      *   Faster but only the seed shrinks.
      *
      * @code{.cpp}
-     *  auto rng = randoms().generate();
+     *  auto rng = hegel::draw(randoms());
      *  // Use with non-rejection sampling based <random> distribution
      *  std::uniform_real_distribution<double> dist(0.0, 10.0);
      *  double uniform_value = dist(rng);
      *  // Using true random
-     *  auto rng = randoms({ .use_true_random = true }).generate();
+     *  auto rng = hegel::draw(randoms({ .use_true_random = true }));
      *  std::lognormal_distribution<double> dist(0.0, 10.0);
      *  double uniform_value = dist(rng);
      * @endcode
@@ -74,7 +74,8 @@ namespace hegel::generators {
         using result_type = uint32_t;
 
         /// @brief Construct in artificial mode (per-value requests to hegeld)
-        HegelRandom();
+        /// @param data The current test case data for communicating with hegeld
+        explicit HegelRandom(impl::data::TestCaseData* data);
 
         /// @brief Construct in true-random mode with the given seed
         explicit HegelRandom(uint64_t seed);
@@ -91,6 +92,7 @@ namespace hegel::generators {
         result_type operator()();
 
       private:
+        impl::data::TestCaseData* data_ = nullptr;
         std::optional<std::mt19937> engine_;
     };
 
@@ -109,7 +111,7 @@ namespace hegel::generators {
      *
      * @code{.cpp}
      * using namespace hegel::generators;
-     * auto rng = randoms().generate();
+     * auto rng = hegel::draw(randoms());
      *
      * std::lognormal_distribution<double> dist(0.0, 1.0);
      * double value = dist(rng);

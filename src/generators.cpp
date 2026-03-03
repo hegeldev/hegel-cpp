@@ -109,9 +109,11 @@ namespace hegel::generators {
     // Random strategy implementations
     // =============================================================================
 
-    HegelRandom::HegelRandom() : engine_(std::nullopt) {}
+    HegelRandom::HegelRandom(TestCaseData* data)
+        : data_(data), engine_(std::nullopt) {}
 
-    HegelRandom::HegelRandom(uint64_t seed) : engine_(std::mt19937(seed)) {}
+    HegelRandom::HegelRandom(uint64_t seed)
+        : data_(nullptr), engine_(std::mt19937(seed)) {}
 
     HegelRandom::result_type HegelRandom::operator()() {
         if (engine_) {
@@ -124,7 +126,7 @@ namespace hegel::generators {
             {"max_value", std::numeric_limits<uint32_t>::max()}};
 
         nlohmann::json response =
-            internal::communicate_with_socket(schema);
+            internal::communicate_with_socket(schema, data_);
         if (!response.contains("result")) {
             throw std::runtime_error(
                 "Server response missing 'result' field");
@@ -136,13 +138,15 @@ namespace hegel::generators {
         if (params.use_true_random) {
             auto seed_gen = integers<uint64_t>();
             return from_function<HegelRandom>(
-                [seed_gen]() -> HegelRandom {
-                    auto seed = seed_gen.generate();
+                [seed_gen](TestCaseData* data) -> HegelRandom {
+                    auto seed = seed_gen.do_draw(data);
                     return HegelRandom(seed);
                 });
         }
         return from_function<HegelRandom>(
-            []() -> HegelRandom { return HegelRandom(); });
+            [](TestCaseData* data) -> HegelRandom {
+                return HegelRandom(data);
+            });
     }
 
 } // namespace hegel::generators
