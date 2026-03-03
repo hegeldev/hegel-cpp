@@ -48,11 +48,10 @@ namespace hegel::generators {
             auto index_gen = integers<size_t>(
                 {.min_value = 0, .max_value = elements.size() - 1});
 
-            return from_function<T>(
-                [elements, index_gen](TestCaseData* data) {
-                    size_t idx = index_gen.do_draw(data);
-                    return elements[idx];
-                });
+            return from_function<T>([elements, index_gen](TestCaseData* data) {
+                size_t idx = index_gen.do_draw(data);
+                return elements[idx];
+            });
         }
     }
 
@@ -150,7 +149,7 @@ namespace hegel::generators {
                     return std::get<I>(gens).do_draw(data);
                 }
                 return draw_variant_impl<Variant, GenTuple, I + 1>(gens, idx,
-                                                                    data);
+                                                                   data);
             } else {
                 return Variant{};
             }
@@ -181,13 +180,13 @@ namespace hegel::generators {
         auto gen_tuple = std::make_tuple(std::move(gens)...);
         auto index_gen = integers<size_t>({.min_value = 0, .max_value = N - 1});
 
-        return from_function<ResultVariant>(
-            [gen_tuple, index_gen](TestCaseData* data) {
-                size_t idx = index_gen.do_draw(data);
-                return detail::draw_variant_impl<ResultVariant,
-                                                 decltype(gen_tuple)>(
-                    gen_tuple, idx, data);
-            });
+        return from_function<ResultVariant>([gen_tuple,
+                                             index_gen](TestCaseData* data) {
+            size_t idx = index_gen.do_draw(data);
+            return detail::draw_variant_impl<ResultVariant,
+                                             decltype(gen_tuple)>(gen_tuple,
+                                                                  idx, data);
+        });
     }
 
     /**

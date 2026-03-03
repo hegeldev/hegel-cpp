@@ -1,10 +1,10 @@
 #include <connection.h>
+#include <data.h>
 #include <hegel/internal.h>
 #include <iostream>
 #include <protocol.h>
 #include <socket.h>
 #include <stdexcept>
-#include <data.h>
 #include <thread>
 
 #include <chrono>
@@ -59,9 +59,8 @@ namespace hegel::impl::socket {
 } // namespace hegel::impl::socket
 
 namespace hegel::internal {
-    nlohmann::json
-    communicate_with_socket(const nlohmann::json& schema,
-                            impl::data::TestCaseData* data) {
+    nlohmann::json communicate_with_socket(const nlohmann::json& schema,
+                                           impl::data::TestCaseData* data) {
         auto* conn = data->connection;
         uint32_t data_channel = data->data_channel;
 
