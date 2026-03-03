@@ -38,6 +38,15 @@ target_link_libraries(test_hegel
 )
 gtest_discover_tests(test_hegel)
 
+
+add_executable(test_random test_random.cpp)
+target_link_libraries(test_random
+    PRIVATE
+        hegel
+        GTest::gtest_main
+)
+gtest_discover_tests(test_random)
+
 add_executable(gtest_failure_test gtest_failure_test.cpp)
 target_link_libraries(gtest_failure_test 
     PRIVATE 
