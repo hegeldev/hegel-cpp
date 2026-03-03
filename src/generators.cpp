@@ -128,8 +128,7 @@ namespace hegel::generators {
         nlohmann::json response =
             internal::communicate_with_socket(schema, data_);
         if (!response.contains("result")) {
-            throw std::runtime_error(
-                "Server response missing 'result' field");
+            throw std::runtime_error("Server response missing 'result' field");
         }
         return response["result"].get<uint32_t>();
     }

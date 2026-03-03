@@ -44,16 +44,18 @@ namespace hegel::generators {
      * Two modes:
      * - **Artificial (default)**: Each `operator()` call sends a generate
      *   request to hegeld, enabling per-value shrinking.
-     *   Artificial mode may cause the following Hypothesis health check failure:
-     * 
-     *   "The smallest natural input for this test is very large. 
-     *   This makes it difficult for Hypothesis to generate good inputs, 
+     *   Artificial mode may cause the following Hypothesis health check
+     * failure:
+     *
+     *   "The smallest natural input for this test is very large.
+     *   This makes it difficult for Hypothesis to generate good inputs,
      *   especially when trying to shrink failing inputs"
-     * 
-     *   when used with distributions implemented via rejection sampling, such as
-     *   std::normal_distribution. Alternatively, you may set use_true_random = true
-     *   to continue using distributions from the standard library, but if you require
-     *   artificial randomness, you must use the Hegel version of the distribution.
+     *
+     *   when used with distributions implemented via rejection sampling, such
+     * as std::normal_distribution. Alternatively, you may set use_true_random =
+     * true to continue using distributions from the standard library, but if
+     * you require artificial randomness, you must use the Hegel version of the
+     * distribution.
      * - **True random**: A single seed is generated via Hypothesis at
      *   construction time, then all calls use a local `std::mt19937`.
      *   Faster but only the seed shrinks.
