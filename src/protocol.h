@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <hegel/options.h>
 #include <nlohmann/json.hpp>
 #include <vector>
 
@@ -61,5 +62,8 @@ namespace hegel::impl::protocol {
 
     void set_protocol_debug(bool enabled);
     bool protocol_debug_enabled();
+
+    /// Initialize protocol debug flag from verbosity + env var
+    void init_protocol_debug(options::Verbosity verbosity);
 
 } // namespace hegel::impl::protocol

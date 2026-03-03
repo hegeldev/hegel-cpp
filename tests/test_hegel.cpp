@@ -4,14 +4,14 @@
 
 using namespace hegel::generators;
 
-TEST(OutsideContext, GenerateThrowsOutsideTest) {
+TEST(OutsideContext, DrawThrowsOutsideTest) {
     try {
-        booleans().generate();
-        FAIL() << "Expected exception when calling generate() outside a Hegel "
+        hegel::draw(booleans());
+        FAIL() << "Expected exception when calling draw() outside a Hegel "
                   "test";
     } catch (const std::runtime_error& e) {
         EXPECT_NE(std::string(e.what()).find(
-                      "cannot be called outside of a Hegel test"),
+                      "draw() cannot be called outside of a Hegel test"),
                   std::string::npos)
             << "Unexpected error message: " << e.what();
     }

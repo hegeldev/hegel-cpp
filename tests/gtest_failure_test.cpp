@@ -18,7 +18,7 @@ TEST(FailureReporting, ShowsCounterexample) {
     hegel::hegel(
         [] {
             int x =
-                integers<int>({.min_value = 0, .max_value = 100}).generate();
+                hegel::draw(integers<int>({.min_value = 0, .max_value = 100}));
             // This assertion will fail when x > 50, which should happen quickly
             // The failure message should include the actual value as a
             // counterexample

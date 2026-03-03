@@ -18,9 +18,14 @@
 
 #include <nlohmann/json.hpp>
 
+namespace hegel::impl::data {
+    struct TestCaseData;
+}
+
 /// @cond INTERNAL
 namespace hegel::internal {
-    nlohmann::json communicate_with_socket(const nlohmann::json& schema);
+    nlohmann::json communicate_with_socket(const nlohmann::json& schema,
+                                           impl::data::TestCaseData* data);
 
     /* Print a note message for debugging.
      *
@@ -37,7 +42,7 @@ namespace hegel::internal {
      * discarded, not counted as a test failure.
      *
      * @code{.cpp}
-     * auto person = person_gen.generate();
+     * auto person = hegel::draw(person_gen);
      * hegel::assume(person.age >= 18);  // Only test adults
      * // ... rest of test
      * @endcode
@@ -62,6 +67,9 @@ namespace hegel::internal {
      * @note This function never returns.
      */
     [[noreturn]] void stop_test();
+
+    /// @brief Get the current test case data, or nullptr if not in a test.
+    impl::data::TestCaseData* get_test_case_data();
 
 } // namespace hegel::internal
 /// @endcond

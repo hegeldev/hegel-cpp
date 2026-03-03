@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
         [=]() {
             auto gen = hegel::generators::binary(
                 {.min_size = min_size, .max_size = max_size});
-            std::vector<uint8_t> value = gen.generate();
+            std::vector<uint8_t> value = hegel::draw(gen);
             conformance::write_metrics({{"length", value.size()}});
         },
         {.test_cases = test_cases});

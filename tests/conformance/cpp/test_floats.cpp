@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
                 .allow_nan = allow_nan,
                 .allow_infinity = allow_infinity,
             });
-            auto value = gen.generate();
+            auto value = hegel::draw(gen);
             conformance::write_metrics({
                 {"value", value},
                 {"is_nan", std::isnan(value)},

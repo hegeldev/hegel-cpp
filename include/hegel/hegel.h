@@ -11,14 +11,16 @@
  * @code{.cpp}
  * #include "hegel/hegel.h"
  *
- * // Type-based generation (schema derived via reflect-cpp)
- * auto gen = hegel::default_generator<Person>();
- * Person p = gen.generate();
+ * hegel::hegel([]() {
+ *     using namespace hegel::generators;
  *
- * // Generator-based generation
- * using namespace hegel::generators;
- * auto int_gen = integers<int>({.min_value = 0, .max_value = 100});
- * int value = int_gen.generate();
+ *     // Type-based generation (schema derived via reflect-cpp)
+ *     Person p = hegel::draw(hegel::generators::default_generator<Person>());
+ *
+ *     // Generator-based generation
+ *     int value = hegel::draw(integers<int>({.min_value = 0, .max_value =
+ * 100}));
+ * });
  * @endcode
  *
  * @section deps Dependencies
@@ -57,6 +59,34 @@ namespace hegel {
     using internal::stop_test;
 
     /**
+     * @brief Draw a random value from a generator.
+     *
+     * This is the primary way to get values from generators inside a
+     * Hegel test. Throws if called outside of a hegel() test.
+     *
+     * @code{.cpp}
+     * hegel::hegel([]() {
+     *     using namespace hegel::generators;
+     *     auto x = hegel::draw(integers<int>({.min_value = 0, .max_value =
+     * 100}));
+     * });
+     * @endcode
+     *
+     * @tparam T The generated value type
+     * @param gen The generator to draw from
+     * @return A randomly generated value of type T
+     * @throws std::runtime_error if called outside of a Hegel test
+     */
+    template <typename T> T draw(const generators::Generator<T>& gen) {
+        auto* data = internal::get_test_case_data();
+        if (!data) {
+            throw std::runtime_error(
+                "draw() cannot be called outside of a Hegel test");
+        }
+        return gen.do_draw(data);
+    }
+
+    /**
      * @brief Run property-based tests using Hegel in embedded mode.
      *
      * This is the recommended way to run property tests. The function:
@@ -72,9 +102,9 @@ namespace hegel {
      * int main() {
      *     hegel::hegel([]() {
      *         using namespace hegel::generators;
-     *         auto x = integers<int>({.min_value = 0, .max_value =
-     * 100}).generate(); auto y = integers<int>({.min_value = 0, .max_value =
-     * 100}).generate();
+     *         auto x = hegel::draw(integers<int>({.min_value = 0, .max_value =
+     * 100})); auto y = hegel::draw(integers<int>({.min_value = 0, .max_value =
+     * 100}));
      *
      *         // Property: x + y >= x (true for non-negative integers)
      *         if (x + y < x) {
