@@ -40,6 +40,7 @@
 #include "generators/formats.h"
 #include "generators/numeric.h"
 #include "generators/primitives.h"
+#include "generators/random.h"
 #include "generators/strings.h"
 
 #include <functional>

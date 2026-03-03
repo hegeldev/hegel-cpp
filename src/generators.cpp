@@ -1,6 +1,7 @@
 #include <hegel/core.h>
 #include <hegel/generators/formats.h>
 #include <hegel/generators/primitives.h>
+#include <hegel/generators/random.h>
 #include <hegel/generators/strings.h>
 
 // =============================================================================
@@ -102,6 +103,46 @@ namespace hegel::generators {
 
     Generator<std::string> datetimes() {
         return from_schema<std::string>(nlohmann::json{{"type", "datetime"}});
+    }
+
+    // =============================================================================
+    // Random strategy implementations
+    // =============================================================================
+
+    HegelRandom::HegelRandom() : engine_(std::nullopt) {}
+
+    HegelRandom::HegelRandom(uint64_t seed) : engine_(std::mt19937(seed)) {}
+
+    HegelRandom::result_type HegelRandom::operator()() {
+        if (engine_) {
+            return (*engine_)();
+        }
+
+        nlohmann::json schema = {
+            {"type", "integer"},
+            {"min_value", std::numeric_limits<uint32_t>::min()},
+            {"max_value", std::numeric_limits<uint32_t>::max()}};
+
+        nlohmann::json response =
+            internal::communicate_with_socket(schema);
+        if (!response.contains("result")) {
+            throw std::runtime_error(
+                "Server response missing 'result' field");
+        }
+        return response["result"].get<uint32_t>();
+    }
+
+    Generator<HegelRandom> randoms(RandomsParams params) {
+        if (params.use_true_random) {
+            auto seed_gen = integers<uint64_t>();
+            return from_function<HegelRandom>(
+                [seed_gen]() -> HegelRandom {
+                    auto seed = seed_gen.generate();
+                    return HegelRandom(seed);
+                });
+        }
+        return from_function<HegelRandom>(
+            []() -> HegelRandom { return HegelRandom(); });
     }
 
 } // namespace hegel::generators

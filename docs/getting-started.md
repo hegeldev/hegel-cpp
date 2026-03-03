@@ -257,6 +257,36 @@ auto m = dictionaries(text(), integers<int>(), {.max_size = 3}).generate();
 auto pair = tuples(integers<int>(), text()).generate();
 ```
 
+### Random
+
+Two modes:
+- **Artificial (default)**: Each `operator()` call sends a generate
+  request to hegeld, enabling per-value shrinking.
+  Artificial mode may cause the following Hypothesis health check failure:
+
+  "The smallest natural input for this test is very large. 
+  This makes it difficult for Hypothesis to generate good inputs, 
+  especially when trying to shrink failing inputs"
+
+  when used with distributions implemented via rejection sampling, such as
+  std::normal_distribution. Alternatively, you may set use_true_random = true
+  to continue using distributions from the standard library, but if you require
+  artificial randomness, you must use the Hegel version of the distribution.
+- **True random**: A single seed is generated via Hypothesis at
+  construction time, then all calls use a local `std::mt19937`.
+  Faster but only the seed shrinks.
+
+```cpp
+auto rng = randoms().generate();
+// Use with non-rejection sampling based <random> distribution
+std::uniform_real_distribution<double> dist(0.0, 10.0);
+double uniform_value = dist(rng);
+// Using true random
+auto rng = randoms({ .use_true_random = true }).generate();
+std::lognormal_distribution<double> dist(0.0, 10.0);
+double uniform_value = dist(rng);
+```
+
 ### Combinators
 
 ```cpp
