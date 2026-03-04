@@ -60,7 +60,7 @@ def set_version(cmake_file: Path, new_version: str) -> None:
 
 def add_changelog(path: Path, *, version: str, content: str) -> None:
     date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    entry = f"## {version} - {date}\n\n{content}\n"
+    entry = f"## {version} - {date}\n\n{content}"
 
     existing = path.read_text()
     assert existing.startswith("# Changelog")
