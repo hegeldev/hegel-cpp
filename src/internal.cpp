@@ -1,6 +1,9 @@
 #include <data.h>
 #include <hegel/internal.h>
+
 #include <iostream>
+#include <stdexcept>
+#include <string>
 
 // Note: the socket part of this namespace is implemented in socket.cpp
 

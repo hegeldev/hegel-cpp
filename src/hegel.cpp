@@ -3,6 +3,8 @@
  */
 
 #include <hegel/hegel.h>
+#include <hegel/internal.h>
+#include <hegel/options.h>
 
 #include <connection.h>
 #include <data.h>
@@ -12,10 +14,16 @@
 #include <protocol.h>
 #include <socket.h>
 #include <stdexcept>
-#include <thread>
 
 #include <cerrno>
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <exception>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -92,7 +100,8 @@ namespace hegel {
         uint64_t test_cases = options.test_cases.value_or(100);
 
         nlohmann::json run_test_msg = {{"command", "run_test"},
-                                       {"name", "test"},
+                                        // TODO bad. very bad.
+                                       {"database_key", "test"},
                                        {"test_cases", test_cases},
                                        {"channel_id", test_channel}};
         if (options.seed.has_value()) {

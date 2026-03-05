@@ -1,0 +1,11 @@
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  misc-include-cleaner,
+  performance-*,
+  -performance-avoid-endl,
+  readability-redundant-*,
+
+HeaderFilterRegex: '.*/include/hegel/.*|.*/src/.*'

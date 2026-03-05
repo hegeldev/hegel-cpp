@@ -17,8 +17,17 @@ test:
     cmake --build build
     ctest --test-dir build/tests --output-on-failure -j{{ num_cpus() }}
 
-lint: format-check
-    @echo "Lint checks passed (format-check)"
+tidy:
+    cmake -B build
+    cmake --build build -j{{ num_cpus() }}
+    find src -name '*.cpp' | xargs -P{{ num_cpus() }} -I{} clang-tidy -p build {}
+
+check-tidy:
+    cmake -B build
+    cmake --build build -j{{ num_cpus() }}
+    find src -name '*.cpp' | xargs -P{{ num_cpus() }} -I{} clang-tidy -p build -warnings-as-errors='*' {}
+
+lint: format-check check-tidy
 
 check:
     cmake -B build

@@ -1,13 +1,20 @@
 #include <protocol.h>
 
 #include <algorithm>
-#include <arpa/inet.h>
 #include <array>
 #include <cerrno>
+#include <cctype>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <hegel/options.h>
 #include <iostream>
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
