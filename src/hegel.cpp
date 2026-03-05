@@ -192,9 +192,9 @@ namespace hegel {
                         std::string ascii_string(
                             reinterpret_cast<const char*>(byte_sequence.data()),
                             byte_sequence.size());
-                        std::cerr << std::format(
-                            "Failure blob for reproduction: {}\n",
-                            ascii_string);
+                        std::cerr
+                            << "Failure blob for reproduction: " << ascii_string
+                            << "\n";
                     }
                 }
                 if (final_replays_remaining <= 0) {
