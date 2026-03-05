@@ -29,8 +29,8 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: python .github/scripts/release.py check "$BASE_REF"
 
-  format:
-    name: format
+  lint:
+    name: lint
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -41,10 +41,14 @@ jobs:
       - name: Install just
         run: sudo apt-get update && sudo apt-get install -y just
       - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
-      - name: format
+      - name: Check formatting
         run: |
           just format
           git diff --exit-code
+      - name: Install zizmor
+        run: pip install zizmor
+      - name: Run zizmor
+        run: zizmor --format plain .github/
 
   build-and-test:
     name: ${{ matrix.compiler }} ${{ matrix.stdlib && format('(with {0})', matrix.stdlib) || '' }} ${{ matrix.extra_label || '' }}
@@ -218,24 +222,10 @@ jobs:
       - name: Build docs
         run: cmake --build build --target docs
 
-  zizmor:
-    name: zizmor
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          persist-credentials: false
-      - name: Install zizmor
-        run: pipx install zizmor
-      - name: Run zizmor
-        run: zizmor --format plain .github/
-
   release:
     name: release
     if: github.event_name == 'push' && github.repository == 'antithesishq/hegel-cpp'
-    needs: [format, build-and-test, conformance, nix, docs, zizmor]
+    needs: [lint, build-and-test, conformance, nix, docs]
     runs-on: ubuntu-latest
     permissions:
       contents: write
