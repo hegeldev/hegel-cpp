@@ -140,7 +140,6 @@ jobs:
           CMAKE_FLAGS: ${{ matrix.cmake_flags }}
         run: |
           cmake -B build \
-            -DHEGEL_BUILD_DOCS=OFF \
             -DCMAKE_C_COMPILER=$CC \
             -DCMAKE_CXX_COMPILER=$CXX \
             $CMAKE_FLAGS
@@ -175,7 +174,7 @@ jobs:
         run: pip install git+ssh://git@github.com/antithesishq/hegel.git
 
       - name: Configure CMake
-        run: cmake -B build -DHEGEL_BUILD_DOCS=OFF
+        run: cmake -B build
 
       - name: Build
         run: cmake --build build -j$(nproc)
