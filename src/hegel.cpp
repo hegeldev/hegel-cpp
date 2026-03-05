@@ -100,6 +100,13 @@ namespace hegel {
         } else {
             run_test_msg["seed"] = nullptr;
         }
+
+        if (options.failure_blob.has_value()) {
+            run_test_msg["failure_blob"] = options.failure_blob.value();
+        } else {
+            run_test_msg["failure_blob"] = nullptr;
+        }
+
         conn.request(0, run_test_msg);
 
         // Event loop on test channel
@@ -178,6 +185,11 @@ namespace hegel {
                     test_passed = results.value("passed", true);
                     final_replays_remaining =
                         results.value("interesting_test_cases", 0);
+                    if (options.print_blob && results.contains("failure_blob")) {
+                        auto byte_sequence = results["failure_blob"].get_binary();
+                        std::string ascii_string(reinterpret_cast<const char*>(byte_sequence.data()), byte_sequence.size());
+                        std::cerr << std::format("Failure blob for reproduction: {}\n", ascii_string);
+                    }
                 }
                 if (final_replays_remaining <= 0) {
                     done = true;
@@ -191,7 +203,10 @@ namespace hegel {
         int status;
         waitpid(child_pid, &status, 0);
         std::filesystem::remove_all(temp_dir);
-
+        
+        if (test_passed && options.failure_blob.has_value()) {
+            throw std::runtime_error("Failure blob did not cause a failure");
+        }
         if (!test_passed) {
             throw std::runtime_error("Hegel test failed");
         }
