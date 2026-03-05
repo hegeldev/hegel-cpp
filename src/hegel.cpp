@@ -94,7 +94,8 @@ namespace hegel {
         nlohmann::json run_test_msg = {{"command", "run_test"},
                                        {"name", "test"},
                                        {"test_cases", test_cases},
-                                       {"channel_id", test_channel}};
+                                       {"channel_id", test_channel},
+                                       {"print_blob", options.print_blob}};
         if (options.seed.has_value()) {
             run_test_msg["seed"] = options.seed.value();
         } else {
@@ -185,10 +186,15 @@ namespace hegel {
                     test_passed = results.value("passed", true);
                     final_replays_remaining =
                         results.value("interesting_test_cases", 0);
-                    if (options.print_blob && results.contains("failure_blob")) {
-                        auto byte_sequence = results["failure_blob"].get_binary();
-                        std::string ascii_string(reinterpret_cast<const char*>(byte_sequence.data()), byte_sequence.size());
-                        std::cerr << std::format("Failure blob for reproduction: {}\n", ascii_string);
+                    if (results.contains("failure_blob")) {
+                        auto byte_sequence =
+                            results["failure_blob"].get_binary();
+                        std::string ascii_string(
+                            reinterpret_cast<const char*>(byte_sequence.data()),
+                            byte_sequence.size());
+                        std::cerr << std::format(
+                            "Failure blob for reproduction: {}\n",
+                            ascii_string);
                     }
                 }
                 if (final_replays_remaining <= 0) {
@@ -203,7 +209,7 @@ namespace hegel {
         int status;
         waitpid(child_pid, &status, 0);
         std::filesystem::remove_all(temp_dir);
-        
+
         if (test_passed && options.failure_blob.has_value()) {
             throw std::runtime_error("Failure blob did not cause a failure");
         }
