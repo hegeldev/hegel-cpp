@@ -123,6 +123,6 @@ namespace hegel {
      * @throws std::runtime_error if any test case fails
      * @see HegelOptions for configuration options
      */
-    void hegel(std::function<void()> test_fn,
-               options::HegelOptions options = {});
+    void hegel(const std::function<void()>& test_fn,
+               const options::HegelOptions& options = {});
 } // namespace hegel

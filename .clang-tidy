@@ -1,0 +1,23 @@
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  misc-include-cleaner,
+  performance-*,
+  -performance-avoid-endl,
+  -performance-enum-size,
+  readability-redundant-*,
+
+HeaderFilterRegex: '.*/include/hegel/.*|.*/src/.*'
+
+# include-cleaner traces symbols to the header where they're actually defined,
+# not the public header they're supposed to be included from. This causes false
+# positives for:
+# - nlohmann/json: types defined in nlohmann/detail/... internal headers
+# - glibc (linux): POSIX symbols defined in bits/... internal headers
+# - Apple libc (macOS): POSIX symbols defined in sys/_... internal headers
+# - arpa/inet.h: flagged as unused once its symbols are ignored via the above
+CheckOptions:
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: "nlohmann/.*;bits/.*;sys/_.*;arpa/.*"
