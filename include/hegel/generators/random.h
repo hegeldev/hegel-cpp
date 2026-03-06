@@ -55,11 +55,10 @@ namespace hegel::generators {
       public:
         using result_type = uint32_t;
 
-        /// @brief Construct in artificial mode
-        /// @param data The current test case data
+        // Construct in artificial mode
         explicit HegelRandom(impl::data::TestCaseData* data);
 
-        /// @brief Construct in true-random mode with the given seed
+        // Construct in true-random mode
         explicit HegelRandom(uint64_t seed);
 
         static constexpr result_type min() {
