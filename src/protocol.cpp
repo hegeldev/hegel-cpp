@@ -82,7 +82,8 @@ namespace hegel::impl::protocol {
     static void write_all(int fd, const uint8_t* data, size_t len) {
         size_t total = 0;
         while (total < len) {
-            ssize_t n = send(fd, data + total, len - total, MSG_NOSIGNAL); // NOLINT(misc-include-cleaner)
+            ssize_t n = send(fd, data + total, len - total,
+                             MSG_NOSIGNAL); // NOLINT(misc-include-cleaner)
             if (n < 0) {
                 if (errno == EINTR)
                     continue;
