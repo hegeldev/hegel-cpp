@@ -11,9 +11,12 @@ Checks: >
 
 HeaderFilterRegex: '.*/include/hegel/.*|.*/src/.*'
 
-# nlohmann/json declares types in internal detail headers, so include-cleaner
-# traces e.g. nlohmann::json to nlohmann/detail/... instead of nlohmann/json.hpp,
-# causing false alarm "unused include" and "missing include" warnings.
+# include-cleaner traces symbols to the header where they're actually defined,
+# not the public header they're supposed to be included from. This causes false
+# positives for:
+# - nlohmann/json: types defined in nlohmann/detail/... internal headers
+# - glibc (linux) / libc (macos): symbols defined in bits/... internal headers
+# - arpa/inet.h: flagged as unused once its symbols are ignored via the above
 CheckOptions:
   - key: misc-include-cleaner.IgnoreHeaders
-    value: "nlohmann/.*"
+    value: "nlohmann/.*;bits/.*;sys/_.*;arpa/.*"

@@ -68,7 +68,7 @@ namespace hegel {
     static void hegel_parent(const std::string& socket_path,
                              const std::function<void()>& test_fn,
                              const std::string& temp_dir,
-                             pid_t child_pid, // NOLINT(misc-include-cleaner)
+                             pid_t child_pid,
                              const options::HegelOptions& options) {
         // Wait for hegeld to create the socket
         if (!impl::socket::wait_for_socket(socket_path, 10000)) {
