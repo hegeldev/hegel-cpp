@@ -67,16 +67,19 @@ namespace hegel {
     // =============================================================================
     static void hegel_parent(const std::string& socket_path,
                              const std::function<void()>& test_fn,
-                             const std::string& temp_dir, pid_t child_pid,
+                             const std::string& temp_dir,
+                             pid_t child_pid, // NOLINT(misc-include-cleaner)
                              const options::HegelOptions& options) {
         // Wait for hegeld to create the socket
         if (!impl::socket::wait_for_socket(socket_path, 10000)) {
             // Check if child died
             int status;
+            // NOLINTNEXTLINE(misc-include-cleaner)
             if (waitpid(child_pid, &status, WNOHANG) == child_pid) {
                 std::filesystem::remove_all(temp_dir);
                 throw std::runtime_error(
                     "Hegel server exited before creating socket (exit code " +
+                    // NOLINTNEXTLINE(misc-include-cleaner)
                     std::to_string(WIFEXITED(status) ? WEXITSTATUS(status)
                                                      : -1) +
                     ")");
