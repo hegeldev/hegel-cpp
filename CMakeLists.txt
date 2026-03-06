@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(hegel-cpp VERSION 0.2.2 LANGUAGES CXX)
+project(hegel-cpp VERSION 0.2.3 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -7,7 +7,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(HEGEL_BUILD_TESTS "Build unit tests" ON)
 option(HEGEL_BUILD_CONFORMANCE "Build conformance test binary" ON)
-option(HEGEL_BUILD_DOCS "Build documentation" ON)
+option(HEGEL_BUILD_DOCS "Build documentation" OFF)
 option(HEGEL_COVERAGE "Build with coverage instrumentation" OFF)
 
 if(HEGEL_COVERAGE)

@@ -60,7 +60,7 @@ def set_version(cmake_file: Path, new_version: str) -> None:
 
 def add_changelog(path: Path, *, version: str, content: str) -> None:
     date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    entry = f"## {version} - {date}\n\n{content}\n"
+    entry = f"## {version} - {date}\n\n{content}"
 
     existing = path.read_text()
     assert existing.startswith("# Changelog")
@@ -82,8 +82,8 @@ def check(base_ref: str) -> None:
     release_file = ROOT / "RELEASE.md"
     if not release_file.exists():
         lines = [
-            "Changes to source files require a RELEASE.md file.",
-            "You can find an example in RELEASE-sample.md.",
+            "Every pull request to hegel-cpp requires a RELEASE.md file.",
+            "You can find an example and instructions in RELEASE-sample.md.",
         ]
         width = max(len(l) for l in lines) + 6
         border = " ".join("*" * ((width + 1) // 2))

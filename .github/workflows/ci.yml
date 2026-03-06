@@ -29,8 +29,8 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: python .github/scripts/release.py check "$BASE_REF"
 
-  format:
-    name: format
+  lint:
+    name: lint
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,13 +38,37 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
-      - name: Install just
-        run: sudo apt-get update && sudo apt-get install -y just
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y just clang-tidy-18
+
       - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
-      - name: format
+      - name: Check formatting
         run: |
           just format
           git diff --exit-code
+
+      - name: Install zizmor
+        run: pip install zizmor
+      - name: Run zizmor
+        run: zizmor --format plain .github/
+
+      - uses: ./.github/actions/base
+        with:
+          ssh-key: ${{ secrets.HEGEL_DEPLOY_KEY }}
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.13'
+
+      - name: Install hegel
+        run: pip install git+ssh://git@github.com/antithesishq/hegel.git
+
+      - name: Run clang-tidy
+        run: just check-tidy
 
   build-and-test:
     name: ${{ matrix.compiler }} ${{ matrix.stdlib && format('(with {0})', matrix.stdlib) || '' }} ${{ matrix.extra_label || '' }}
@@ -116,7 +140,6 @@ jobs:
           CMAKE_FLAGS: ${{ matrix.cmake_flags }}
         run: |
           cmake -B build \
-            -DHEGEL_BUILD_DOCS=OFF \
             -DCMAKE_C_COMPILER=$CC \
             -DCMAKE_CXX_COMPILER=$CXX \
             $CMAKE_FLAGS
@@ -125,7 +148,7 @@ jobs:
         run: cmake --build build -j$(nproc)
 
       - name: Run property tests
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure -j$(nproc)
 
   conformance:
     name: conformance
@@ -151,7 +174,7 @@ jobs:
         run: pip install git+ssh://git@github.com/antithesishq/hegel.git
 
       - name: Configure CMake
-        run: cmake -B build -DHEGEL_BUILD_DOCS=OFF
+        run: cmake -B build
 
       - name: Build
         run: cmake --build build -j$(nproc)
@@ -218,24 +241,10 @@ jobs:
       - name: Build docs
         run: cmake --build build --target docs
 
-  zizmor:
-    name: zizmor
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          persist-credentials: false
-      - name: Install zizmor
-        run: pipx install zizmor
-      - name: Run zizmor
-        run: zizmor --format plain .github/
-
   release:
     name: release
     if: github.event_name == 'push' && github.repository == 'antithesishq/hegel-cpp'
-    needs: [format, build-and-test, conformance, nix, docs, zizmor]
+    needs: [lint, build-and-test, conformance, nix, docs]
     runs-on: ubuntu-latest
     permissions:
       contents: write
