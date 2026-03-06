@@ -3,6 +3,7 @@
 #include <hegel/generators/primitives.h>
 #include <hegel/generators/random.h>
 #include <hegel/generators/strings.h>
+#include <hegel/generators/numeric.h>
 #include <hegel/internal.h>
 
 #include <cstdint>
@@ -11,6 +12,10 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include <optional>
+#include <random>
+#include <limits>
+
 
 // =============================================================================
 // Primitive strategy implementations
