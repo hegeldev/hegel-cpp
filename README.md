@@ -28,14 +28,17 @@ already have it on your PATH, it will be used instead.
 ## Quick Start
 
 ```cpp
-#include "hegel/hegel.h"
+#include <hegel/hegel.h>
+#include <stdexcept>
+
+using namespace hegel::generators;
 
 int main() {
     hegel::hegel([]() {
-        using namespace hegel::generators;
-        auto x = integers<int>().generate();
-        auto y = integers<int>().generate();
+        auto x = hegel::draw(integers<int>());
+        auto y = hegel::draw(integers<int>());
 
+        // Addition should be commutative
         if (x + y != y + x) {
             throw std::runtime_error("commutativity violated");
         }
