@@ -36,7 +36,6 @@ check:
     just format-check
 
 build-conformance: build
-    @echo "Conformance tests built as part of main build"
 
 conformance: build-conformance
     uv run --with "hegel @ git+ssh://git@github.com/antithesishq/hegel.git" \
