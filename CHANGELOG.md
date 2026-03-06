@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3 - 2026-03-06
+
+Add clang-tidy and fix resulting lints.
+
 ## 0.2.2 - 2026-03-03
 
 Replace `gen.generate()` with `draw(gen)`.
