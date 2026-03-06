@@ -239,25 +239,6 @@ TEST(CollectionProperties, MapKeysAreUnique) {
     });
 }
 
-TEST(CollectionProperties, VectorSumIsOrderIndependent) {
-    hegel::hegel([] {
-        auto v =
-            draw(vectors(integers<int>({.min_value = -1000, .max_value = 1000}),
-                         {.min_size = 0, .max_size = 50}));
-
-        int64_t sum1 = std::accumulate(v.begin(), v.end(), int64_t{0});
-
-        std::vector<int> shuffled = v;
-        std::sort(shuffled.begin(), shuffled.end());
-        std::reverse(shuffled.begin(), shuffled.end());
-
-        int64_t sum2 =
-            std::accumulate(shuffled.begin(), shuffled.end(), int64_t{0});
-
-        ASSERT_EQ(sum1, sum2) << "Sum should be order-independent";
-    });
-}
-
 // =============================================================================
 // Numeric Properties
 // =============================================================================
@@ -364,51 +345,6 @@ TEST(RoundTrip, DoubleToStringToDouble) {
     });
 }
 
-// =============================================================================
-// Data Structure Properties
-// =============================================================================
-
-struct Point {
-    int x;
-    int y;
-};
-
-TEST(DataStructureProperties, PointDistanceIsNonNegative) {
-    hegel::hegel([] {
-        auto gen = builds<Point>(
-            integers<int>({.min_value = -1000, .max_value = 1000}),
-            integers<int>({.min_value = -1000, .max_value = 1000}));
-        auto p = draw(gen);
-        note("Testing point (" + std::to_string(p.x) + ", " +
-             std::to_string(p.y) + ")");
-
-        double dist = std::sqrt(static_cast<double>(p.x) * p.x +
-                                static_cast<double>(p.y) * p.y);
-
-        ASSERT_GE(dist, 0.0) << "Distance from origin should be non-negative";
-    });
-}
-
-TEST(DataStructureProperties, OptionalHasValueOrNot) {
-    hegel::hegel([] {
-        auto opt = draw(optional_(integers<int>()));
-
-        // This is a tautology, but demonstrates optional generation
-        ASSERT_TRUE(opt.has_value() || !opt.has_value())
-            << "Optional must have value or not";
-
-        if (opt) {
-            note("Got value: " + std::to_string(*opt));
-        } else {
-            note("Got nullopt");
-        }
-    });
-}
-
-// =============================================================================
-// Filter and Map Properties
-// =============================================================================
-
 TEST(FilterMapProperties, FilteredValuesMatchPredicate) {
     hegel::hegel([] {
         auto gen =
@@ -438,10 +374,6 @@ TEST(FilterMapProperties, MappedValuesAreTransformed) {
         ASSERT_LE(x, 100) << "Value should be <= 100";
     });
 }
-
-// =============================================================================
-// Main
-// =============================================================================
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

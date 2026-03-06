@@ -14,7 +14,6 @@
 #include <protocol.h>
 #include <socket.h>
 #include <stdexcept>
-#include <thread>
 
 #include <cerrno>
 #include <cstdint>
@@ -22,7 +21,6 @@
 #include <cstring>
 #include <exception>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include <sys/wait.h>
@@ -49,6 +47,7 @@ namespace hegel {
             options::verbosity_to_string(options.verbosity)};
 
         std::vector<char*> argv;
+        argv.reserve(args.size() + 1);
         for (auto& a : args) {
             argv.push_back(const_cast<char*>(a.c_str()));
         }
@@ -67,8 +66,9 @@ namespace hegel {
     // Parent Process (SDK Client)
     // =============================================================================
     static void hegel_parent(const std::string& socket_path,
-                             std::function<void()> test_fn,
-                             std::string temp_dir, pid_t child_pid,
+                             const std::function<void()>& test_fn,
+                             const std::string& temp_dir,
+                             pid_t child_pid, // NOLINT(misc-include-cleaner)
                              const options::HegelOptions& options) {
         // Wait for hegeld to create the socket
         if (!impl::socket::wait_for_socket(socket_path, 10000)) {
@@ -101,7 +101,8 @@ namespace hegel {
         uint64_t test_cases = options.test_cases.value_or(100);
 
         nlohmann::json run_test_msg = {{"command", "run_test"},
-                                       {"name", "test"},
+                                       // TODO bad. very bad.
+                                       {"database_key", "test"},
                                        {"test_cases", test_cases},
                                        {"channel_id", test_channel}};
         if (options.seed.has_value()) {
@@ -209,7 +210,8 @@ namespace hegel {
     // =============================================================================
     // Entry Point
     // =============================================================================
-    void hegel(std::function<void()> test_fn, options::HegelOptions options) {
+    void hegel(const std::function<void()>& test_fn,
+               const options::HegelOptions& options) {
         // Create temp directory with socket path
         std::string temp_dir = "/tmp/hegel_" + std::to_string(getpid());
         std::filesystem::create_directories(temp_dir);
@@ -225,8 +227,7 @@ namespace hegel {
         if (pid == 0) {
             hegel_child(socket_path, options);
         } else {
-            hegel_parent(socket_path, std::move(test_fn), std::move(temp_dir),
-                         pid, options);
+            hegel_parent(socket_path, test_fn, temp_dir, pid, options);
         }
     }
 } // namespace hegel

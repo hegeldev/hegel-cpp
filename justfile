@@ -10,11 +10,11 @@ setup:
 
 build:
     cmake -B build -DCMAKE_BUILD_TYPE=Release
-    cmake --build build
+    cmake --build build -j{{ num_cpus() }}
 
 test:
     cmake -B build
-    cmake --build build
+    cmake --build build -j{{ num_cpus() }}
     ctest --test-dir build/tests --output-on-failure -j{{ num_cpus() }}
 
 tidy:
@@ -31,7 +31,7 @@ lint: format-check check-tidy
 
 check:
     cmake -B build
-    cmake --build build
+    cmake --build build -j{{ num_cpus() }}
     ctest --test-dir build/tests --output-on-failure -j{{ num_cpus() }}
     just format-check
 

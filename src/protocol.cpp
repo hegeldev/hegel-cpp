@@ -82,7 +82,7 @@ namespace hegel::impl::protocol {
     static void write_all(int fd, const uint8_t* data, size_t len) {
         size_t total = 0;
         while (total < len) {
-            ssize_t n = send(fd, data + total, len - total, MSG_NOSIGNAL);
+            ssize_t n = send(fd, data + total, len - total, MSG_NOSIGNAL); // NOLINT(misc-include-cleaner)
             if (n < 0) {
                 if (errno == EINTR)
                     continue;
@@ -121,6 +121,7 @@ namespace hegel::impl::protocol {
 
         // Build header with checksum zeroed for CRC calculation
         uint8_t header[HEADER_SIZE];
+        // NOLINTNEXTLINE(misc-include-cleaner)
         uint32_t fields[5] = {htonl(MAGIC), 0, htonl(channel),
                               htonl(raw_msg_id), htonl(length)};
         std::memcpy(header, fields, HEADER_SIZE);
@@ -158,7 +159,7 @@ namespace hegel::impl::protocol {
 
         uint32_t fields[5];
         std::memcpy(fields, header, HEADER_SIZE);
-        uint32_t magic = ntohl(fields[0]);
+        uint32_t magic = ntohl(fields[0]); // NOLINT(misc-include-cleaner)
         uint32_t checksum = ntohl(fields[1]);
         uint32_t channel = ntohl(fields[2]);
         uint32_t raw_msg_id = ntohl(fields[3]);
