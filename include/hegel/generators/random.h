@@ -5,8 +5,7 @@
  * @brief Random engine integration with the C++ <random> library
  *
  * Provides HegelRandom, a class satisfying UniformRandomBitGenerator,
- * so it can be used with any std::random distribution (e.g.,
- * std::lognormal_distribution, std::normal_distribution).
+ * so it can be used with any std::random distribution.
  */
 
 #include <cstdint>
@@ -56,8 +55,8 @@ namespace hegel::generators {
       public:
         using result_type = uint32_t;
 
-        /// @brief Construct in artificial mode (per-value requests to hegeld)
-        /// @param data The current test case data for communicating with hegeld
+        /// @brief Construct in artificial mode
+        /// @param data The current test case data
         explicit HegelRandom(impl::data::TestCaseData* data);
 
         /// @brief Construct in true-random mode with the given seed
@@ -78,10 +77,6 @@ namespace hegel::generators {
         impl::data::TestCaseData* data_ = nullptr;
         std::optional<std::mt19937> engine_;
     };
-
-    // =============================================================================
-    // Factory function
-    // =============================================================================
 
     /// @name Random Strategies
     /// @{
