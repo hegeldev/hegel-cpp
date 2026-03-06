@@ -29,7 +29,8 @@ namespace hegel::generators {
      * @param elements Vector of values to sample from (must not be empty)
      * @return Generator that picks uniformly from elements
      */
-    template <typename T> Generator<T> sampled_from(std::vector<T> elements) {
+    template <typename T>
+    Generator<T> sampled_from(const std::vector<T>& elements) {
         if (elements.empty()) {
             throw std::invalid_argument(
                 "sampled_from requires a non-empty vector");
@@ -69,7 +70,7 @@ namespace hegel::generators {
         for (const char* s : elements) {
             strings.push_back(s);
         }
-        return sampled_from(std::move(strings));
+        return sampled_from(strings);
     }
 
     /// @cond INTERNAL

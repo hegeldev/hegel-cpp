@@ -10,24 +10,32 @@ setup:
 
 build:
     cmake -B build -DCMAKE_BUILD_TYPE=Release
-    cmake --build build
+    cmake --build build -j{{ num_cpus() }}
 
 test:
     cmake -B build
-    cmake --build build
+    cmake --build build -j{{ num_cpus() }}
     ctest --test-dir build/tests --output-on-failure -j{{ num_cpus() }}
 
-lint: format-check
-    @echo "Lint checks passed (format-check)"
+tidy:
+    cmake -B build
+    cmake --build build -j{{ num_cpus() }}
+    find src -name '*.cpp' | xargs -P{{ num_cpus() }} -I{} clang-tidy -p build {}
+
+check-tidy:
+    cmake -B build
+    cmake --build build -j{{ num_cpus() }}
+    find src -name '*.cpp' | xargs -P{{ num_cpus() }} -I{} clang-tidy -p build -warnings-as-errors='*' {}
+
+lint: format-check check-tidy
 
 check:
     cmake -B build
-    cmake --build build
+    cmake --build build -j{{ num_cpus() }}
     ctest --test-dir build/tests --output-on-failure -j{{ num_cpus() }}
     just format-check
 
 build-conformance: build
-    @echo "Conformance tests built as part of main build"
 
 conformance: build-conformance
     uv run --with "hegel @ git+ssh://git@github.com/antithesishq/hegel.git" \

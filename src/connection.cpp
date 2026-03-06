@@ -1,9 +1,12 @@
 #include <connection.h>
 #include <protocol.h>
 
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <unistd.h>
+#include <utility>
+#include <vector>
 
 // =============================================================================
 // Connection and Channel Multiplexing

@@ -2,6 +2,14 @@
 #include <hegel/generators/formats.h>
 #include <hegel/generators/primitives.h>
 #include <hegel/generators/strings.h>
+#include <hegel/internal.h>
+
+#include <cstdint>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <variant>
+#include <vector>
 
 // =============================================================================
 // Primitive strategy implementations

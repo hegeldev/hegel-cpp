@@ -7,7 +7,12 @@
 #include <stdexcept>
 #include <thread>
 
+#include <algorithm>
 #include <chrono>
+#include <cstdint>
+#include <nlohmann/json.hpp>
+#include <string>
+
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
