@@ -69,7 +69,7 @@ namespace hegel::impl {
                 std::string("hegel-cpp supports protocol versions ") +
                 MIN_PROTOCOL_VERSION + " through " + MAX_PROTOCOL_VERSION +
                 ", but got server version " + server_version +
-                ". Upgrading hegel-cpp or downgrading your hegel cli "
+                ". Upgrading hegel-cpp or downgrading your hegel server "
                 "might help.");
         }
     }

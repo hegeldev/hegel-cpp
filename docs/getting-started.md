@@ -25,8 +25,7 @@ FetchContent_MakeAvailable(hegel)
 target_link_libraries(your_target PRIVATE hegel)
 ```
 
-During the build, hegel-cpp will automatically install the `hegel` CLI
-(which provides the `hegeld` server) via `uv` if it is not already on your
+During the build, hegel-cpp will automatically install the `hegel` server via `uv` if it is not already on your
 PATH.
 
 Requirements: a C++20 compiler and CMake 3.14 or later.
