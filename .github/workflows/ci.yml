@@ -32,6 +32,7 @@ jobs:
   lint:
     name: lint
     runs-on: ubuntu-latest
+    environment: ci
     permissions:
       contents: read
     steps:
@@ -64,15 +65,13 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install hegel
-        run: pip install git+ssh://git@github.com/antithesishq/hegel.git
-
       - name: Run clang-tidy
         run: just check-tidy
 
   build-and-test:
     name: ${{ matrix.compiler }} ${{ matrix.stdlib && format('(with {0})', matrix.stdlib) || '' }} ${{ matrix.extra_label || '' }}
     runs-on: ubuntu-24.04
+    environment: ci
     permissions:
       contents: read
 
@@ -121,6 +120,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y $PACKAGES
 
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+
       - uses: ./.github/actions/base
         with:
           ssh-key: ${{ secrets.HEGEL_DEPLOY_KEY }}
@@ -129,9 +130,6 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.13'
-
-      - name: Install hegel
-        run: pip install git+ssh://git@github.com/antithesishq/hegel.git
 
       - name: Configure CMake
         env:
@@ -153,6 +151,7 @@ jobs:
   conformance:
     name: conformance
     runs-on: ubuntu-24.04
+    environment: ci
     permissions:
       contents: read
     steps:
@@ -160,6 +159,8 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
+
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
 
       - uses: ./.github/actions/base
         with:
@@ -170,8 +171,8 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install hegel
-        run: pip install git+ssh://git@github.com/antithesishq/hegel.git
+      - name: Install hegel (for conformance framework)
+        run: pip install "hegel @ git+ssh://git@github.com/antithesishq/hegel-core.git"
 
       - name: Configure CMake
         run: cmake -B build
@@ -182,12 +183,13 @@ jobs:
       - name: Run conformance tests
         timeout-minutes: 10
         run: |
-          pip install pytest
+          pip install pytest pytest-subtests
           pytest tests/conformance/test_conformance.py -v
 
   nix:
     name: nix
     runs-on: ubuntu-latest
+    environment: ci
     permissions:
       contents: read
     steps:
@@ -213,12 +215,15 @@ jobs:
   docs:
     name: docs
     runs-on: ubuntu-latest
+    environment: ci
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
+
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
 
       - uses: ./.github/actions/base
         with:
@@ -232,9 +237,6 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install hegel
-        run: pip install git+ssh://git@github.com/antithesishq/hegel.git
-
       - name: Configure CMake
         run: cmake -B build -DHEGEL_BUILD_DOCS=ON
 
@@ -246,6 +248,7 @@ jobs:
     if: github.event_name == 'push' && github.repository == 'antithesishq/hegel-cpp'
     needs: [lint, build-and-test, conformance, docs]
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: write
     steps:

@@ -8,4 +8,4 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-hegel = { git = "ssh://git@github.com/antithesishq/hegel" }
+hegel = { git = "ssh://git@github.com/antithesishq/hegel-core" }

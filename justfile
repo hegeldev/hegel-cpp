@@ -1,12 +1,6 @@
 setup:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ -n "${HEGEL_BINARY:-}" ]; then
-        mkdir -p "$HOME/.local/bin"
-        ln -sf "$HEGEL_BINARY" "$HOME/.local/bin/hegel"
-    else
-        uv tool install "hegel @ git+ssh://git@github.com/antithesishq/hegel.git"
-    fi
+    @echo "hegel is installed automatically during cmake configure."
+    @echo "To override, set HEGEL_CMD to the path of your hegel binary."
 
 build:
     cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -38,8 +32,8 @@ check:
 build-conformance: build
 
 conformance: build-conformance
-    uv run --with "hegel @ git+ssh://git@github.com/antithesishq/hegel.git" \
-        --with pytest --with hypothesis \
+    uv run --with "hegel @ git+ssh://git@github.com/antithesishq/hegel-core.git" \
+        --with pytest --with pytest-subtests --with hypothesis \
         pytest tests/conformance/test_conformance.py --durations=20 --durations-min=1.0
 
 docs:

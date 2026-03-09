@@ -22,8 +22,23 @@ FetchContent_MakeAvailable(hegel)
 target_link_libraries(your_target PRIVATE hegel)
 ```
 
-The `hegel` CLI is installed automatically during the CMake build. If you
-already have it on your PATH, it will be used instead.
+### Hegel server
+
+The SDK automatically manages the `hegel` server binary. During the CMake
+configure step it creates a project-local `.hegel/venv` virtualenv and installs
+the pinned version of [hegel-core](https://github.com/antithesishq/hegel-core)
+into it. Subsequent configures reuse the cached binary unless the pinned
+version changes.
+
+To use your own `hegel` binary instead (e.g. a local development build), set
+the `HEGEL_CMD` environment variable:
+
+```bash
+export HEGEL_CMD=/path/to/hegel
+```
+
+The SDK requires [`uv`](https://docs.astral.sh/uv/) on PATH for automatic
+server management.
 
 ## Quick Start
 
@@ -55,7 +70,8 @@ For a full walkthrough, see [docs/getting-started.md](docs/getting-started.md).
 
 ## Development
 
-Prerequisites: C++20 compiler, CMake 3.14+, [just](https://github.com/casey/just),
+Prerequisites: C++20 compiler, CMake 3.14+, [uv](https://docs.astral.sh/uv/),
+[just](https://github.com/casey/just),
 [clang-format](https://clang.llvm.org/docs/ClangFormat.html).
 
 ```bash

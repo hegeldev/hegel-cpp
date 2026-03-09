@@ -58,6 +58,24 @@ def set_version(cmake_file: Path, new_version: str) -> None:
     cmake_file.write_text(new_text)
 
 
+def pin_hegel_version(cmake_file: Path) -> None:
+    """Pin HEGEL_VERSION to the current HEAD of hegel-core main."""
+    sha = subprocess.check_output(
+        ["gh", "api", "repos/antithesishq/hegel-core/commits/main", "--jq", ".sha"],
+        text=True,
+    ).strip()
+
+    text = cmake_file.read_text()
+    new_text = re.sub(
+        r'^set\(HEGEL_VERSION ".*"\)',
+        f'set(HEGEL_VERSION "{sha}")',
+        text,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    cmake_file.write_text(new_text)
+
+
 def add_changelog(path: Path, *, version: str, content: str) -> None:
     date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     entry = f"## {version} - {date}\n\n{content}"
@@ -122,6 +140,7 @@ def release() -> None:
     new_version = bump_version(m.group(1), release_type)
 
     set_version(cmake_file, new_version)
+    pin_hegel_version(cmake_file)
 
     add_changelog(ROOT / "CHANGELOG.md", version=new_version, content=content)
 
