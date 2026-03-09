@@ -88,6 +88,7 @@
           cmakeFlags = (mkFetchContentFlags pkgs) ++ [
             (lib.cmakeFeature "HEGEL_BUILD_DOCS" "ON")
             (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
+            (lib.cmakeFeature "HEGEL_PATH" "${hegel.packages.${system}.default}/bin/hegel")
           ];
 
           doCheck = true;

@@ -38,7 +38,8 @@ namespace hegel {
     // =============================================================================
     static void hegel_child(const std::string& socket_path,
                             const options::HegelOptions& options) {
-        // Priority: HegelOptions.hegel_path > HEGEL_CMD env > compile-time default
+        // Priority: HegelOptions.hegel_path > HEGEL_CMD env > compile-time
+        // default
         std::string hegel_path;
         if (options.hegel_path.has_value()) {
             hegel_path = options.hegel_path.value();
