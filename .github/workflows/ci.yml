@@ -131,6 +131,9 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Install hegel
+        run: pip install "hegel @ git+ssh://git@github.com/antithesishq/hegel-core.git"
+
       - name: Configure CMake
         env:
           CC: ${{ matrix.cc }}
@@ -146,7 +149,9 @@ jobs:
         run: cmake --build build -j$(nproc)
 
       - name: Run property tests
-        run: ctest --test-dir build/tests --output-on-failure -j$(nproc)
+        env:
+          HEGEL_CMD: hegel
+        run: ctest --test-dir build --output-on-failure -j$(nproc)
 
   conformance:
     name: conformance
@@ -182,6 +187,8 @@ jobs:
 
       - name: Run conformance tests
         timeout-minutes: 10
+        env:
+          HEGEL_CMD: hegel
         run: |
           pip install pytest pytest-subtests
           pytest tests/conformance/test_conformance.py -v

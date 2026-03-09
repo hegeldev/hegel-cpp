@@ -18,73 +18,11 @@ endif()
 # =============================================================================
 # Hegel server binary
 # =============================================================================
-#
-# If HEGEL_PATH is set (e.g. by a nix build), use it directly.
-# Otherwise install the pinned version of hegel-core into .hegel/venv via uv.
-# The version file (.hegel/venv/hegel-version) caches the installed commit
-# so subsequent configures are fast.  Requires `uv` on PATH.
+# If HEGEL_PATH is set (e.g. by a nix build), use it as compile-time default.
+# Otherwise the SDK auto-installs at runtime via .hegel/venv.
 
 if(HEGEL_PATH)
-  set(HEGEL_BINARY_PATH "${HEGEL_PATH}")
-  message(STATUS "using provided hegel: ${HEGEL_BINARY_PATH}")
-else()
-  set(HEGEL_VERSION "6e327df2dd42553de12ace94cfbddfbbd9e4bf50")
-  set(HEGEL_PYTHON_VERSION "3.13")
-
-  set(HEGEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.hegel")
-  set(HEGEL_VENV_DIR "${HEGEL_DIR}/venv")
-  set(HEGEL_BINARY_PATH "${HEGEL_VENV_DIR}/bin/hegel")
-  set(HEGEL_VERSION_FILE "${HEGEL_VENV_DIR}/hegel-version")
-
-  # Check cached version
-  set(HEGEL_CACHED_VERSION "")
-  if(EXISTS "${HEGEL_VERSION_FILE}")
-    file(READ "${HEGEL_VERSION_FILE}" HEGEL_CACHED_VERSION)
-    string(STRIP "${HEGEL_CACHED_VERSION}" HEGEL_CACHED_VERSION)
-  endif()
-
-  if(HEGEL_CACHED_VERSION STREQUAL HEGEL_VERSION AND EXISTS "${HEGEL_BINARY_PATH}")
-    message(STATUS "hegel ${HEGEL_VERSION} already installed")
-  else()
-    find_program(UV_EXECUTABLE uv REQUIRED)
-    message(STATUS "using uv: ${UV_EXECUTABLE}")
-
-    message(STATUS "creating venv at ${HEGEL_VENV_DIR}")
-    execute_process(
-      COMMAND ${UV_EXECUTABLE} venv --python ${HEGEL_PYTHON_VERSION} ${HEGEL_VENV_DIR}
-      RESULT_VARIABLE UV_VENV_RESULT
-    )
-    if(NOT UV_VENV_RESULT EQUAL 0)
-      message(FATAL_ERROR "failed to create venv")
-    endif()
-
-    message(STATUS "installing hegel (${HEGEL_VERSION})")
-
-    # Prefer local checkout in external/hegel-core if present
-    set(HEGEL_LOCAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/hegel-core")
-    if(EXISTS "${HEGEL_LOCAL_DIR}/pyproject.toml")
-      message(STATUS "using local hegel from ${HEGEL_LOCAL_DIR}")
-      set(HEGEL_INSTALL_SOURCE "${HEGEL_LOCAL_DIR}")
-    else()
-      set(HEGEL_INSTALL_SOURCE "hegel @ git+ssh://git@github.com/antithesishq/hegel-core.git@${HEGEL_VERSION}")
-    endif()
-
-    execute_process(
-      COMMAND ${UV_EXECUTABLE} pip install ${HEGEL_INSTALL_SOURCE}
-              --python ${HEGEL_VENV_DIR}/bin/python
-      RESULT_VARIABLE HEGEL_INSTALL_RESULT
-    )
-    if(NOT HEGEL_INSTALL_RESULT EQUAL 0)
-      message(FATAL_ERROR "failed to install hegel")
-    endif()
-    if(NOT EXISTS "${HEGEL_BINARY_PATH}")
-      message(FATAL_ERROR "hegel not found after installation: ${HEGEL_BINARY_PATH}")
-    endif()
-
-    file(WRITE "${HEGEL_VERSION_FILE}" "${HEGEL_VERSION}")
-  endif()
-
-  message(STATUS "using hegel: ${HEGEL_BINARY_PATH}")
+  message(STATUS "using provided hegel: ${HEGEL_PATH}")
 endif()
 
 # =============================================================================
@@ -148,9 +86,9 @@ target_link_libraries(hegel
   PUBLIC reflectcpp
 )
 target_compile_features(hegel PUBLIC cxx_std_20)
-target_compile_definitions(hegel PUBLIC
-    HEGEL_DEFAULT_PATH="${HEGEL_BINARY_PATH}"
-)
+if(HEGEL_PATH)
+  target_compile_definitions(hegel PUBLIC HEGEL_DEFAULT_PATH="${HEGEL_PATH}")
+endif()
 
 # =============================================================================
 # Tests with Google Test

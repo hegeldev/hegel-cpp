@@ -1,5 +1,5 @@
 setup:
-    @echo "hegel is installed automatically during cmake configure."
+    @echo "hegel is auto-installed at runtime into .hegel/venv"
     @echo "To override, set HEGEL_CMD to the path of your hegel binary."
 
 build:

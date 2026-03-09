@@ -20,32 +20,114 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <fstream>
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include <sys/wait.h>
 #include <unistd.h>
 
-// Default path to hegel binary (can be overridden by CMake)
-#ifndef HEGEL_DEFAULT_PATH
-#define HEGEL_DEFAULT_PATH "hegel"
+namespace hegel {
+
+    // =============================================================================
+    // Hegel Binary Discovery / Auto-Install
+    // =============================================================================
+
+    static const std::string HEGEL_VERSION =
+        "6e327df2dd42553de12ace94cfbddfbbd9e4bf50";
+    static const std::string HEGEL_DIR = ".hegel";
+    static const std::string VENV_DIR = HEGEL_DIR + "/venv";
+    static const std::string VERSION_FILE = VENV_DIR + "/hegel-version";
+    static const std::string HEGEL_BIN = VENV_DIR + "/bin/hegel";
+
+    static std::string ensure_hegel_installed() {
+        // Check cached version
+        {
+            std::ifstream f(VERSION_FILE);
+            if (f.is_open()) {
+                std::string cached;
+                std::getline(f, cached);
+                while (!cached.empty() &&
+                       std::isspace(static_cast<unsigned char>(cached.back())))
+                    cached.pop_back();
+                if (cached == HEGEL_VERSION &&
+                    std::filesystem::exists(HEGEL_BIN)) {
+                    return HEGEL_BIN;
+                }
+            }
+        }
+
+        // Create .hegel directory
+        std::filesystem::create_directories(HEGEL_DIR);
+
+        std::cerr << "Installing hegel (" << HEGEL_VERSION.substr(0, 12)
+                  << ") into " << VENV_DIR << "..." << std::endl;
+
+        // Create venv
+        std::string cmd = "uv venv --clear " + VENV_DIR;
+        if (std::system(cmd.c_str()) != 0) {
+            throw std::runtime_error("uv venv failed");
+        }
+
+        // Install hegel
+        std::string pip_spec =
+            "hegel @ git+ssh://git@github.com/antithesishq/hegel-core.git@" +
+            HEGEL_VERSION;
+        cmd = "uv pip install --python " + VENV_DIR + "/bin/python \"" +
+              pip_spec + "\"";
+        if (std::system(cmd.c_str()) != 0) {
+            throw std::runtime_error(
+                "Failed to install hegel (version: " + HEGEL_VERSION +
+                "). "
+                "Set HEGEL_CMD to a hegel binary path to skip "
+                "installation.");
+        }
+
+        if (!std::filesystem::exists(HEGEL_BIN)) {
+            throw std::runtime_error("hegel not found at " + HEGEL_BIN +
+                                     " after installation");
+        }
+
+        // Write version file
+        {
+            std::ofstream f(VERSION_FILE);
+            f << HEGEL_VERSION;
+        }
+
+        return HEGEL_BIN;
+    }
+
+    static std::string cached_hegel_path;
+    static std::once_flag hegel_init_flag;
+
+    static std::string find_hegel() {
+        // 1. HEGEL_CMD env var
+        const char* env = std::getenv("HEGEL_CMD");
+        if (env != nullptr && env[0] != '\0')
+            return std::string(env);
+
+        // 2. Compile-time default (nix builds)
+#ifdef HEGEL_DEFAULT_PATH
+        return HEGEL_DEFAULT_PATH;
 #endif
 
-namespace hegel {
+        // 3. Auto-install
+        std::call_once(hegel_init_flag,
+                       []() { cached_hegel_path = ensure_hegel_installed(); });
+        return cached_hegel_path;
+    }
 
     // =============================================================================
     // Child Process
     // =============================================================================
     static void hegel_child(const std::string& socket_path,
                             const options::HegelOptions& options) {
-        // Priority: HegelOptions.hegel_path > HEGEL_CMD env > compile-time
-        // default
         std::string hegel_path;
         if (options.hegel_path.has_value()) {
             hegel_path = options.hegel_path.value();
         } else {
-            const char* env = std::getenv("HEGEL_CMD");
-            hegel_path = env ? std::string(env) : HEGEL_DEFAULT_PATH;
+            hegel_path = find_hegel();
         }
         uint64_t test_cases = options.test_cases.value_or(100);
 
