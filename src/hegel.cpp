@@ -15,6 +15,7 @@
 #include <socket.h>
 #include <stdexcept>
 
+#include <cctype>
 #include <cerrno>
 #include <cstdint>
 #include <cstdlib>
