@@ -59,16 +59,16 @@ def set_version(cmake_file: Path, new_version: str) -> None:
 
 
 def pin_hegel_version(hegel_cpp: Path) -> None:
-    """Pin HEGEL_VERSION to the current HEAD of hegel-core main."""
-    sha = subprocess.check_output(
-        ["gh", "api", "repos/antithesishq/hegel-core/commits/main", "--jq", ".sha"],
+    """Pin HEGEL_VERSION to the latest hegel-core release tag."""
+    tag = subprocess.check_output(
+        ["gh", "api", "repos/antithesishq/hegel-core/releases/latest", "--jq", ".tag_name"],
         text=True,
     ).strip()
 
     text = hegel_cpp.read_text()
     new_text = re.sub(
         r'^( *static const std::string HEGEL_VERSION =)\s*".*";',
-        f'\\1\n        "{sha}";',
+        f'\\1\n        "{tag}";',
         text,
         count=1,
         flags=re.MULTILINE,
