@@ -17,8 +17,8 @@
 
 namespace hegel::internal {
     /// Generate a schema for type T (wrapper around reflect-cpp)
-    template <typename T> nlohmann::json type_schema() {
-        return nlohmann::json::parse(rfl::json::to_schema<T>());
+    template <typename T> hegel::internal::json::json type_schema() {
+        return hegel::internal::json::json::parse(rfl::json::to_schema<T>());
     }
 } // namespace hegel::internal
 
@@ -78,7 +78,7 @@ namespace hegel::generators {
          * @return Optional containing the schema, or nullopt if not
          * schema-based
          */
-        virtual std::optional<nlohmann::json> schema() const = 0;
+        virtual std::optional<hegel::internal::json::json> schema() const = 0;
     };
 
     /**
@@ -136,7 +136,7 @@ namespace hegel::generators {
          * @return Optional containing the schema, or nullopt if not
          * schema-based
          */
-        std::optional<nlohmann::json> schema() const override {
+        std::optional<hegel::internal::json::json> schema() const override {
             return inner_->schema();
         }
 
@@ -292,7 +292,7 @@ namespace hegel::generators {
         /// @param schema schema for this generator; not used in do_draw(), but
         /// may be used when composing this generator
         FunctionBackedGenerator(std::function<T(TestCaseData*)> fn,
-                                nlohmann::json schema)
+                                hegel::internal::json::json schema)
             : gen_fn_(std::move(fn)), schema_(std::move(schema)) {}
 
         /**
@@ -300,7 +300,7 @@ namespace hegel::generators {
          * @return Optional containing the schema, or nullopt if not
          * schema-based
          */
-        std::optional<nlohmann::json> schema() const override {
+        std::optional<hegel::internal::json::json> schema() const override {
             return schema_;
         }
 
@@ -313,7 +313,7 @@ namespace hegel::generators {
 
       private:
         std::function<T(TestCaseData*)> gen_fn_;
-        std::optional<nlohmann::json> schema_;
+        std::optional<hegel::internal::json::json> schema_;
     };
 
     /**
@@ -329,11 +329,11 @@ namespace hegel::generators {
     template <typename T> class SchemaBackedGenerator : public IGenerator<T> {
       public:
         /// @brief Create, given the schema
-        SchemaBackedGenerator(nlohmann::json schema)
+        SchemaBackedGenerator(hegel::internal::json::json schema)
             : schema_(std::move(schema)) {}
 
         /// Get the CBOR schema
-        std::optional<nlohmann::json> schema() const override {
+        std::optional<hegel::internal::json::json> schema() const override {
             return schema_;
         }
 
@@ -343,7 +343,7 @@ namespace hegel::generators {
          * @return A randomly generated value
          */
         T do_draw(TestCaseData* data) const override {
-            nlohmann::json response =
+            hegel::internal::json::json response =
                 internal::communicate_with_socket(schema_, data);
 
             // Extract the result value
@@ -351,11 +351,14 @@ namespace hegel::generators {
                 throw std::runtime_error(
                     "Server response missing 'result' field");
             }
-            nlohmann::json& result = response["result"];
+            hegel::internal::json::json_raw_ref result = response["result"];
 
-            if constexpr (std::is_arithmetic_v<T> ||
-                          std::is_same_v<T, std::string>) {
-                return result.get<T>();
+            if constexpr (std::is_same_v<T, std::string>) {
+                return result.get_string();
+            } else if constexpr (std::is_same_v<std::remove_cvref_t<T>, bool>) {
+                return result.get_bool();
+            } else if constexpr (std::is_arithmetic_v<T>) {
+                return result.get_uint32_t(); // TODO: probably should break out more cases here
             } else {
                 auto parse_result = internal::read_nlohmann<T>(result);
                 if (!parse_result.has_value()) {
@@ -368,7 +371,7 @@ namespace hegel::generators {
         }
 
       private:
-        nlohmann::json schema_;
+        hegel::internal::json::json schema_;
     };
 
     // =============================================================================
@@ -416,7 +419,7 @@ namespace hegel::generators {
      */
     template <typename T>
     Generator<T> from_function(std::function<T(TestCaseData*)> fn,
-                               nlohmann::json schema) {
+                               hegel::internal::json::json schema) {
         return Generator<T>(
             new FunctionBackedGenerator<T>(std::move(fn), std::move(schema)));
     }
@@ -432,7 +435,7 @@ namespace hegel::generators {
      *
      * @code{.cpp}
      * auto gen = hegel::generators::from_schema<int>(
-     *     nlohmann::json{{"type", "integer"},
+     *     hegel::internal::json::json{{"type", "integer"},
      *                    {"min_value", 0},
      *                    {"max_value", 100}}
      * );
@@ -443,7 +446,7 @@ namespace hegel::generators {
      * @param schema CBOR schema describing the generation constraints
      * @return A Generator<T> that generates according to the schema
      */
-    template <typename T> Generator<T> from_schema(nlohmann::json schema) {
+    template <typename T> Generator<T> from_schema(hegel::internal::json::json schema) {
         return Generator<T>(new SchemaBackedGenerator<T>(std::move(schema)));
     }
 

@@ -40,10 +40,10 @@ namespace hegel::generators {
                       std::is_same_v<T, std::nullptr_t> ||
                       std::is_integral_v<T> || std::is_floating_point_v<T> ||
                       std::is_same_v<T, std::string>) {
-            nlohmann::json arr = nlohmann::json::array();
+            hegel::internal::json::json arr = hegel::internal::json::json::array();
             for (const auto& e : elements)
                 arr.push_back(e);
-            nlohmann::json schema = {{"sampled_from", arr}};
+            hegel::internal::json::json schema = {{"sampled_from", arr}};
             return from_schema<T>(std::move(schema));
         } else {
             auto index_gen = integers<size_t>(
@@ -78,18 +78,18 @@ namespace hegel::generators {
 
         template <typename T>
         auto make_one_of_schema(const std::vector<Generator<T>>& gens)
-            -> std::optional<nlohmann::json> {
+            -> std::optional<hegel::internal::json::json> {
             for (const auto& gen : gens) {
                 if (!gen.schema())
                     return std::nullopt;
             }
 
-            nlohmann::json one_of_arr = nlohmann::json::array();
+            hegel::internal::json::json one_of_arr = hegel::internal::json::json::array();
             for (const auto& gen : gens) {
                 one_of_arr.push_back(*gen.schema());
             }
 
-            nlohmann::json schema = {{"one_of", one_of_arr}};
+            hegel::internal::json::json schema = {{"one_of", one_of_arr}};
             return schema;
         }
 

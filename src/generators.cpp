@@ -6,6 +6,8 @@
 #include <hegel/generators/strings.h>
 #include <hegel/internal.h>
 
+#include "json_impl.h"
+
 #include <cstdint>
 #include <limits>
 #include <optional>
@@ -16,6 +18,8 @@
 #include <variant>
 #include <vector>
 
+using hegel::internal::json::ImplUtil;
+
 // =============================================================================
 // Primitive strategy implementations
 // =============================================================================
@@ -23,13 +27,13 @@
 namespace hegel::generators {
 
     Generator<std::monostate> nulls() {
-        nlohmann::json schema = {{"type", "null"}};
+        hegel::internal::json::json schema = {{"type", "null"}};
         return from_function<std::monostate>(
             [](TestCaseData*) { return std::monostate{}; }, std::move(schema));
     }
 
     Generator<bool> booleans() {
-        nlohmann::json schema = {{"type", "boolean"}};
+        hegel::internal::json::json schema = {{"type", "boolean"}};
         return from_schema<bool>(std::move(schema));
     }
 
@@ -38,7 +42,7 @@ namespace hegel::generators {
     // =============================================================================
 
     Generator<std::string> text(TextParams params) {
-        nlohmann::json schema = {{"type", "string"},
+        hegel::internal::json::json schema = {{"type", "string"},
                                  {"min_size", params.min_size}};
 
         if (params.max_size)
@@ -48,7 +52,7 @@ namespace hegel::generators {
     }
 
     Generator<std::vector<uint8_t>> binary(BinaryParams params) {
-        nlohmann::json schema = {{"type", "binary"},
+        hegel::internal::json::json schema = {{"type", "binary"},
                                  {"min_size", params.min_size}};
 
         if (params.max_size)
@@ -56,20 +60,20 @@ namespace hegel::generators {
 
         return from_function<std::vector<uint8_t>>(
             [schema](TestCaseData* data) -> std::vector<uint8_t> {
-                nlohmann::json response =
+                hegel::internal::json::json response =
                     internal::communicate_with_socket(schema, data);
                 if (!response.contains("result")) {
                     throw std::runtime_error(
                         "Server response missing 'result' field");
                 }
-                return response["result"].get_binary();
+                return ImplUtil::raw(response["result"]).get_binary();
             },
             schema);
     }
 
     Generator<std::string> from_regex(const std::string& pattern,
                                       bool fullmatch) {
-        nlohmann::json schema = {
+        hegel::internal::json::json schema = {
             {"type", "regex"}, {"pattern", pattern}, {"fullmatch", fullmatch}};
         return from_schema<std::string>(std::move(schema));
     }
@@ -79,42 +83,42 @@ namespace hegel::generators {
     // =============================================================================
 
     Generator<std::string> emails() {
-        return from_schema<std::string>(nlohmann::json{{"type", "email"}});
+        return from_schema<std::string>(hegel::internal::json::json{{"type", "email"}});
     }
 
     Generator<std::string> domains(DomainsParams params) {
-        nlohmann::json schema = {{"type", "domain"},
+        hegel::internal::json::json schema = {{"type", "domain"},
                                  {"max_length", params.max_length}};
         return from_schema<std::string>(std::move(schema));
     }
 
     Generator<std::string> urls() {
-        return from_schema<std::string>(nlohmann::json{{"type", "url"}});
+        return from_schema<std::string>(hegel::internal::json::json{{"type", "url"}});
     }
 
     Generator<std::string> ip_addresses(IpAddressesParams params) {
         if (params.v == 4) {
-            return from_schema<std::string>(nlohmann::json{{"type", "ipv4"}});
+            return from_schema<std::string>(hegel::internal::json::json{{"type", "ipv4"}});
         } else if (params.v == 6) {
-            return from_schema<std::string>(nlohmann::json{{"type", "ipv6"}});
+            return from_schema<std::string>(hegel::internal::json::json{{"type", "ipv6"}});
         } else {
-            nlohmann::json one_of =
-                nlohmann::json::array({nlohmann::json{{"type", "ipv4"}},
-                                       nlohmann::json{{"type", "ipv6"}}});
-            return from_schema<std::string>(nlohmann::json{{"one_of", one_of}});
+            hegel::internal::json::json one_of =
+                hegel::internal::json::json::array({hegel::internal::json::json{{"type", "ipv4"}},
+                                       hegel::internal::json::json{{"type", "ipv6"}}});
+            return from_schema<std::string>(hegel::internal::json::json{{"one_of", one_of}});
         }
     }
 
     Generator<std::string> dates() {
-        return from_schema<std::string>(nlohmann::json{{"type", "date"}});
+        return from_schema<std::string>(hegel::internal::json::json{{"type", "date"}});
     }
 
     Generator<std::string> times() {
-        return from_schema<std::string>(nlohmann::json{{"type", "time"}});
+        return from_schema<std::string>(hegel::internal::json::json{{"type", "time"}});
     }
 
     Generator<std::string> datetimes() {
-        return from_schema<std::string>(nlohmann::json{{"type", "datetime"}});
+        return from_schema<std::string>(hegel::internal::json::json{{"type", "datetime"}});
     }
 
     // =============================================================================
@@ -132,17 +136,17 @@ namespace hegel::generators {
             return (*engine_)();
         }
 
-        nlohmann::json schema = {
+        hegel::internal::json::json schema = {
             {"type", "integer"},
             {"min_value", std::numeric_limits<uint32_t>::min()},
             {"max_value", std::numeric_limits<uint32_t>::max()}};
 
-        nlohmann::json response =
+        hegel::internal::json::json response =
             internal::communicate_with_socket(schema, data_);
         if (!response.contains("result")) {
             throw std::runtime_error("Server response missing 'result' field");
         }
-        return response["result"].get<uint32_t>();
+        return ImplUtil::raw(response["result"]).get<uint32_t>();
     }
 
     Generator<HegelRandom> randoms(RandomsParams params) {

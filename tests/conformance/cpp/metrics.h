@@ -2,8 +2,9 @@
 
 #include <cstdlib>
 #include <fstream>
-#include <nlohmann/json.hpp>
+#include <hegel/json.h>
 #include <string>
+#include <nlohmann/json.hpp>
 
 namespace conformance {
 
