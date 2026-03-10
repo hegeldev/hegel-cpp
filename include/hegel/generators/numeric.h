@@ -70,8 +70,7 @@ namespace hegel::generators {
         T max_val = params.max_value.value_or(std::numeric_limits<T>::max());
 
         if (min_val > max_val) {
-            throw std::invalid_argument(
-                "Cannot have max_value < min_value");
+            throw std::invalid_argument("Cannot have max_value < min_value");
         }
 
         nlohmann::json schema = {{"type", "integer"},
@@ -113,8 +112,7 @@ namespace hegel::generators {
                 "Cannot have allow_nan=true with min_value or max_value");
         }
         if (has_min && has_max && *params.min_value > *params.max_value) {
-            throw std::invalid_argument(
-                "Cannot have max_value < min_value");
+            throw std::invalid_argument("Cannot have max_value < min_value");
         }
         if (inf && has_min && has_max) {
             throw std::invalid_argument(

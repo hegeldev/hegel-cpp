@@ -56,13 +56,13 @@ TEST(Validation, IntegersMinEqualMaxDoesNotThrow) {
 }
 
 TEST(Validation, FloatsAllowNanWithMinValue) {
-    EXPECT_THROW(
-        floats({.min_value = 0.0, .allow_nan = true}), std::invalid_argument);
+    EXPECT_THROW(floats({.min_value = 0.0, .allow_nan = true}),
+                 std::invalid_argument);
 }
 
 TEST(Validation, FloatsAllowNanWithMaxValue) {
-    EXPECT_THROW(
-        floats({.max_value = 1.0, .allow_nan = true}), std::invalid_argument);
+    EXPECT_THROW(floats({.max_value = 1.0, .allow_nan = true}),
+                 std::invalid_argument);
 }
 
 TEST(Validation, FloatsMinGreaterThanMax) {
@@ -86,15 +86,13 @@ TEST(Validation, BinaryMaxSizeLessThanMinSize) {
 }
 
 TEST(Validation, VectorsMaxSizeLessThanMinSize) {
-    EXPECT_THROW(
-        vectors(integers<int>(), {.min_size = 10, .max_size = 5}),
-        std::invalid_argument);
+    EXPECT_THROW(vectors(integers<int>(), {.min_size = 10, .max_size = 5}),
+                 std::invalid_argument);
 }
 
 TEST(Validation, SetsMaxSizeLessThanMinSize) {
-    EXPECT_THROW(
-        sets(integers<int>(), {.min_size = 10, .max_size = 5}),
-        std::invalid_argument);
+    EXPECT_THROW(sets(integers<int>(), {.min_size = 10, .max_size = 5}),
+                 std::invalid_argument);
 }
 
 TEST(Validation, DictionariesMaxSizeLessThanMinSize) {

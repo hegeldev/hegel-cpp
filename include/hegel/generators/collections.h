@@ -70,8 +70,7 @@ namespace hegel::generators {
     Generator<std::vector<T>> vectors(Generator<T> elements,
                                       VectorsParams params = {}) {
         if (params.max_size && params.min_size > *params.max_size) {
-            throw std::invalid_argument(
-                "Cannot have max_size < min_size");
+            throw std::invalid_argument("Cannot have max_size < min_size");
         }
 
         if (elements.schema()) {
@@ -121,8 +120,7 @@ namespace hegel::generators {
     template <typename T>
     Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
         if (params.max_size && params.min_size > *params.max_size) {
-            throw std::invalid_argument(
-                "Cannot have max_size < min_size");
+            throw std::invalid_argument("Cannot have max_size < min_size");
         }
 
         if (elements.schema()) {
@@ -189,8 +187,7 @@ namespace hegel::generators {
                                            Generator<V> values,
                                            DictionariesParams params = {}) {
         if (params.max_size && params.min_size > *params.max_size) {
-            throw std::invalid_argument(
-                "Cannot have max_size < min_size");
+            throw std::invalid_argument("Cannot have max_size < min_size");
         }
 
         if (keys.schema() && values.schema()) {
