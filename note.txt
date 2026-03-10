@@ -1,0 +1,78 @@
+The problem is the interaction between Hypothesis's shrinking (which pushes values toward 0) and C++'s
+std::normal_distribution implementation.
+
+C++ std::normal_distribution (in libstdc++) uses the Marsaglia polar
+method, which is rejection-based:
+
+1. Generate two uniform values u1, u2 in (-1, 1)
+2. Compute s = u1² + u2²
+3. If s >= 1 or s == 0, reject and retry
+
+When Hypothesis checks the "smallest natural input," it tries all-zero
+engine outputs. With all zeros, generate_canonical produces 0.0, so u1 =
+u2 = 0.0, s = 0, and the rejection condition hits every time. The
+distribution loops forever consuming draws, and Hypothesis sees a test
+that needs a huge amount of data.
+
+Rust's rand crate uses the ziggurat method for StandardNormal, which
+doesn't have this degenerate case with zero inputs — it terminates
+quickly regardless of the input value.
+
+This means artificial mode is fundamentally incompatible with C++
+rejection-based <random> distributions. The practical fix is to default
+use_true_random to true, since that's the only mode that works reliably
+with <random> distributions. Users who want artificial mode would use it
+for direct operator() calls, not through distributions.
+
+Safe (no rejection, no infinite loop on all-zero input):
+- uniform_real_distribution — direct scaling 
+- exponential_distribution — inverse transform: -log(1-U)/λ
+- weibull_distribution — inverse transform 
+- cauchy_distribution — inverse transform via tan()                      
+- extreme_value_distribution — inverse transform                         
+- bernoulli_distribution — threshold comparison                          
+- geometric_distribution — inversion                                     
+                                                                        
+Infinite loop on all-zero input (rejection-based or inherits from one):  
+- normal_distribution — Marsaglia polar method (rejects when s == 0)     
+- lognormal_distribution — wraps normal_distribution                     
+- gamma_distribution — acceptance-rejection (for shape ≥ 1)
+- chi_squared_distribution — wraps gamma_distribution
+- student_t_distribution — wraps normal_distribution + chi_squared_distribution
+- fisher_f_distribution — wraps chi_squared_distribution
+- poisson_distribution — rejection for mean ≥ 12
+- binomial_distribution — rejection for large t×p
+
+kj/async.c++:1745: error: failed: expected head == nullptr [55b2f7e6af70 == nullptr]; EventLoop destroyed with events still in the queue.  Memory leak?; head->traceEvent() = 7f46a9bbc230
+
+Design
+
+ Two sides to this feature:
+
+ 1. Producing the blob: After finding a failure, the server encodes the shrunk choices and includes the blob in the test_done results.
+ 2. Consuming the blob: The SDK passes a blob in run_test, the server skips ConjectureRunner and directly replays the pre-seeded choices.
+
+ Uses Hypothesis internals encode_failure/decode_failure from hypothesis.core (base64 + zlib + custom binary serialization of the choice sequence). No version pinning for now.
+
+ Changes
+
+ 1. src/hegel/server.py — Server logic
+
+ Imports: Add encode_failure, decode_failure from hypothesis.core.
+
+ run_server_on_connection() (line ~250-266): Pass message.get("reproduce_failure") through to _run_one().
+
+ _run_one() (line ~284): Add reproduce_failure: bytes | None = None parameter. Two paths:
+
+ - Normal path (existing, reproduce_failure is None): After runner.run(), encode the smallest interesting example's choices via encode_failure() and add it to the result dict as "reproduce_failure". Only when there are interesting examples.
+ - Reproduce path (reproduce_failure is not None): Skip ConjectureRunner entirely.
+   a. choices = decode_failure(reproduce_failure)
+   b. Send test_done with interesting_test_cases=1, passed=False, test_cases=0, valid_test_cases=0, invalid_test_cases=0
+   c. Create make_test_function(..., is_final=True) and run once with ConjectureData.for_choices(choices)
+
+ This matches the existing protocol flow the client expects: test_done followed by N is_final=True replays.
+
+ 2. tests/client.py — Test client
+
+ Client.run_test() (line ~54): Add optional reproduce_failure: bytes | None = None parameter. Include it in the run_test command dict sent to the server. Store result_data as self.last_result attribute so tests can inspect the blob after a run.
+
