@@ -69,6 +69,11 @@ namespace hegel::generators {
     template <typename T>
     Generator<std::vector<T>> vectors(Generator<T> elements,
                                       VectorsParams params = {}) {
+        if (params.max_size && params.min_size > *params.max_size) {
+            throw std::invalid_argument(
+                "Cannot have max_size < min_size");
+        }
+
         if (elements.schema()) {
             nlohmann::json schema = {{"type", "list"},
                                      {"elements", *elements.schema()},
@@ -115,6 +120,11 @@ namespace hegel::generators {
      */
     template <typename T>
     Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
+        if (params.max_size && params.min_size > *params.max_size) {
+            throw std::invalid_argument(
+                "Cannot have max_size < min_size");
+        }
+
         if (elements.schema()) {
             nlohmann::json schema = {{"type", "list"},
                                      {"elements", *elements.schema()},
@@ -178,6 +188,11 @@ namespace hegel::generators {
     Generator<std::map<K, V>> dictionaries(Generator<K> keys,
                                            Generator<V> values,
                                            DictionariesParams params = {}) {
+        if (params.max_size && params.min_size > *params.max_size) {
+            throw std::invalid_argument(
+                "Cannot have max_size < min_size");
+        }
+
         if (keys.schema() && values.schema()) {
             nlohmann::json schema = {{"type", "dict"},
                                      {"keys", *keys.schema()},
