@@ -15,8 +15,8 @@ HeaderFilterRegex: '.*/include/hegel/.*|.*/src/.*'
 # not the public header they're supposed to be included from. This causes false
 # positives for:
 # - nlohmann/json: types defined in nlohmann/detail/... internal headers
-# - glibc (linux): POSIX symbols defined in bits/... internal headers
-# - Apple libc (macOS): POSIX symbols defined in sys/_... internal headers
+# - glibc (linux): symbols defined in bits/... internal headers
+# - libc (macos): symbols defined in sys/_... internal headers
 # - arpa/inet.h: flagged as unused once its symbols are ignored via the above
 CheckOptions:
   - key: misc-include-cleaner.IgnoreHeaders

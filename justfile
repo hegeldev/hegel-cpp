@@ -39,7 +39,7 @@ build-conformance: build
 
 conformance: build-conformance
     uv run --with "hegel @ git+ssh://git@github.com/antithesishq/hegel.git" \
-        --with pytest --with pytest-subtests --with hypothesis \
+        --with pytest --with hypothesis \
         pytest tests/conformance/test_conformance.py --durations=20 --durations-min=1.0
 
 docs:

@@ -38,6 +38,10 @@ namespace hegel::generators {
     // =============================================================================
 
     Generator<std::string> text(TextParams params) {
+        if (params.max_size && params.min_size > *params.max_size) {
+            throw std::invalid_argument("Cannot have max_size < min_size");
+        }
+
         nlohmann::json schema = {{"type", "string"},
                                  {"min_size", params.min_size}};
 
@@ -48,6 +52,10 @@ namespace hegel::generators {
     }
 
     Generator<std::vector<uint8_t>> binary(BinaryParams params) {
+        if (params.max_size && params.min_size > *params.max_size) {
+            throw std::invalid_argument("Cannot have max_size < min_size");
+        }
+
         nlohmann::json schema = {{"type", "binary"},
                                  {"min_size", params.min_size}};
 
@@ -83,6 +91,10 @@ namespace hegel::generators {
     }
 
     Generator<std::string> domains(DomainsParams params) {
+        if (params.max_length < 4 || params.max_length > 255) {
+            throw std::invalid_argument("max_length must be between 4 and 255");
+        }
+
         nlohmann::json schema = {{"type", "domain"},
                                  {"max_length", params.max_length}};
         return from_schema<std::string>(std::move(schema));
@@ -93,6 +105,10 @@ namespace hegel::generators {
     }
 
     Generator<std::string> ip_addresses(IpAddressesParams params) {
+        if (params.v && *params.v != 4 && *params.v != 6) {
+            throw std::invalid_argument("ip_addresses version must be 4 or 6");
+        }
+
         if (params.v == 4) {
             return from_schema<std::string>(nlohmann::json{{"type", "ipv4"}});
         } else if (params.v == 6) {
