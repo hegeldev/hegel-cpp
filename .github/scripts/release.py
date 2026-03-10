@@ -68,7 +68,7 @@ def pin_hegel_version(hegel_cpp: Path) -> None:
     text = hegel_cpp.read_text()
     new_text = re.sub(
         r'^( *static const std::string HEGEL_VERSION =)\s*".*";',
-        f'\\1\n        "{tag}";',
+        f'\\1 "{tag}";',
         text,
         count=1,
         flags=re.MULTILINE,

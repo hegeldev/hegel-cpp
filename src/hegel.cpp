@@ -35,8 +35,7 @@ namespace hegel {
     // Hegel Binary Discovery / Auto-Install
     // =============================================================================
 
-    static const std::string HEGEL_VERSION =
-        "v0.3.3";
+    static const std::string HEGEL_VERSION = "v0.3.3";
     static const std::string HEGEL_DIR = ".hegel";
     static const std::string VENV_DIR = HEGEL_DIR + "/venv";
     static const std::string VERSION_FILE = VENV_DIR + "/hegel-version";
@@ -62,8 +61,8 @@ namespace hegel {
         // Create .hegel directory
         std::filesystem::create_directories(HEGEL_DIR);
 
-        std::cerr << "Installing hegel (" << HEGEL_VERSION
-                  << ") into " << VENV_DIR << "..." << std::endl;
+        std::cerr << "Installing hegel (" << HEGEL_VERSION << ") into "
+                  << VENV_DIR << "..." << std::endl;
 
         // Create venv
         std::string cmd = "uv venv --clear " + VENV_DIR;
