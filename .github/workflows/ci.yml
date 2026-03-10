@@ -201,7 +201,7 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - name: lint
-        run: nix run nixpkgs#nixfmt -- --check flake.nix
+        run: nix run nixpkgs#nixfmt -- --check nix/flake.nix
       - name: test
         working-directory: tests/nix
         run: |
