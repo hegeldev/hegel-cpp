@@ -103,8 +103,6 @@ namespace hegel {
         uint64_t test_cases = options.test_cases.value_or(100);
 
         nlohmann::json run_test_msg = {{"command", "run_test"},
-                                       // TODO bad. very bad.
-                                       {"database_key", "test"},
                                        {"test_cases", test_cases},
                                        {"channel_id", test_channel}};
         if (options.seed.has_value()) {
