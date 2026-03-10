@@ -42,8 +42,8 @@ using namespace hegel::generators;
 
 int main() {
     hegel::hegel([]() {
-        auto x = integers<int>().generate();
-        auto y = integers<int>().generate();
+        auto x = hegel::draw(integers<int>());
+        auto y = hegel::draw(integers<int>());
 
         // Addition should be commutative
         if (x + y != y + x) {
@@ -81,16 +81,16 @@ hegel::hegel([]() {
 
 ## Generating multiple values
 
-Every generator has a `.generate()` method that draws one value. Call it
+Use `hegel::draw()` to draw one value from a generator. Call it
 multiple times to get independent values:
 
 ```cpp
 using namespace hegel::generators;
 
 hegel::hegel([]() {
-    auto a = integers<int>({.min_value = 1, .max_value = 100}).generate();
-    auto b = integers<int>({.min_value = 1, .max_value = 100}).generate();
-    auto s = text({.min_size = 0, .max_size = 50}).generate();
+    auto a = hegel::draw(integers<int>({.min_value = 1, .max_value = 100}));
+    auto b = hegel::draw(integers<int>({.min_value = 1, .max_value = 100}));
+    auto s = hegel::draw(text({.min_size = 0, .max_size = 50}));
 
     // Use a, b, and s in your property check ...
 });
@@ -104,9 +104,9 @@ using namespace hegel::generators;
 hegel::hegel([]() {
     auto small_int = integers<int>({.min_value = -10, .max_value = 10});
 
-    auto x = small_int.generate();
-    auto y = small_int.generate();
-    auto z = small_int.generate();
+    auto x = hegel::draw(small_int);
+    auto y = hegel::draw(small_int);
+    auto z = hegel::draw(small_int);
 
     // (x + y) + z == x + (y + z)
     if ((x + y) + z != x + (y + z)) {
@@ -126,8 +126,8 @@ hegel::hegel([]() {
     auto nonzero = integers<int>({.min_value = -100, .max_value = 100})
         .filter([](int x) { return x != 0; });
 
-    auto dividend = integers<int>().generate();
-    auto divisor  = nonzero.generate();
+    auto dividend = hegel::draw(integers<int>());
+    auto divisor  = hegel::draw(nonzero);
 
     // Safe to divide -- divisor is guaranteed non-zero
     auto quotient  = dividend / divisor;
@@ -156,7 +156,7 @@ hegel::hegel([]() {
     auto even = integers<int>({.min_value = 0, .max_value = 50})
         .map([](int x) { return x * 2; });
 
-    auto n = even.generate();
+    auto n = hegel::draw(even);
 
     if (n % 2 != 0) {
         throw std::runtime_error("expected even number");
@@ -188,7 +188,7 @@ hegel::hegel([]() {
             return text({.min_size = len, .max_size = len});
         });
 
-    auto s = sized_string.generate();
+    auto s = hegel::draw(sized_string);
 
     if (s.empty()) {
         throw std::runtime_error("expected non-empty string");
@@ -203,12 +203,12 @@ into it:
 using namespace hegel::generators;
 
 hegel::hegel([]() {
-    auto vec = vectors(integers<int>(), {.min_size = 1, .max_size = 20}).generate();
+    auto vec = hegel::draw(vectors(integers<int>(), {.min_size = 1, .max_size = 20}));
 
-    auto idx = integers<size_t>({
+    auto idx = hegel::draw(integers<size_t>({
         .min_value = 0,
         .max_value = static_cast<int64_t>(vec.size() - 1)
-    }).generate();
+    }));
 
     // idx is always a valid index into vec
     auto element = vec.at(idx);
@@ -223,67 +223,80 @@ Import them with `using namespace hegel::generators;`.
 ### Primitive types
 
 ```cpp
-auto b = booleans().generate();                          // bool
-auto i = integers<int>().generate();                     // int (any integer type)
-auto n = integers<int64_t>({.min_value = 0}).generate(); // bounded int64_t
-auto f = floats<double>().generate();                    // double
-auto g = floats<float>({                                 // float with options
+auto b = hegel::draw(booleans());                          // bool
+auto i = hegel::draw(integers<int>());                     // int (any integer type)
+auto n = hegel::draw(integers<int64_t>({.min_value = 0})); // bounded int64_t
+auto f = hegel::draw(floats<double>());                    // double
+auto g = hegel::draw(floats<float>({                       // float with options
     .min_value = 0.0f,
     .max_value = 1.0f,
     .allow_nan = false,
     .allow_infinity = false
-}).generate();
-auto s = text().generate();                              // std::string
-auto t = text({.min_size = 5, .max_size = 10}).generate();
-auto raw = binary({.min_size = 16, .max_size = 16}).generate(); // vector<uint8_t>
+}));
+auto s = hegel::draw(text());                              // std::string
+auto t = hegel::draw(text({.min_size = 5, .max_size = 10}));
+auto raw = hegel::draw(binary({.min_size = 16, .max_size = 16})); // vector<uint8_t>
 ```
 
 ### Constants and choices
 
 ```cpp
-auto always_42 = just(42).generate();
-auto color = sampled_from({"red", "green", "blue"}).generate();
-auto die = sampled_from({1, 2, 3, 4, 5, 6}).generate();
+auto always_42 = hegel::draw(just(42));
+auto color = hegel::draw(sampled_from({"red", "green", "blue"}));
+auto die = hegel::draw(sampled_from({1, 2, 3, 4, 5, 6}));
 ```
 
 ### Collections
 
 ```cpp
-auto vec = vectors(integers<int>(), {.min_size = 1, .max_size = 10}).generate();
-auto unique_vec = vectors(integers<int>(), {.unique = true}).generate();
-auto s = sets(text(), {.min_size = 1, .max_size = 5}).generate();
-auto m = dictionaries(text(), integers<int>(), {.max_size = 3}).generate();
-auto pair = tuples(integers<int>(), text()).generate();
+auto vec = hegel::draw(vectors(integers<int>(), {.min_size = 1, .max_size = 10}));
+auto unique_vec = hegel::draw(vectors(integers<int>(), {.unique = true}));
+auto s = hegel::draw(sets(text(), {.min_size = 1, .max_size = 5}));
+auto m = hegel::draw(dictionaries(text(), integers<int>(), {.max_size = 3}));
+auto pair = hegel::draw(tuples(integers<int>(), text()));
+```
+
+### Random
+
+```cpp
+auto rng = hegel::draw(randoms());
+std::uniform_real_distribution<double> dist(0.0, 10.0);
+double uniform_value = dist(rng);
+
+// Using true random
+auto rng2 = hegel::draw(randoms({ .use_true_random = true }));
+std::lognormal_distribution<double> dist2(0.0, 10.0);
+double lognormal_value = dist2(rng2);
 ```
 
 ### Combinators
 
 ```cpp
 // Choose from several generators
-auto n = one_of({
+auto n = hegel::draw(one_of({
     integers<int>({.min_value = 0, .max_value = 10}),
     integers<int>({.min_value = 90, .max_value = 100})
-}).generate();
+}));
 
 // Optional values (some or none)
-auto opt = optional_(text()).generate(); // std::optional<std::string>
+auto opt = hegel::draw(optional_(text())); // std::optional<std::string>
 
 // Variant types
-auto var = variant_(integers<int>(), text(), booleans()).generate();
+auto var = hegel::draw(variant_(integers<int>(), text(), booleans()));
 ```
 
 ### Formats and addresses
 
 ```cpp
-auto email = emails().generate();                        // e.g. "user@example.com"
-auto url   = urls().generate();                          // e.g. "https://example.com/path"
-auto dom   = domains().generate();                       // e.g. "sub.example.org"
-auto ipv4  = ip_addresses({.v = 4}).generate();          // e.g. "192.168.1.1"
-auto ipv6  = ip_addresses({.v = 6}).generate();          // e.g. "::1"
-auto d     = dates().generate();                         // ISO 8601: "2024-03-15"
-auto t     = times().generate();                         // "14:30:00"
-auto dt    = datetimes().generate();                     // "2024-03-15T14:30:00"
-auto pat   = from_regex("[A-Z]{2}-[0-9]{4}").generate(); // e.g. "QX-8271"
+auto email = hegel::draw(emails());                        // e.g. "user@example.com"
+auto url   = hegel::draw(urls());                          // e.g. "https://example.com/path"
+auto dom   = hegel::draw(domains());                       // e.g. "sub.example.org"
+auto ipv4  = hegel::draw(ip_addresses({.v = 4}));          // e.g. "192.168.1.1"
+auto ipv6  = hegel::draw(ip_addresses({.v = 6}));          // e.g. "::1"
+auto d     = hegel::draw(dates());                         // ISO 8601: "2024-03-15"
+auto t     = hegel::draw(times());                         // "14:30:00"
+auto dt    = hegel::draw(datetimes());                     // "2024-03-15T14:30:00"
+auto pat   = hegel::draw(from_regex("[A-Z]{2}-[0-9]{4}")); // e.g. "QX-8271"
 ```
 
 ## Type-directed derivation
@@ -301,7 +314,7 @@ struct Point {
 
 int main() {
     hegel::hegel([]() {
-        auto p = hegel::generators::default_generator<Point>().generate();
+        auto p = hegel::draw(hegel::generators::default_generator<Point>());
 
         // p.x and p.y are random doubles
     });
@@ -323,16 +336,16 @@ struct Rectangle {
 
 hegel::hegel([]() {
     // Positional: calls Rectangle{width, height}
-    auto rect = builds<Rectangle>(
+    auto rect = hegel::draw(builds<Rectangle>(
         integers<int>({.min_value = 1, .max_value = 100}),
         integers<int>({.min_value = 1, .max_value = 100})
-    ).generate();
+    ));
 
     // Named fields: explicit binding to struct members
-    auto rect2 = builds_agg<Rectangle>(
+    auto rect2 = hegel::draw(builds_agg<Rectangle>(
         field<&Rectangle::width>(integers<int>({.min_value = 1, .max_value = 50})),
         field<&Rectangle::height>(integers<int>({.min_value = 1, .max_value = 50}))
-    ).generate();
+    ));
 
     if (rect.width < 1 || rect.height < 1) {
         throw std::runtime_error("expected positive dimensions");
@@ -354,10 +367,10 @@ using namespace hegel::generators;
 
 int main() {
     hegel::hegel([]() {
-        auto ops = vectors(
+        auto ops = hegel::draw(vectors(
             sampled_from({"push", "pop", "peek"}),
             {.min_size = 1, .max_size = 20}
-        ).generate();
+        ));
 
         for (const auto& op : ops) {
             hegel::note("executing operation: " + std::string(op));
@@ -379,8 +392,8 @@ do not meet a precondition:
 ```cpp
 hegel::hegel([]() {
     using namespace hegel::generators;
-    auto a = integers<int>().generate();
-    auto b = integers<int>().generate();
+    auto a = hegel::draw(integers<int>());
+    auto b = hegel::draw(integers<int>());
 
     // Only test when no overflow occurs
     hegel::assume(

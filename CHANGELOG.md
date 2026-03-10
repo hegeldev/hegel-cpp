@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.4 - 2026-03-06
+
+Add `generators::randoms`, for use with `std::random`.
+
 ## 0.2.3 - 2026-03-06
 
 Add clang-tidy and fix resulting lints.
