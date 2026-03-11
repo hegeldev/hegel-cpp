@@ -74,10 +74,11 @@ namespace hegel::generators {
         }
 
         if (elements.schema()) {
-            hegel::internal::json::json schema = {{"type", "list"},
-                                     {"elements", *elements.schema()},
-                                     {"min_size", params.min_size},
-                                     {"unique", params.unique}};
+            hegel::internal::json::json schema = {
+                {"type", "list"},
+                {"elements", *elements.schema()},
+                {"min_size", params.min_size},
+                {"unique", params.unique}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
@@ -124,10 +125,11 @@ namespace hegel::generators {
         }
 
         if (elements.schema()) {
-            hegel::internal::json::json schema = {{"type", "list"},
-                                     {"elements", *elements.schema()},
-                                     {"min_size", params.min_size},
-                                     {"unique", true}};
+            hegel::internal::json::json schema = {
+                {"type", "list"},
+                {"elements", *elements.schema()},
+                {"min_size", params.min_size},
+                {"unique", true}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
@@ -191,10 +193,11 @@ namespace hegel::generators {
         }
 
         if (keys.schema() && values.schema()) {
-            hegel::internal::json::json schema = {{"type", "dict"},
-                                     {"keys", *keys.schema()},
-                                     {"values", *values.schema()},
-                                     {"min_size", params.min_size}};
+            hegel::internal::json::json schema = {
+                {"type", "dict"},
+                {"keys", *keys.schema()},
+                {"values", *values.schema()},
+                {"min_size", params.min_size}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
@@ -239,10 +242,12 @@ namespace hegel::generators {
             if (!all_have_schemas)
                 return std::nullopt;
 
-            hegel::internal::json::json elements = hegel::internal::json::json::array();
+            hegel::internal::json::json elements =
+                hegel::internal::json::json::array();
             (elements.push_back(*gens.schema()), ...);
 
-            hegel::internal::json::json schema = {{"type", "tuple"}, {"elements", elements}};
+            hegel::internal::json::json schema = {{"type", "tuple"},
+                                                  {"elements", elements}};
 
             return schema;
         }

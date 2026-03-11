@@ -40,7 +40,8 @@ namespace hegel::generators {
                       std::is_same_v<T, std::nullptr_t> ||
                       std::is_integral_v<T> || std::is_floating_point_v<T> ||
                       std::is_same_v<T, std::string>) {
-            hegel::internal::json::json arr = hegel::internal::json::json::array();
+            hegel::internal::json::json arr =
+                hegel::internal::json::json::array();
             for (const auto& e : elements)
                 arr.push_back(e);
             hegel::internal::json::json schema = {{"sampled_from", arr}};
@@ -84,7 +85,8 @@ namespace hegel::generators {
                     return std::nullopt;
             }
 
-            hegel::internal::json::json one_of_arr = hegel::internal::json::json::array();
+            hegel::internal::json::json one_of_arr =
+                hegel::internal::json::json::array();
             for (const auto& gen : gens) {
                 one_of_arr.push_back(*gen.schema());
             }

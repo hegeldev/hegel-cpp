@@ -19,18 +19,15 @@ namespace hegel::internal::json {
     };
 
     class ImplUtil {
-        public:
-            static nlohmann::json& raw(json_raw_ref ref) {
-                return ref.ref->data;
-            }
-            static const nlohmann::json& raw(const json& json) {
-                return json.impl->data;
-            }
-            static json create(const nlohmann::json& from) {
-                json result(nullptr);
-                result.impl.reset(new json_holder(from));
-                return result;
-            }
-
+      public:
+        static nlohmann::json& raw(json_raw_ref ref) { return ref.ref->data; }
+        static const nlohmann::json& raw(const json& json) {
+            return json.impl->data;
+        }
+        static json create(const nlohmann::json& from) {
+            json result(nullptr);
+            result.impl.reset(new json_holder(from));
+            return result;
+        }
     };
-}
+} // namespace hegel::internal::json

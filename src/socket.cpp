@@ -68,20 +68,23 @@ namespace hegel::impl::socket {
 } // namespace hegel::impl::socket
 
 namespace hegel::internal {
-    hegel::internal::json::json communicate_with_socket(const hegel::internal::json::json& schema,
-                                           impl::data::TestCaseData* data) {
+    hegel::internal::json::json
+    communicate_with_socket(const hegel::internal::json::json& schema,
+                            impl::data::TestCaseData* data) {
         auto* conn = data->connection;
         uint32_t data_channel = data->data_channel;
 
         // Build generate request as CBOR
-        hegel::internal::json::json request = {{"command", "generate"}, {"schema", schema}};
+        hegel::internal::json::json request = {{"command", "generate"},
+                                               {"schema", schema}};
 
         if (impl::protocol::protocol_debug_enabled()) {
             std::cerr << "REQUEST: " << request.dump() << "\n";
         }
 
         // Send request and get response
-        hegel::internal::json::json response = conn->request(data_channel, request);
+        hegel::internal::json::json response =
+            conn->request(data_channel, request);
 
         auto response_raw = ImplUtil::raw(response);
 
@@ -96,16 +99,18 @@ namespace hegel::internal {
                 data->test_aborted = true;
                 internal::stop_test();
             }
-            std::string error_msg = response_raw["error"].is_string()
-                                        ? response_raw["error"].get<std::string>()
-                                        : "unknown error";
+            std::string error_msg =
+                response_raw["error"].is_string()
+                    ? response_raw["error"].get<std::string>()
+                    : "unknown error";
             throw std::runtime_error(error_msg);
         }
 
         // Auto-log generated value during final replay (counterexample)
         if (data->is_last_run) {
             if (response_raw.contains("result")) {
-                std::cerr << "Generated: " << response_raw["result"].dump() << "\n";
+                std::cerr << "Generated: " << response_raw["result"].dump()
+                          << "\n";
             }
         }
 

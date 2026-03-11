@@ -47,7 +47,7 @@ namespace hegel::generators {
         }
 
         hegel::internal::json::json schema = {{"type", "string"},
-                                 {"min_size", params.min_size}};
+                                              {"min_size", params.min_size}};
 
         if (params.max_size)
             schema["max_size"] = *params.max_size;
@@ -61,7 +61,7 @@ namespace hegel::generators {
         }
 
         hegel::internal::json::json schema = {{"type", "binary"},
-                                 {"min_size", params.min_size}};
+                                              {"min_size", params.min_size}};
 
         if (params.max_size)
             schema["max_size"] = *params.max_size;
@@ -91,7 +91,8 @@ namespace hegel::generators {
     // =============================================================================
 
     Generator<std::string> emails() {
-        return from_schema<std::string>(hegel::internal::json::json{{"type", "email"}});
+        return from_schema<std::string>(
+            hegel::internal::json::json{{"type", "email"}});
     }
 
     Generator<std::string> domains(DomainsParams params) {
@@ -99,13 +100,14 @@ namespace hegel::generators {
             throw std::invalid_argument("max_length must be between 4 and 255");
         }
 
-        hegel::internal::json::json schema = {{"type", "domain"},
-                                 {"max_length", params.max_length}};
+        hegel::internal::json::json schema = {
+            {"type", "domain"}, {"max_length", params.max_length}};
         return from_schema<std::string>(std::move(schema));
     }
 
     Generator<std::string> urls() {
-        return from_schema<std::string>(hegel::internal::json::json{{"type", "url"}});
+        return from_schema<std::string>(
+            hegel::internal::json::json{{"type", "url"}});
     }
 
     Generator<std::string> ip_addresses(IpAddressesParams params) {
@@ -114,27 +116,34 @@ namespace hegel::generators {
         }
 
         if (params.v == 4) {
-            return from_schema<std::string>(hegel::internal::json::json{{"type", "ipv4"}});
+            return from_schema<std::string>(
+                hegel::internal::json::json{{"type", "ipv4"}});
         } else if (params.v == 6) {
-            return from_schema<std::string>(hegel::internal::json::json{{"type", "ipv6"}});
+            return from_schema<std::string>(
+                hegel::internal::json::json{{"type", "ipv6"}});
         } else {
             hegel::internal::json::json one_of =
-                hegel::internal::json::json::array({hegel::internal::json::json{{"type", "ipv4"}},
-                                       hegel::internal::json::json{{"type", "ipv6"}}});
-            return from_schema<std::string>(hegel::internal::json::json{{"one_of", one_of}});
+                hegel::internal::json::json::array(
+                    {hegel::internal::json::json{{"type", "ipv4"}},
+                     hegel::internal::json::json{{"type", "ipv6"}}});
+            return from_schema<std::string>(
+                hegel::internal::json::json{{"one_of", one_of}});
         }
     }
 
     Generator<std::string> dates() {
-        return from_schema<std::string>(hegel::internal::json::json{{"type", "date"}});
+        return from_schema<std::string>(
+            hegel::internal::json::json{{"type", "date"}});
     }
 
     Generator<std::string> times() {
-        return from_schema<std::string>(hegel::internal::json::json{{"type", "time"}});
+        return from_schema<std::string>(
+            hegel::internal::json::json{{"type", "time"}});
     }
 
     Generator<std::string> datetimes() {
-        return from_schema<std::string>(hegel::internal::json::json{{"type", "datetime"}});
+        return from_schema<std::string>(
+            hegel::internal::json::json{{"type", "datetime"}});
     }
 
     // =============================================================================

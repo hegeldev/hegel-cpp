@@ -24,8 +24,9 @@ namespace hegel::impl::data {
 
 /// @cond INTERNAL
 namespace hegel::internal {
-    hegel::internal::json::json communicate_with_socket(const hegel::internal::json::json& schema,
-                                           impl::data::TestCaseData* data);
+    hegel::internal::json::json
+    communicate_with_socket(const hegel::internal::json::json& schema,
+                            impl::data::TestCaseData* data);
 
     /* Print a note message for debugging.
      *

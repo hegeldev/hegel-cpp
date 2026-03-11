@@ -81,8 +81,9 @@ namespace hegel::impl {
     // =============================================================================
     // Request / Reply
     // =============================================================================
-    hegel::internal::json::json Connection::request(uint32_t channel,
-                                       const hegel::internal::json::json& msg) {
+    hegel::internal::json::json
+    Connection::request(uint32_t channel,
+                        const hegel::internal::json::json& msg) {
         auto payload = protocol::cbor_encode(ImplUtil::raw(msg));
         uint32_t msg_id = alloc_message_id(channel);
         protocol::write_packet(fd_, channel, msg_id, false, payload);
@@ -108,8 +109,7 @@ namespace hegel::impl {
         }
 
         auto decoded = protocol::cbor_decode(packet.payload);
-        return IncomingRequest{packet.message_id,
-                               ImplUtil::create(decoded)};
+        return IncomingRequest{packet.message_id, ImplUtil::create(decoded)};
     }
 
     void Connection::close_channel(uint32_t channel) {

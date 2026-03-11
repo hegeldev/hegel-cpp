@@ -1,7 +1,7 @@
 #include <algorithm>
+#include <hegel/json.h>
 #include <iostream>
 #include <map>
-#include <hegel/json.h>
 #include <optional>
 
 #include "hegel/hegel.h"

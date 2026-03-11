@@ -78,8 +78,8 @@ namespace hegel::generators {
         }
 
         hegel::internal::json::json schema = {{"type", "integer"},
-                                 {"min_value", min_val},
-                                 {"max_value", max_val}};
+                                              {"min_value", min_val},
+                                              {"max_value", max_val}};
 
         return from_schema<T>(std::move(schema));
     }
@@ -137,12 +137,13 @@ namespace hegel::generators {
                 "max_value");
         }
 
-        hegel::internal::json::json schema = {{"type", "float"},
-                                 {"exclude_min", params.exclude_min},
-                                 {"exclude_max", params.exclude_max},
-                                 {"allow_nan", nan},
-                                 {"allow_infinity", inf},
-                                 {"width", width}};
+        hegel::internal::json::json schema = {
+            {"type", "float"},
+            {"exclude_min", params.exclude_min},
+            {"exclude_max", params.exclude_max},
+            {"allow_nan", nan},
+            {"allow_infinity", inf},
+            {"width", width}};
 
         if (params.min_value) {
             schema["min_value"] = *params.min_value;

@@ -33,7 +33,8 @@ namespace hegel::impl {
         uint32_t create_channel();
 
         /// Send a CBOR request and wait for the reply
-        hegel::internal::json::json request(uint32_t channel, const hegel::internal::json::json& msg);
+        hegel::internal::json::json
+        request(uint32_t channel, const hegel::internal::json::json& msg);
 
         /// Send a CBOR reply to a server-initiated request
         void write_reply(uint32_t channel, uint32_t message_id,

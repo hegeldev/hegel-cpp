@@ -1,6 +1,6 @@
 #include <cstdint>
-#include <iostream>
 #include <hegel/json.h>
+#include <iostream>
 #include <optional>
 #include <vector>
 

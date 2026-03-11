@@ -2,7 +2,8 @@
 
 /**
  * @file nlohmann_reader.h
- * @brief reflect-cpp Reader for hegel::internal::json::json (avoids JSON text round-trip)
+ * @brief reflect-cpp Reader for hegel::internal::json::json (avoids JSON text
+ * round-trip)
  * @cond INTERNAL
  */
 
@@ -139,8 +140,10 @@ namespace hegel::internal {
         }
     };
 
-    /// Deserialize a hegel::internal::json::json value into type T using reflect-cpp.
-    template <class T> rfl::Result<T> read_nlohmann(hegel::internal::json::json_raw_ref val) {
+    /// Deserialize a hegel::internal::json::json value into type T using
+    /// reflect-cpp.
+    template <class T>
+    rfl::Result<T> read_nlohmann(hegel::internal::json::json_raw_ref val) {
         auto r = NlohmannReader();
         return rfl::parsing::Parser<
             NlohmannReader, rfl::json::Writer, T,

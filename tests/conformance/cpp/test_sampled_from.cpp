@@ -1,5 +1,5 @@
-#include <iostream>
 #include <hegel/json.h>
+#include <iostream>
 #include <vector>
 
 #include "hegel/hegel.h"

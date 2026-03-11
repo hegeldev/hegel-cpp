@@ -106,9 +106,10 @@ namespace hegel {
         uint32_t test_channel = conn.create_channel();
         uint64_t test_cases = options.test_cases.value_or(100);
 
-        hegel::internal::json::json run_test_msg = {{"command", "run_test"},
-                                       {"test_cases", test_cases},
-                                       {"channel_id", test_channel}};
+        hegel::internal::json::json run_test_msg = {
+            {"command", "run_test"},
+            {"test_cases", test_cases},
+            {"channel_id", test_channel}};
         if (options.seed.has_value()) {
             run_test_msg["seed"] = options.seed.value();
         } else {
@@ -128,8 +129,9 @@ namespace hegel {
 
             if (event_type == "test_case") {
                 // Acknowledge test_case event
-                conn.write_reply(test_channel, event.message_id,
-                                 hegel::internal::json::json{{"result", nullptr}});
+                conn.write_reply(
+                    test_channel, event.message_id,
+                    hegel::internal::json::json{{"result", nullptr}});
 
                 uint32_t data_channel =
                     payload.value("channel_id", uint32_t{0});
@@ -165,12 +167,13 @@ namespace hegel {
 
                 // Send mark_complete and close data channel (unless aborted)
                 if (!data.test_aborted) {
-                    hegel::internal::json::json origin_value = origin.empty()
-                                                      ? hegel::internal::json::json(nullptr)
-                                                      : hegel::internal::json::json(origin);
-                    hegel::internal::json::json mark = {{"command", "mark_complete"},
-                                           {"status", status},
-                                           {"origin", origin_value}};
+                    hegel::internal::json::json origin_value =
+                        origin.empty() ? hegel::internal::json::json(nullptr)
+                                       : hegel::internal::json::json(origin);
+                    hegel::internal::json::json mark = {
+                        {"command", "mark_complete"},
+                        {"status", status},
+                        {"origin", origin_value}};
                     conn.request(data_channel, mark);
                     conn.close_channel(data_channel);
                 }

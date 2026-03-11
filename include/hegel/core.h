@@ -358,7 +358,8 @@ namespace hegel::generators {
             } else if constexpr (std::is_same_v<std::remove_cvref_t<T>, bool>) {
                 return result.get_bool();
             } else if constexpr (std::is_arithmetic_v<T>) {
-                return result.get_uint32_t(); // TODO: probably should break out more cases here
+                return result.get_uint32_t(); // TODO: probably should break out
+                                              // more cases here
             } else {
                 auto parse_result = internal::read_nlohmann<T>(result);
                 if (!parse_result.has_value()) {
@@ -446,7 +447,8 @@ namespace hegel::generators {
      * @param schema CBOR schema describing the generation constraints
      * @return A Generator<T> that generates according to the schema
      */
-    template <typename T> Generator<T> from_schema(hegel::internal::json::json schema) {
+    template <typename T>
+    Generator<T> from_schema(hegel::internal::json::json schema) {
         return Generator<T>(new SchemaBackedGenerator<T>(std::move(schema)));
     }
 
