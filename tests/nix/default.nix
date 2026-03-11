@@ -7,7 +7,7 @@
     stdenv = pkgs.stdenv;
     fs = pkgs.lib.fileset;
 
-    hegel-cpp = import ../..;
+    hegel-cpp = import ../../nix;
 in stdenv.mkDerivation {
     pname = "hegel-cpp-nix-test";
     version = "0.1.0";

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.6 - 2026-03-11
+
+Fix socket setup to prevent child process from inheriting fd.
+
+## 0.2.5 - 2026-03-11
+
+Add argument validation.
+
 ## 0.2.4 - 2026-03-06
 
 Add `generators::randoms`, for use with `std::random`.
