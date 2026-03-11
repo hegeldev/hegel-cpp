@@ -39,7 +39,7 @@ namespace hegel::impl::socket {
     }
 
     int connect_to_socket(const std::string& path) {
-        int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
+        int fd = ::socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
         if (fd < 0) {
             throw std::runtime_error("Failed to create socket");
         }

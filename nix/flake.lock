@@ -37,17 +37,19 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1772481709,
-        "narHash": "sha256-Vw+ZGfpK2xPEw2t9Yvb1wt0DUU+BExdEq/SrC73R2JA=",
+        "dir": "nix",
+        "lastModified": 1773172740,
+        "narHash": "sha256-gzW4T5EHKw5ss+YiwWQf9xitKYejA0dhVirzHSiRfnA=",
         "ref": "refs/heads/main",
-        "rev": "85daaeb55d843882e11408d49db9a66bbff5e14a",
-        "revCount": 310,
+        "rev": "f02f2b383324e7eba04b33f97a46c0ba64047eb7",
+        "revCount": 343,
         "type": "git",
-        "url": "ssh://git@github.com/antithesishq/hegel"
+        "url": "ssh://git@github.com/antithesishq/hegel-core"
       },
       "original": {
+        "dir": "nix",
         "type": "git",
-        "url": "ssh://git@github.com/antithesishq/hegel"
+        "url": "ssh://git@github.com/antithesishq/hegel-core"
       }
     },
     "nixpkgs": {
@@ -68,11 +70,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1772433332,
-        "narHash": "sha256-izhTDFKsg6KeVBxJS9EblGeQ8y+O8eCa6RcW874vxEc=",
+        "lastModified": 1772963539,
+        "narHash": "sha256-9jVDGZnvCckTGdYT53d/EfznygLskyLQXYwJLKMPsZs=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "cf59864ef8aa2e178cccedbe2c178185b0365705",
+        "rev": "9dcb002ca1690658be4a04645215baea8b95f31d",
         "type": "github"
       },
       "original": {
