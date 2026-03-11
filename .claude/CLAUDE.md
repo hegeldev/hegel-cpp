@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the C++ SDK for Hegel, a universal property-based testing framework. The SDK communicates with a hegeld server (powered by Hypothesis) via a binary protocol over Unix sockets to generate random test data and perform shrinking.
+This is the C++ SDK for Hegel, a universal property-based testing framework. The SDK communicates with a hegel server (powered by Hypothesis) via a binary protocol over Unix sockets to generate random test data and perform shrinking.
 
 ## Build & Test Commands
 
@@ -33,9 +33,9 @@ ctest --test-dir build -R test_name
 
 ### Execution Model
 
-The SDK spawns `hegeld` as a subprocess and connects to it as a client:
-1. SDK creates a socket path and spawns hegeld
-2. hegeld binds to the socket and listens
+The SDK spawns the hegel server as a subprocess and connects to it as a client:
+1. SDK creates a socket path and spawns the hegel server
+2. The hegel server binds to the socket and listens
 3. SDK connects as client
 4. Version negotiation: SDK sends `"Hegel/1.0"`, server responds `"Ok"`
 5. Control channel (0) receives `run_test`/`test_case`/`test_done` events

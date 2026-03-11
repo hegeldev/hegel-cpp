@@ -201,7 +201,7 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - name: lint
-        run: nix run nixpkgs#nixfmt -- --check flake.nix
+        run: nix run nixpkgs#nixfmt -- --check nix/flake.nix
       - name: test
         working-directory: tests/nix
         run: |
@@ -244,7 +244,7 @@ jobs:
   release:
     name: release
     if: github.event_name == 'push' && github.repository == 'antithesishq/hegel-cpp'
-    needs: [lint, build-and-test, conformance, nix, docs]
+    needs: [lint, build-and-test, conformance, docs]
     runs-on: ubuntu-latest
     permissions:
       contents: write

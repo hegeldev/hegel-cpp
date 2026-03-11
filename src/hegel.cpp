@@ -70,7 +70,7 @@ namespace hegel {
                              const std::string& temp_dir,
                              pid_t child_pid, // NOLINT(misc-include-cleaner)
                              const options::HegelOptions& options) {
-        // Wait for hegeld to create the socket
+        // Wait for hegel-core to create the socket
         if (!impl::socket::wait_for_socket(socket_path, 10000)) {
             // Check if child died
             int status;
@@ -103,8 +103,6 @@ namespace hegel {
         uint64_t test_cases = options.test_cases.value_or(100);
 
         nlohmann::json run_test_msg = {{"command", "run_test"},
-                                       // TODO bad. very bad.
-                                       {"database_key", "test"},
                                        {"test_cases", test_cases},
                                        {"channel_id", test_channel},
                                        {"print_blob", options.print_blob}};
@@ -240,7 +238,6 @@ namespace hegel {
         std::filesystem::create_directories(temp_dir);
         std::string socket_path = temp_dir + "/hegel.sock";
 
-        // Fork and exec hegeld
         pid_t pid = fork();
         if (pid < 0) {
             std::filesystem::remove_all(temp_dir);
