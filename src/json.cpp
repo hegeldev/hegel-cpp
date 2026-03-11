@@ -39,8 +39,9 @@ namespace hegel::internal::json {
         if (is_an_object) {
             for (const json_ref& ref : init) {
                 const nlohmann::json& elt = (*ref).impl->data;
-                auto& key = elt[0];
-                auto& value = elt[1];
+                const std::string& key =
+                    elt[static_cast<size_t>(0)].get_ref<const std::string&>();
+                auto& value = elt[static_cast<size_t>(1)];
                 (impl->data)[key] = value;
             }
         } else {
