@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-compat.url = "https://flakehub.com/f/edolstra/flake-compat/1.tar.gz";
-    hegel.url = "git+ssh://git@github.com/antithesishq/hegel-core?dir=nix";
+    hegel.url = "git+ssh://git@github.com/antithesishq/hegel";
   };
 
   outputs =
@@ -58,12 +58,12 @@
 
           fs = pkgs.lib.fileset;
           baseSrc = fs.unions [
-            ./cmake
-            ./CMakeLists.txt
-            ./src
-            ./include
-            ./tests
-            ./docs
+            ./../cmake
+            ./../CMakeLists.txt
+            ./../src
+            ./../include
+            ./../tests
+            ./../docs
           ];
         in
         stdenv.mkDerivation {
@@ -71,7 +71,7 @@
           version = "0.1.0";
 
           src = fs.toSource {
-            root = ./.;
+            root = ./..;
             fileset = baseSrc;
           };
 
