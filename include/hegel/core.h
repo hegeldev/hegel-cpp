@@ -357,9 +357,12 @@ namespace hegel::generators {
                 return result.get_string();
             } else if constexpr (std::is_same_v<std::remove_cvref_t<T>, bool>) {
                 return result.get_bool();
-            } else if constexpr (std::is_arithmetic_v<T>) {
-                return result.get_uint32_t(); // TODO: probably should break out
-                                              // more cases here
+            } else if constexpr (std::is_floating_point_v<T>) {
+                return static_cast<T>(result.get_double());
+            } else if constexpr (std::is_unsigned_v<T>) {
+                return static_cast<T>(result.get_uint64_t());
+            } else if constexpr (std::is_integral_v<T>) {
+                return static_cast<T>(result.get_int64_t());
             } else {
                 auto parse_result = internal::read_nlohmann<T>(result);
                 if (!parse_result.has_value()) {
