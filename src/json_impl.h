@@ -13,7 +13,7 @@ namespace hegel::internal::json {
     struct json_holder {
         nlohmann::json data;
 
-        json_holder() : data() {}
+        json_holder() {}
         json_holder(const nlohmann::json& init) : data(init) {}
         json_holder(nlohmann::json&& init) : data(std::move(init)) {}
     };

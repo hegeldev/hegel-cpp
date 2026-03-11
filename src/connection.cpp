@@ -1,4 +1,5 @@
 #include <connection.h>
+#include <hegel/json.h>
 #include <protocol.h>
 
 #include "json_impl.h"

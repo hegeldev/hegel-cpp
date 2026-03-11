@@ -2,6 +2,16 @@
 #include <hegel/json.h>
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <initializer_list>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
 using hegel::internal::json::ImplUtil;
 
 namespace hegel::internal::json {

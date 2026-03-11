@@ -4,6 +4,7 @@
 
 #include <hegel/hegel.h>
 #include <hegel/internal.h>
+#include <hegel/json.h>
 #include <hegel/options.h>
 
 #include "json_impl.h"

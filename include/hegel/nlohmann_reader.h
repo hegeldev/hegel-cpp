@@ -143,7 +143,8 @@ namespace hegel::internal {
     /// Deserialize a hegel::internal::json::json value into type T using
     /// reflect-cpp.
     template <class T>
-    rfl::Result<T> read_nlohmann(hegel::internal::json::json_raw_ref val) {
+    rfl::Result<T>
+    read_nlohmann(const hegel::internal::json::json_raw_ref& val) {
         auto r = NlohmannReader();
         return rfl::parsing::Parser<
             NlohmannReader, rfl::json::Writer, T,
