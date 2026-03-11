@@ -13,6 +13,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -39,10 +40,17 @@ namespace hegel::impl::socket {
     }
 
     int connect_to_socket(const std::string& path) {
+#ifdef SOCK_CLOEXEC
         int fd = ::socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+#else
+        int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
+#endif
         if (fd < 0) {
             throw std::runtime_error("Failed to create socket");
         }
+#ifndef SOCK_CLOEXEC
+        fcntl(fd, F_SETFD, FD_CLOEXEC);
+#endif
 
         struct sockaddr_un addr{};
         addr.sun_family = AF_UNIX;
