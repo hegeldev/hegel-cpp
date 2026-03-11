@@ -47,6 +47,14 @@ target_link_libraries(test_random
 )
 gtest_discover_tests(test_random)
 
+add_executable(test_no_nlohmann_include test_no_nlohmann_include.cpp)
+target_link_libraries(test_no_nlohmann_include
+    PRIVATE
+        hegel
+        GTest::gtest_main
+)
+gtest_discover_tests(test_no_nlohmann_include)
+
 add_executable(gtest_failure_test gtest_failure_test.cpp)
 target_link_libraries(gtest_failure_test
     PRIVATE
