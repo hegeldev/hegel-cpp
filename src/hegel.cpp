@@ -122,6 +122,7 @@ namespace hegel {
 
         // Event loop on test channel
         bool test_passed = true;
+        std::optional<std::string> failure_blob = std::nullopt;
         int final_replays_remaining = 0;
         bool done = false;
         while (!done) {
@@ -199,12 +200,11 @@ namespace hegel {
                     if (results.contains("failure_blob")) {
                         auto byte_sequence =
                             results["failure_blob"].get_binary();
-                        std::string ascii_string(
+                        std::string failure_blob_string(
                             reinterpret_cast<const char*>(byte_sequence.data()),
                             byte_sequence.size());
-                        std::cerr
-                            << "Failure blob for reproduction: " << ascii_string
-                            << "\n";
+                        failure_blob =
+                            std::optional<std::string>(failure_blob_string);
                     }
                 }
                 if (final_replays_remaining <= 0) {
@@ -222,6 +222,10 @@ namespace hegel {
 
         if (test_passed && options.failure_blob.has_value()) {
             throw std::runtime_error("Failure blob did not cause a failure");
+        }
+        if (failure_blob.has_value()) {
+            std::cerr << "Failure blob for reproduction: "
+                      << failure_blob.value() << "\n";
         }
         if (!test_passed) {
             throw std::runtime_error("Hegel test failed");
