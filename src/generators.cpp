@@ -5,6 +5,7 @@
 #include <hegel/generators/random.h>
 #include <hegel/generators/strings.h>
 #include <hegel/internal.h>
+#include <hegel/json.h>
 
 #include "json_impl.h"
 
