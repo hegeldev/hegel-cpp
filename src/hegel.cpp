@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -41,6 +42,18 @@ namespace hegel {
         std::string hegel_path =
             options.hegel_path.value_or(HEGEL_DEFAULT_PATH);
         uint64_t test_cases = options.test_cases.value_or(100);
+
+        // Redirect stdout/stderr to .hegel/server.log
+        std::filesystem::create_directories(".hegel");
+        int log_fd = open(".hegel/server.log",
+                          O_WRONLY | O_CREAT | O_APPEND, 0644);
+        if (log_fd >= 0) {
+            dup2(log_fd, STDOUT_FILENO);
+            dup2(log_fd, STDERR_FILENO);
+            ::close(log_fd);
+        }
+
+        setenv("PYTHONUNBUFFERED", "1", 1);
 
         std::vector<std::string> args = {
             hegel_path, socket_path, "--verbosity",
