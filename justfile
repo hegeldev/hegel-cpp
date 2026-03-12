@@ -46,3 +46,12 @@ format:
 
 format-check:
     find . \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) ! -path "./build/*" | xargs uvx clang-format --dry-run -Werror
+
+update-hegel-core-version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tag=$(gh api repos/antithesishq/hegel-core/releases/latest --jq '.tag_name')
+    sed -i '' "s/static const std::string HEGEL_VERSION = \".*\"/static const std::string HEGEL_VERSION = \"${tag}\"/" src/hegel.cpp
+    echo "Updated HEGEL_VERSION to ${tag}"
+    # Clear cached install so the next test run picks up the new version
+    rm -rf .hegel/venv

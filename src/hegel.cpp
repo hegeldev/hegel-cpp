@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -130,6 +131,18 @@ namespace hegel {
             hegel_path = find_hegel();
         }
         uint64_t test_cases = options.test_cases.value_or(100);
+
+        // Redirect stdout/stderr to .hegel/server.log
+        std::filesystem::create_directories(HEGEL_DIR);
+        int log_fd = open((HEGEL_DIR + "/server.log").c_str(),
+                          O_WRONLY | O_CREAT | O_APPEND, 0644);
+        if (log_fd >= 0) {
+            dup2(log_fd, STDOUT_FILENO);
+            dup2(log_fd, STDERR_FILENO);
+            ::close(log_fd);
+        }
+
+        setenv("PYTHONUNBUFFERED", "1", 1);
 
         std::vector<std::string> args = {
             hegel_path, socket_path, "--verbosity",

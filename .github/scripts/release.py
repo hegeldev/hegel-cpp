@@ -58,24 +58,6 @@ def set_version(cmake_file: Path, new_version: str) -> None:
     cmake_file.write_text(new_text)
 
 
-def pin_hegel_version(hegel_cpp: Path) -> None:
-    """Pin HEGEL_VERSION to the latest hegel-core release tag."""
-    tag = subprocess.check_output(
-        ["gh", "api", "repos/antithesishq/hegel-core/releases/latest", "--jq", ".tag_name"],
-        text=True,
-    ).strip()
-
-    text = hegel_cpp.read_text()
-    new_text = re.sub(
-        r'^( *static const std::string HEGEL_VERSION =)\s*".*";',
-        f'\\1 "{tag}";',
-        text,
-        count=1,
-        flags=re.MULTILINE,
-    )
-    hegel_cpp.write_text(new_text)
-
-
 def add_changelog(path: Path, *, version: str, content: str) -> None:
     date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     entry = f"## {version} - {date}\n\n{content}"
@@ -140,13 +122,12 @@ def release() -> None:
     new_version = bump_version(m.group(1), release_type)
 
     set_version(cmake_file, new_version)
-    pin_hegel_version(ROOT / "src" / "hegel.cpp")
 
     add_changelog(ROOT / "CHANGELOG.md", version=new_version, content=content)
 
     git("config", "user.name", "hegel-release[bot]", cwd=ROOT)
     git("config", "user.email", "noreply@github.com", cwd=ROOT)
-    git("add", "CMakeLists.txt", "src/hegel.cpp", "CHANGELOG.md", cwd=ROOT)
+    git("add", "CMakeLists.txt", "CHANGELOG.md", cwd=ROOT)
     git("rm", "RELEASE.md", cwd=ROOT)
     git(
         "commit",
