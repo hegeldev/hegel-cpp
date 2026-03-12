@@ -105,8 +105,7 @@ namespace hegel {
 
         nlohmann::json run_test_msg = {{"command", "run_test"},
                                        {"test_cases", test_cases},
-                                       {"channel_id", test_channel},
-                                       {"print_blob", options.print_blob}};
+                                       {"channel_id", test_channel}};
         if (options.seed.has_value()) {
             run_test_msg["seed"] = options.seed.value();
         } else {
@@ -123,7 +122,7 @@ namespace hegel {
 
         // Event loop on test channel
         bool test_passed = true;
-        std::optional<std::string> failure_blob = std::nullopt;
+        std::vector<std::string> failure_blobs;
         int final_replays_remaining = 0;
         bool done = false;
         while (!done) {
@@ -198,14 +197,12 @@ namespace hegel {
                     test_passed = results.value("passed", true);
                     final_replays_remaining =
                         results.value("interesting_test_cases", 0);
-                    if (results.contains("failure_blob")) {
-                        auto byte_sequence =
-                            results["failure_blob"].get_binary();
+                    for (const auto& blob : results["failure_blobs"]) {
+                        auto byte_sequence = blob.get_binary();
                         std::string failure_blob_string(
                             reinterpret_cast<const char*>(byte_sequence.data()),
                             byte_sequence.size());
-                        failure_blob =
-                            std::optional<std::string>(failure_blob_string);
+                        failure_blobs.push_back(failure_blob_string);
                     }
                 }
                 if (final_replays_remaining <= 0) {
@@ -224,9 +221,11 @@ namespace hegel {
         if (test_passed && options.failure_blob.has_value()) {
             throw std::runtime_error("Failure blob did not cause a failure");
         }
-        if (failure_blob.has_value()) {
-            std::cerr << "Failure blob for reproduction: "
-                      << failure_blob.value() << "\n";
+        if (options.print_blob && !failure_blobs.empty()) {
+            std::cerr << "Failure blobs for reproduction:\n";
+            for (const auto& blob : failure_blobs) {
+                std::cerr << blob << "\n";
+            }
         }
         if (!test_passed) {
             throw std::runtime_error("Hegel test failed");
