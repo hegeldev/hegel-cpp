@@ -81,7 +81,7 @@ namespace hegel {
             throw std::runtime_error(
                 "Failed to install hegel (version: " + HEGEL_VERSION +
                 "). "
-                "Set HEGEL_CMD to a hegel binary path to skip "
+                "Set HEGEL_SERVER_COMMAND to a hegel binary path to skip "
                 "installation.");
         }
 
@@ -103,8 +103,8 @@ namespace hegel {
     static std::once_flag hegel_init_flag;
 
     static std::string find_hegel() {
-        // 1. HEGEL_CMD env var
-        const char* env = std::getenv("HEGEL_CMD");
+        // 1. HEGEL_SERVER_COMMAND env var
+        const char* env = std::getenv("HEGEL_SERVER_COMMAND");
         if (env != nullptr && env[0] != '\0')
             return std::string(env);
 

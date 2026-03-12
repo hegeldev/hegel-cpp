@@ -148,7 +148,7 @@ jobs:
 
       - name: Run property tests
         env:
-          HEGEL_CMD: hegel
+          HEGEL_SERVER_COMMAND: hegel
         run: ctest --test-dir build --output-on-failure -j$(nproc)
 
   conformance:
@@ -185,7 +185,7 @@ jobs:
       - name: Run conformance tests
         timeout-minutes: 10
         env:
-          HEGEL_CMD: hegel
+          HEGEL_SERVER_COMMAND: hegel
         run: |
           pip install pytest pytest-subtests
           pytest tests/conformance/test_conformance.py -v

@@ -1,6 +1,6 @@
 setup:
     @echo "hegel is auto-installed at runtime into .hegel/venv"
-    @echo "To override, set HEGEL_CMD to the path of your hegel binary."
+    @echo "To override, set HEGEL_SERVER_COMMAND to the path of your hegel binary."
 
 build:
     cmake -B build -DCMAKE_BUILD_TYPE=Release

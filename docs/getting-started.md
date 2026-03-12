@@ -29,7 +29,7 @@ During the CMake configure step, hegel-cpp automatically installs the pinned
 version of [hegel-core](https://github.com/antithesishq/hegel-core) into a
 project-local `.hegel/venv` virtualenv. Subsequent configures reuse the
 cached binary unless the pinned version changes. To use your own `hegel`
-binary instead, set the `HEGEL_CMD` environment variable.
+binary instead, set the `HEGEL_SERVER_COMMAND` environment variable.
 
 Requirements: a C++20 compiler, CMake 3.14 or later, and
 [uv](https://docs.astral.sh/uv/) on PATH.
