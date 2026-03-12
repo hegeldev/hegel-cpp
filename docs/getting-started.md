@@ -420,6 +420,6 @@ by random sampling alone.
   caches, and run-length encoding.
 - Read the generated Doxygen documentation (`just docs`) for the full API
   reference.
-- See the [hegel-core](https://github.com/antithesishq/hegel-core)
+- See the [hegel-core](https://github.com/hegeldev/hegel-core)
   repository for details on the Hegel server, the binary protocol, and the
   reference Python SDK.
