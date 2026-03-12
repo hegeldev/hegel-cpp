@@ -15,7 +15,7 @@ build:
 test:
     cmake -B build
     cmake --build build -j{{ num_cpus() }}
-    ctest --test-dir build/tests --output-on-failure -j{{ num_cpus() }}
+    ctest --test-dir build/tests -V -j{{ num_cpus() }}
 
 tidy:
     cmake -B build

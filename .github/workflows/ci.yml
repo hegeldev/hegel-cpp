@@ -156,7 +156,16 @@ jobs:
           cmake --build build -j$JOBS
 
       - name: Run property tests
-        run: ctest --test-dir build/tests --output-on-failure -j0
+        timeout-minutes: 10
+        run: |
+          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+            for i in $(seq 1 50); do
+              echo "=== Iteration $i/50 ==="
+              ctest --test-dir build/tests -V -j0 || exit 1
+            done
+          else
+            ctest --test-dir build/tests --output-on-failure -j0
+          fi
 
   conformance:
     name: conformance

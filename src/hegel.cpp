@@ -116,13 +116,18 @@ namespace hegel {
         bool test_passed = true;
         int final_replays_remaining = 0;
         bool done = false;
+        int test_case_num = 0;
         while (!done) {
+            std::cerr << "[hegel] waiting for event on test channel "
+                      << test_channel << "\n";
             auto event = conn.recv_request(test_channel);
             auto& payload = event.payload;
 
             std::string event_type = payload.value("event", "");
+            std::cerr << "[hegel] got event: " << event_type << "\n";
 
             if (event_type == "test_case") {
+                test_case_num++;
                 // Acknowledge test_case event
                 conn.write_reply(test_channel, event.message_id,
                                  nlohmann::json{{"result", nullptr}});
@@ -130,6 +135,10 @@ namespace hegel {
                 uint32_t data_channel =
                     payload.value("channel_id", uint32_t{0});
                 bool is_final = payload.value("is_final", false);
+
+                std::cerr << "[hegel] test_case #" << test_case_num
+                          << " data_channel=" << data_channel
+                          << " is_final=" << is_final << "\n";
 
                 // Set up per-test-case state
                 impl::data::TestCaseData data{
@@ -156,6 +165,10 @@ namespace hegel {
                     origin = "Unknown exception";
                 }
 
+                std::cerr << "[hegel] test_case #" << test_case_num
+                          << " status=" << status
+                          << " test_aborted=" << data.test_aborted << "\n";
+
                 // Clear per-test-case state
                 impl::data::clear();
 
@@ -167,8 +180,12 @@ namespace hegel {
                     nlohmann::json mark = {{"command", "mark_complete"},
                                            {"status", status},
                                            {"origin", origin_value}};
+                    std::cerr << "[hegel] sending mark_complete on channel "
+                              << data_channel << "\n";
                     conn.request(data_channel, mark);
                     conn.close_channel(data_channel);
+                } else {
+                    std::cerr << "[hegel] skipping mark_complete (aborted)\n";
                 }
 
                 if (is_final) {
@@ -189,11 +206,17 @@ namespace hegel {
                     final_replays_remaining =
                         results.value("interesting_test_cases", 0);
                 }
+                std::cerr << "[hegel] test_done passed=" << test_passed
+                          << " final_replays=" << final_replays_remaining
+                          << "\n";
                 if (final_replays_remaining <= 0) {
                     done = true;
                 }
+            } else {
+                std::cerr << "[hegel] unknown event: " << event_type << "\n";
             }
         }
+        std::cerr << "[hegel] event loop finished\n";
 
         // Cleanup: release socket before waiting for child
         conn.close();
