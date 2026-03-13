@@ -2,9 +2,9 @@
 
 /**
  * @file internal.h
- * @brief Internal implementation details for Hegel SDK
+ * @brief Internal implementation details for Hegel
  *
- * Contains internal parts of the Hegel SDK that are referenced
+ * Contains internal parts of the Hegel library that are referenced
  * in any of the header files shipped in the public API.
  *
  * Constructs that are not used in any of the header files,

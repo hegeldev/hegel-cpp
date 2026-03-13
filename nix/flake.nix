@@ -1,5 +1,5 @@
 {
-  description = "Hegel C++ SDK";
+  description = "Hegel for C++";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";

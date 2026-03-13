@@ -2,7 +2,7 @@
 
 /**
  * @file core.h
- * @brief Generator and SchemaBackedGenerator class templates for Hegel SDK
+ * @brief Generator and SchemaBackedGenerator class templates for Hegel
  *
  * Contains the core Generator<T> and SchemaBackedGenerator<T> class templates,
  * the Response wrapper, and factory functions.

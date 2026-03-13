@@ -63,7 +63,7 @@ namespace hegel {
     }
 
     // =============================================================================
-    // Parent Process (SDK Client)
+    // Parent Process (Client)
     // =============================================================================
     static void hegel_parent(const std::string& socket_path,
                              const std::function<void()>& test_fn,

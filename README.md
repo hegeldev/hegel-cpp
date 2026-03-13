@@ -1,6 +1,6 @@
 # hegel-cpp
 
-A C++ SDK for [Hegel](https://github.com/hegeldev/hegel-core) — universal
+A C++ library for [Hegel](https://github.com/hegeldev/hegel-core) — universal
 property-based testing powered by [Hypothesis](https://hypothesis.works/).
 
 Hegel generates random inputs for your tests, finds failures, and automatically

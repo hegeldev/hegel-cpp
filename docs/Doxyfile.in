@@ -1,7 +1,7 @@
 # Doxyfile for hegel-cpp
 
 # Project
-PROJECT_NAME           = "Hegel C++ SDK"
+PROJECT_NAME           = "Hegel for C++"
 PROJECT_BRIEF          = "Property-based testing for C++"
 PROJECT_NUMBER         = @PROJECT_VERSION@
 OUTPUT_DIRECTORY       = @DOXYGEN_OUTPUT_DIR@
