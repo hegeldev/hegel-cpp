@@ -49,7 +49,7 @@ jobs:
           python-version: '3.13'
 
       - name: Install hegel
-        run: pip install git+https://github.com/hegeldev/hegel-core
+        run: pip install hegel-core
 
       - name: Run clang-tidy
         run: just check-tidy
@@ -120,7 +120,7 @@ jobs:
           python-version: '3.13'
 
       - name: Install hegel
-        run: pip install git+https://github.com/hegeldev/hegel-core
+        run: pip install hegel-core
 
       - name: Configure CMake
         env:
@@ -172,7 +172,7 @@ jobs:
           python-version: '3.13'
 
       - name: Install hegel
-        run: pip install git+https://github.com/hegeldev/hegel-core
+        run: pip install hegel-core
 
       - name: Configure CMake
         run: cmake -B build
@@ -234,7 +234,7 @@ jobs:
           python-version: '3.13'
 
       - name: Install hegel
-        run: pip install git+https://github.com/hegeldev/hegel-core
+        run: pip install hegel-core
 
       - name: Configure CMake
         run: cmake -B build -DHEGEL_BUILD_DOCS=ON
