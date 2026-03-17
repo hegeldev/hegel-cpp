@@ -68,8 +68,8 @@ namespace hegel::impl {
             throw std::runtime_error(
                 std::string("hegel-cpp supports protocol versions ") +
                 MIN_PROTOCOL_VERSION + " through " + MAX_PROTOCOL_VERSION +
-                ", but got server version " + server_version +
-                ". Upgrading hegel-cpp or downgrading your hegel server "
+                ", but the connected server is using protocol version " + server_version +
+                ". Upgrading hegel-cpp or downgrading hegel-core "
                 "might help.");
         }
     }
