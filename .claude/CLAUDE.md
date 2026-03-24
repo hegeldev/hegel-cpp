@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the C++ library for Hegel, a universal property-based testing framework. The library communicates with a hegel server (powered by Hypothesis) via a binary protocol over Unix sockets to generate random test data and perform shrinking.
+This is the C++ library for Hegel, a universal property-based testing protocol. The library communicates with a hegel server (powered by Hypothesis) via a binary protocol over Unix sockets to generate random test data and perform shrinking.
 
 ## Build & Test Commands
 

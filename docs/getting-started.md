@@ -1,6 +1,6 @@
 # Getting Started with Hegel for C++
 
-Hegel is a universal property-based testing framework. Instead of writing
+Hegel is a universal property-based testing protocol. Instead of writing
 individual test cases by hand, you describe the *properties* your code should
 satisfy and let Hegel generate random inputs to find counterexamples. When a
 failing input is found, Hegel automatically shrinks it to a minimal
