@@ -74,10 +74,11 @@ namespace hegel::generators {
         }
 
         if (elements.schema()) {
-            nlohmann::json schema = {{"type", "list"},
-                                     {"elements", *elements.schema()},
-                                     {"min_size", params.min_size},
-                                     {"unique", params.unique}};
+            hegel::internal::json::json schema = {
+                {"type", "list"},
+                {"elements", *elements.schema()},
+                {"min_size", params.min_size},
+                {"unique", params.unique}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
@@ -124,10 +125,11 @@ namespace hegel::generators {
         }
 
         if (elements.schema()) {
-            nlohmann::json schema = {{"type", "list"},
-                                     {"elements", *elements.schema()},
-                                     {"min_size", params.min_size},
-                                     {"unique", true}};
+            hegel::internal::json::json schema = {
+                {"type", "list"},
+                {"elements", *elements.schema()},
+                {"min_size", params.min_size},
+                {"unique", true}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
@@ -191,10 +193,11 @@ namespace hegel::generators {
         }
 
         if (keys.schema() && values.schema()) {
-            nlohmann::json schema = {{"type", "dict"},
-                                     {"keys", *keys.schema()},
-                                     {"values", *values.schema()},
-                                     {"min_size", params.min_size}};
+            hegel::internal::json::json schema = {
+                {"type", "dict"},
+                {"keys", *keys.schema()},
+                {"values", *values.schema()},
+                {"min_size", params.min_size}};
 
             if (params.max_size)
                 schema["max_size"] = *params.max_size;
@@ -234,15 +237,17 @@ namespace hegel::generators {
 
         template <typename... Gens>
         auto make_tuple_schema(const Gens&... gens)
-            -> std::optional<nlohmann::json> {
+            -> std::optional<hegel::internal::json::json> {
             bool all_have_schemas = (gens.schema().has_value() && ...);
             if (!all_have_schemas)
                 return std::nullopt;
 
-            nlohmann::json elements = nlohmann::json::array();
+            hegel::internal::json::json elements =
+                hegel::internal::json::json::array();
             (elements.push_back(*gens.schema()), ...);
 
-            nlohmann::json schema = {{"type", "tuple"}, {"elements", elements}};
+            hegel::internal::json::json schema = {{"type", "tuple"},
+                                                  {"elements", elements}};
 
             return schema;
         }

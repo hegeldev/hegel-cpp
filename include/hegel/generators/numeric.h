@@ -73,9 +73,13 @@ namespace hegel::generators {
             throw std::invalid_argument("Cannot have max_value < min_value");
         }
 
-        nlohmann::json schema = {{"type", "integer"},
-                                 {"min_value", min_val},
-                                 {"max_value", max_val}};
+        if (min_val > max_val) {
+            throw std::invalid_argument("Cannot have max_value < min_value");
+        }
+
+        hegel::internal::json::json schema = {{"type", "integer"},
+                                              {"min_value", min_val},
+                                              {"max_value", max_val}};
 
         return from_schema<T>(std::move(schema));
     }
@@ -120,12 +124,26 @@ namespace hegel::generators {
                 "max_value");
         }
 
-        nlohmann::json schema = {{"type", "float"},
-                                 {"exclude_min", params.exclude_min},
-                                 {"exclude_max", params.exclude_max},
-                                 {"allow_nan", nan},
-                                 {"allow_infinity", inf},
-                                 {"width", width}};
+        if (nan && (has_min || has_max)) {
+            throw std::invalid_argument(
+                "Cannot have allow_nan=true with min_value or max_value");
+        }
+        if (has_min && has_max && *params.min_value > *params.max_value) {
+            throw std::invalid_argument("Cannot have max_value < min_value");
+        }
+        if (inf && has_min && has_max) {
+            throw std::invalid_argument(
+                "Cannot have allow_infinity=true with both min_value and "
+                "max_value");
+        }
+
+        hegel::internal::json::json schema = {
+            {"type", "float"},
+            {"exclude_min", params.exclude_min},
+            {"exclude_max", params.exclude_max},
+            {"allow_nan", nan},
+            {"allow_infinity", inf},
+            {"width", width}};
 
         if (params.min_value) {
             schema["min_value"] = *params.min_value;

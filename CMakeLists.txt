@@ -153,14 +153,15 @@ add_library(hegel
     src/internal.cpp
     src/protocol.cpp
     src/connection.cpp
+    src/json.cpp
 )
 target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 
     PRIVATE
         src
+        $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>
 )
 target_link_libraries(hegel
   PUBLIC reflectcpp
@@ -204,12 +205,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  )
-
-  # Install the nlohmann library headers
-  install(
-    DIRECTORY ${nlohmann_json_SOURCE_DIR}/include/
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
   # Install headers
