@@ -5,7 +5,7 @@ setup:
         mkdir -p "$HOME/.local/bin"
         ln -sf "$HEGEL_BINARY" "$HOME/.local/bin/hegel"
     else
-        uv tool install "hegel @ git+ssh://git@github.com/antithesishq/hegel.git"
+        uv tool install "hegel @ git+ssh://git@github.com/hegeldev/hegel-core.git"
     fi
 
 build:
@@ -38,7 +38,7 @@ check:
 build-conformance: build
 
 conformance: build-conformance
-    uv run --with "hegel @ git+ssh://git@github.com/antithesishq/hegel.git" \
+    uv run --with "hegel @ git+ssh://git@github.com/hegeldev/hegel-core.git" \
         --with pytest --with hypothesis \
         pytest tests/conformance/test_conformance.py --durations=20 --durations-min=1.0
 

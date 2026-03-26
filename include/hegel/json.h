@@ -47,6 +47,7 @@ namespace hegel::internal::json {
         bool is_array() const noexcept;
         bool is_object() const noexcept;
 
+        json_raw_ref& operator=(const std::string& other);
         json_raw_ref& operator=(const size_t& other);
         json_raw_ref& operator=(const double& other);
         json_raw_ref& operator=(const std::nullptr_t& other);

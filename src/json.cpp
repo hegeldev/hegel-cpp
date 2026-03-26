@@ -142,6 +142,10 @@ namespace hegel::internal::json {
 
     size_t json_raw_ref::size() const noexcept { return ref->data.size(); }
 
+    json_raw_ref& json_raw_ref::operator=(const std::string& other) {
+        ref->data = other;
+        return *this;
+    }
     json_raw_ref& json_raw_ref::operator=(const size_t& other) {
         ref->data = other;
         return *this;

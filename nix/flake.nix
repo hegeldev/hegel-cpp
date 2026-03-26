@@ -126,6 +126,8 @@
             inputsFrom = [ self.packages.${system}.default ];
             packages = [
               pkgs.clang-tools
+              pkgs.uv
+              pkgs.just
             ];
           };
         }
