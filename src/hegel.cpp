@@ -129,6 +129,8 @@ namespace hegel {
         // Event loop on test channel
         bool test_passed = true;
         std::vector<std::string> failure_blobs;
+        std::string health_check_msg;
+        std::string flaky_test_msg;
         int final_replays_remaining = 0;
         bool done = false;
         while (!done) {
@@ -203,6 +205,8 @@ namespace hegel {
                 if (payload.contains("results")) {
                     auto& results = ImplUtil::raw(payload["results"]);
                     test_passed = results.value("passed", true);
+                    health_check_msg = results.value("health_check_failure", "");
+                    flaky_test_msg = results.value("flaky", "");
                     final_replays_remaining =
                         results.value("interesting_test_cases", 0);
                     for (const auto& blob : results["failure_blobs"]) {
@@ -234,6 +238,12 @@ namespace hegel {
             for (const auto& blob : failure_blobs) {
                 std::cerr << blob << "\n";
             }
+        }
+        if (health_check_msg.length() > 0) {
+            std::cerr << health_check_msg << "\n";
+        }
+        if (flaky_test_msg.length() > 0) {
+            std::cerr << flaky_test_msg << "\n";
         }
         if (!test_passed) {
             throw std::runtime_error("Hegel test failed");
