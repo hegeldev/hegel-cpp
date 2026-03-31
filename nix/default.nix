@@ -1,3 +1,6 @@
+let
+  repoSrc = builtins.fetchGit ./..;
+in
 (import
   (
     let lock = builtins.fromJSON (builtins.readFile ./flake.lock); in
@@ -6,5 +9,5 @@
       sha256 = lock.nodes.flake-compat.locked.narHash;
     }
   )
-  { src = ./.; }
+  { src = repoSrc // { outPath = repoSrc.outPath + "/nix"; }; }
 ).defaultNix

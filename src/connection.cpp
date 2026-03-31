@@ -47,7 +47,7 @@ namespace hegel::impl {
     // Handshake
     // =============================================================================
     static constexpr const char* MIN_PROTOCOL_VERSION = "0.1";
-    static constexpr const char* MAX_PROTOCOL_VERSION = "0.4";
+    static constexpr const char* MAX_PROTOCOL_VERSION = "0.7";
     static constexpr const char* HANDSHAKE_STRING = "hegel_handshake_start";
 
     void Connection::handshake() {
