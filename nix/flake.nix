@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-compat.url = "https://flakehub.com/f/edolstra/flake-compat/1.tar.gz";
-    hegel.url = "git+https://github.com/echoumcp1/hegel-core?ref=echoumcp1/add-repro-support&dir=nix";
+    hegel.url = "git+https://github.com/hegeldev/hegel-core.git";
   };
 
   outputs =
