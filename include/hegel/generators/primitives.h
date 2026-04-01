@@ -40,7 +40,7 @@ namespace hegel::generators {
                       std::is_same_v<T, std::nullptr_t> ||
                       std::is_integral_v<T> || std::is_floating_point_v<T> ||
                       std::is_same_v<T, std::string>) {
-            nlohmann::json schema = {{"const", value}};
+            hegel::internal::json::json schema = {{"const", value}};
             return from_function<T>([value](TestCaseData*) { return value; },
                                     std::move(schema));
         } else {

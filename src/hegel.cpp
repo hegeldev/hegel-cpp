@@ -4,7 +4,10 @@
 
 #include <hegel/hegel.h>
 #include <hegel/internal.h>
+#include <hegel/json.h>
 #include <hegel/options.h>
+
+#include "json_impl.h"
 
 #include <connection.h>
 #include <data.h>
@@ -30,6 +33,8 @@
 #ifndef HEGEL_DEFAULT_PATH
 #define HEGEL_DEFAULT_PATH "hegel"
 #endif
+
+using hegel::internal::json::ImplUtil;
 
 namespace hegel {
 
@@ -102,9 +107,10 @@ namespace hegel {
         uint32_t test_channel = conn.create_channel();
         uint64_t test_cases = options.test_cases.value_or(100);
 
-        nlohmann::json run_test_msg = {{"command", "run_test"},
-                                       {"test_cases", test_cases},
-                                       {"channel_id", test_channel}};
+        hegel::internal::json::json run_test_msg = {
+            {"command", "run_test"},
+            {"test_cases", test_cases},
+            {"channel_id", test_channel}};
         if (options.seed.has_value()) {
             run_test_msg["seed"] = options.seed.value();
         } else {
@@ -129,8 +135,9 @@ namespace hegel {
             if (event_type == "test_case") {
                 test_case_num++;
                 // Acknowledge test_case event
-                conn.write_reply(test_channel, event.message_id,
-                                 nlohmann::json{{"result", nullptr}});
+                conn.write_reply(
+                    test_channel, event.message_id,
+                    hegel::internal::json::json{{"result", nullptr}});
 
                 uint32_t data_channel =
                     payload.value("channel_id", uint32_t{0});
@@ -174,14 +181,13 @@ namespace hegel {
 
                 // Send mark_complete and close data channel (unless aborted)
                 if (!data.test_aborted) {
-                    nlohmann::json origin_value = origin.empty()
-                                                      ? nlohmann::json(nullptr)
-                                                      : nlohmann::json(origin);
-                    nlohmann::json mark = {{"command", "mark_complete"},
-                                           {"status", status},
-                                           {"origin", origin_value}};
-                    std::cerr << "[hegel] sending mark_complete on channel "
-                              << data_channel << "\n";
+                    hegel::internal::json::json origin_value =
+                        origin.empty() ? hegel::internal::json::json(nullptr)
+                                       : hegel::internal::json::json(origin);
+                    hegel::internal::json::json mark = {
+                        {"command", "mark_complete"},
+                        {"status", status},
+                        {"origin", origin_value}};
                     conn.request(data_channel, mark);
                     conn.close_channel(data_channel);
                 } else {
@@ -198,10 +204,10 @@ namespace hegel {
             } else if (event_type == "test_done") {
                 // Acknowledge test_done event
                 conn.write_reply(test_channel, event.message_id,
-                                 nlohmann::json{{"result", true}});
+                                 hegel::internal::json::json{{"result", true}});
 
                 if (payload.contains("results")) {
-                    auto& results = payload["results"];
+                    auto& results = ImplUtil::raw(payload["results"]);
                     test_passed = results.value("passed", true);
                     final_replays_remaining =
                         results.value("interesting_test_cases", 0);

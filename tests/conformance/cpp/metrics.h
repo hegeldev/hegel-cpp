@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <fstream>
+#include <hegel/json.h>
 #include <nlohmann/json.hpp>
 #include <string>
 

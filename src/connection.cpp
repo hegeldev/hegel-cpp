@@ -1,5 +1,8 @@
 #include <connection.h>
+#include <hegel/json.h>
 #include <protocol.h>
+
+#include "json_impl.h"
 
 #include <cstdint>
 #include <stdexcept>
@@ -7,6 +10,8 @@
 #include <unistd.h>
 #include <utility>
 #include <vector>
+
+using hegel::internal::json::ImplUtil;
 
 // =============================================================================
 // Connection and Channel Multiplexing
@@ -42,7 +47,7 @@ namespace hegel::impl {
     // Handshake
     // =============================================================================
     static constexpr const char* MIN_PROTOCOL_VERSION = "0.1";
-    static constexpr const char* MAX_PROTOCOL_VERSION = "0.4";
+    static constexpr const char* MAX_PROTOCOL_VERSION = "0.7";
     static constexpr const char* HANDSHAKE_STRING = "hegel_handshake_start";
 
     void Connection::handshake() {
@@ -78,19 +83,21 @@ namespace hegel::impl {
     // =============================================================================
     // Request / Reply
     // =============================================================================
-    nlohmann::json Connection::request(uint32_t channel,
-                                       const nlohmann::json& msg) {
-        auto payload = protocol::cbor_encode(msg);
+    hegel::internal::json::json
+    Connection::request(uint32_t channel,
+                        const hegel::internal::json::json& msg) {
+        auto payload = protocol::cbor_encode(ImplUtil::raw(msg));
         uint32_t msg_id = alloc_message_id(channel);
         protocol::write_packet(fd_, channel, msg_id, false, payload);
 
         auto packet = wait_for(channel, true);
-        return protocol::cbor_decode(packet.payload);
+        auto result = protocol::cbor_decode(packet.payload);
+        return ImplUtil::create(result);
     }
 
     void Connection::write_reply(uint32_t channel, uint32_t message_id,
-                                 const nlohmann::json& msg) {
-        auto payload = protocol::cbor_encode(msg);
+                                 const hegel::internal::json::json& msg) {
+        auto payload = protocol::cbor_encode(ImplUtil::raw(msg));
         protocol::write_packet(fd_, channel, message_id, true, payload);
     }
 
@@ -103,8 +110,8 @@ namespace hegel::impl {
             throw std::runtime_error("Channel closed by server");
         }
 
-        return IncomingRequest{packet.message_id,
-                               protocol::cbor_decode(packet.payload)};
+        auto decoded = protocol::cbor_decode(packet.payload);
+        return IncomingRequest{packet.message_id, ImplUtil::create(decoded)};
     }
 
     void Connection::close_channel(uint32_t channel) {

@@ -5,7 +5,7 @@ setup:
         mkdir -p "$HOME/.local/bin"
         ln -sf "$HEGEL_BINARY" "$HOME/.local/bin/hegel"
     else
-        uv tool install hegel-core
+        uv tool install --from hegel-core hegel
     fi
 
 build:

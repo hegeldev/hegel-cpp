@@ -16,7 +16,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <nlohmann/json.hpp>
+#include "json.h"
 
 namespace hegel::impl::data {
     struct TestCaseData;
@@ -24,8 +24,9 @@ namespace hegel::impl::data {
 
 /// @cond INTERNAL
 namespace hegel::internal {
-    nlohmann::json communicate_with_socket(const nlohmann::json& schema,
-                                           impl::data::TestCaseData* data);
+    hegel::internal::json::json
+    communicate_with_socket(const hegel::internal::json::json& schema,
+                            impl::data::TestCaseData* data);
 
     /* Print a note message for debugging.
      *
