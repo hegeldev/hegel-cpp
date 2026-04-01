@@ -205,7 +205,8 @@ namespace hegel {
                 if (payload.contains("results")) {
                     auto& results = ImplUtil::raw(payload["results"]);
                     test_passed = results.value("passed", true);
-                    health_check_msg = results.value("health_check_failure", "");
+                    health_check_msg =
+                        results.value("health_check_failure", "");
                     flaky_test_msg = results.value("flaky", "");
                     final_replays_remaining =
                         results.value("interesting_test_cases", 0);
