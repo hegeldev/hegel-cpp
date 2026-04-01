@@ -26,13 +26,13 @@ namespace hegel::impl::protocol {
     // Packet
     // =============================================================================
     struct Packet {
-        uint32_t channel;
+        uint32_t stream;
         uint32_t message_id;
         bool is_reply;
         std::vector<uint8_t> payload;
     };
 
-    void write_packet(int fd, uint32_t channel, uint32_t message_id,
+    void write_packet(int fd, uint32_t stream, uint32_t message_id,
                       bool is_reply, const std::vector<uint8_t>& payload);
 
     Packet read_packet(int fd);

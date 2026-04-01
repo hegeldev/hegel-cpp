@@ -103,14 +103,13 @@ namespace hegel {
 
         impl::protocol::init_protocol_debug(options.verbosity);
 
-        // Create test channel and start test
-        uint32_t test_channel = conn.create_channel();
+        // Create test stream and start test
+        uint32_t test_stream = conn.create_stream();
         uint64_t test_cases = options.test_cases.value_or(100);
 
-        hegel::internal::json::json run_test_msg = {
-            {"command", "run_test"},
-            {"test_cases", test_cases},
-            {"channel_id", test_channel}};
+        hegel::internal::json::json run_test_msg = {{"command", "run_test"},
+                                                    {"test_cases", test_cases},
+                                                    {"stream_id", test_stream}};
         if (options.seed.has_value()) {
             run_test_msg["seed"] = options.seed.value();
         } else {
@@ -118,7 +117,7 @@ namespace hegel {
         }
         conn.request(0, run_test_msg);
 
-        // Event loop on test channel
+        // Event loop on test stream
         bool test_passed = true;
         int final_replays_remaining = 0;
         bool done = false;
@@ -131,17 +130,16 @@ namespace hegel {
             if (event_type == "test_case") {
                 // Acknowledge test_case event
                 conn.write_reply(
-                    test_channel, event.message_id,
+                    test_stream, event.message_id,
                     hegel::internal::json::json{{"result", nullptr}});
 
-                uint32_t data_channel =
-                    payload.value("channel_id", uint32_t{0});
+                uint32_t data_stream = payload.value("stream_id", uint32_t{0});
                 bool is_final = payload.value("is_final", false);
 
                 // Set up per-test-case state
                 impl::data::TestCaseData data{
                     .connection = &conn,
-                    .data_channel = data_channel,
+                    .data_stream = data_stream,
                     .is_last_run = is_final,
                     .test_aborted = false,
                     .verbosity = options.verbosity,
@@ -166,7 +164,7 @@ namespace hegel {
                 // Clear per-test-case state
                 impl::data::clear();
 
-                // Send mark_complete and close data channel (unless aborted)
+                // Send mark_complete and close data stream (unless aborted)
                 if (!data.test_aborted) {
                     hegel::internal::json::json origin_value =
                         origin.empty() ? hegel::internal::json::json(nullptr)
@@ -175,8 +173,8 @@ namespace hegel {
                         {"command", "mark_complete"},
                         {"status", status},
                         {"origin", origin_value}};
-                    conn.request(data_channel, mark);
-                    conn.close_channel(data_channel);
+                    conn.request(data_stream, mark);
+                    conn.close_stream(data_stream);
                 }
 
                 if (is_final) {
@@ -188,7 +186,7 @@ namespace hegel {
 
             } else if (event_type == "test_done") {
                 // Acknowledge test_done event
-                conn.write_reply(test_channel, event.message_id,
+                conn.write_reply(test_stream, event.message_id,
                                  hegel::internal::json::json{{"result", true}});
 
                 if (payload.contains("results")) {
