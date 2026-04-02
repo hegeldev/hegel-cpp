@@ -96,6 +96,7 @@ namespace hegel {
                         expected + ", got " + got + " " + val.dump());
                 }
             }
+            // need better error messages for structs probably
 
             return internal::json_value_to<T>(ref);
         }
