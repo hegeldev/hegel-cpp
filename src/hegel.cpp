@@ -9,6 +9,7 @@
 
 #include "json_impl.h"
 
+#include <algorithm>
 #include <connection.h>
 #include <data.h>
 #include <filesystem>
@@ -216,10 +217,66 @@ namespace hegel {
     }
 
     // =============================================================================
+    // Explicit Examples
+    // =============================================================================
+    static void run_explicit_examples(const std::function<void()>& test_fn,
+                                      const options::HegelOptions& options) {
+        for (size_t i = 0; i < options.examples.size(); ++i) {
+            // Copy the example and reverse so pop_back() yields in order
+            std::vector<hegel::internal::json::json> values(
+                options.examples[i].begin(), options.examples[i].end());
+            std::reverse(values.begin(), values.end());
+
+            impl::data::TestCaseData data{
+                .connection = nullptr,
+                .data_channel = 0,
+                .is_last_run = true,
+                .test_aborted = false,
+                .verbosity = options.verbosity,
+                .explicit_values = &values,
+            };
+            impl::data::set(&data);
+
+            try {
+                test_fn();
+            } catch (const internal::HegelReject&) {
+                impl::data::clear();
+                throw std::runtime_error(
+                    "assume() failed on explicit example " +
+                    std::to_string(i) +
+                    ": explicit examples must not be filtered");
+            } catch (...) {
+                impl::data::clear();
+                throw;
+            }
+
+            impl::data::clear();
+
+            if (!values.empty()) {
+                throw std::runtime_error(
+                    "Explicit example " + std::to_string(i) + " has " +
+                    std::to_string(values.size()) +
+                    " unconsumed value(s): too many values for the "
+                    "number of draw() calls");
+            }
+        }
+    }
+
+    // =============================================================================
     // Entry Point
     // =============================================================================
     void hegel(const std::function<void()>& test_fn,
                const options::HegelOptions& options) {
+        // Run explicit examples before fork (no server needed)
+        if (!options.examples.empty()) {
+            run_explicit_examples(test_fn, options);
+        }
+
+        // If test_cases is explicitly 0, skip server-driven testing
+        if (options.test_cases.has_value() && options.test_cases.value() == 0) {
+            return;
+        }
+
         // Create temp directory with socket path
         std::string temp_dir = "/tmp/hegel_" + std::to_string(getpid());
         std::filesystem::create_directories(temp_dir);

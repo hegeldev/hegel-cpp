@@ -72,5 +72,11 @@ namespace hegel::internal {
     /// @brief Get the current test case data, or nullptr if not in a test.
     impl::data::TestCaseData* get_test_case_data();
 
+    /// @brief Check if the current test case has an explicit value to consume.
+    bool has_explicit_value(impl::data::TestCaseData* data);
+
+    /// @brief Pop the next explicit value from the current test case.
+    json::json_raw_ref pop_explicit_value(impl::data::TestCaseData* data);
+
 } // namespace hegel::internal
 /// @endcond

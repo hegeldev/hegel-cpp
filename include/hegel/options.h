@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
+
+#include "json.h"
 
 /** @namespace hegel::options
  * @brief The HegelOptions struct for configuring your Hegel run, and supporting
@@ -38,6 +41,9 @@ namespace hegel::options {
         }
     }
 
+    /// A single explicit example: one json value per draw() call, in order.
+    using Example = std::vector<hegel::internal::json::json>;
+
     /**
      * @brief Configuration options for embedded mode execution.
      * @see hegel::hegel()
@@ -53,5 +59,9 @@ namespace hegel::options {
         std::optional<std::string> hegel_path;
 
         std::optional<uint64_t> seed;
+
+        /// Explicit examples to run before random generation.
+        /// Each Example is a vector of json values, one per draw() call.
+        std::vector<Example> examples;
     };
 } // namespace hegel::options

@@ -84,6 +84,10 @@ namespace hegel {
             throw std::runtime_error(
                 "draw() cannot be called outside of a Hegel test");
         }
+        if (internal::has_explicit_value(data)) {
+            return internal::json_value_to<T>(
+                internal::pop_explicit_value(data));
+        }
         return gen.do_draw(data);
     }
 

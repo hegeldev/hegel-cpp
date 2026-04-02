@@ -20,6 +20,29 @@ namespace hegel::internal {
     template <typename T> hegel::internal::json::json type_schema() {
         return hegel::internal::json::json::parse(rfl::json::to_schema<T>());
     }
+
+    /// Deserialize a json_raw_ref into a value of type T.
+    template <typename T>
+    T json_value_to(const hegel::internal::json::json_raw_ref& result) {
+        if constexpr (std::is_same_v<T, std::string>) {
+            return result.get_string();
+        } else if constexpr (std::is_same_v<std::remove_cvref_t<T>, bool>) {
+            return result.get_bool();
+        } else if constexpr (std::is_floating_point_v<T>) {
+            return static_cast<T>(result.get_double());
+        } else if constexpr (std::is_unsigned_v<T>) {
+            return static_cast<T>(result.get_uint64_t());
+        } else if constexpr (std::is_integral_v<T>) {
+            return static_cast<T>(result.get_int64_t());
+        } else {
+            auto parse_result = read_nlohmann<T>(result);
+            if (!parse_result.has_value()) {
+                throw std::runtime_error(
+                    "Failed to parse value into requested type");
+            }
+            return parse_result.value();
+        }
+    }
 } // namespace hegel::internal
 
 /**
@@ -346,32 +369,11 @@ namespace hegel::generators {
             hegel::internal::json::json response =
                 internal::communicate_with_socket(schema_, data);
 
-            // Extract the result value
             if (!response.contains("result")) {
                 throw std::runtime_error(
                     "Server response missing 'result' field");
             }
-            hegel::internal::json::json_raw_ref result = response["result"];
-
-            if constexpr (std::is_same_v<T, std::string>) {
-                return result.get_string();
-            } else if constexpr (std::is_same_v<std::remove_cvref_t<T>, bool>) {
-                return result.get_bool();
-            } else if constexpr (std::is_floating_point_v<T>) {
-                return static_cast<T>(result.get_double());
-            } else if constexpr (std::is_unsigned_v<T>) {
-                return static_cast<T>(result.get_uint64_t());
-            } else if constexpr (std::is_integral_v<T>) {
-                return static_cast<T>(result.get_int64_t());
-            } else {
-                auto parse_result = internal::read_nlohmann<T>(result);
-                if (!parse_result.has_value()) {
-                    throw std::runtime_error(
-                        "Failed to parse server response into "
-                        "requested type");
-                }
-                return parse_result.value();
-            }
+            return internal::json_value_to<T>(response["result"]);
         }
 
       private:
