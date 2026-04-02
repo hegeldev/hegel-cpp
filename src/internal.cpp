@@ -40,11 +40,9 @@ namespace hegel::internal {
                !data->explicit_values->empty();
     }
 
-    json::json_raw_ref pop_explicit_value(impl::data::TestCaseData* data) {
-        auto& val = data->explicit_values->back();
-        json::json_raw_ref ref(
-            new json::json_ref_holder(json::ImplUtil::raw(val)));
+    json::json pop_explicit_value(impl::data::TestCaseData* data) {
+        json::json val = std::move(data->explicit_values->back());
         data->explicit_values->pop_back();
-        return ref;
+        return val;
     }
 } // namespace hegel::internal

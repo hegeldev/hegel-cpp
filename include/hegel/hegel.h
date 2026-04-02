@@ -85,8 +85,8 @@ namespace hegel {
                 "draw() cannot be called outside of a Hegel test");
         }
         if (internal::has_explicit_value(data)) {
-            return internal::json_value_to<T>(
-                internal::pop_explicit_value(data));
+            auto val = internal::pop_explicit_value(data);
+            return internal::json_value_to<T>(val.to_ref());
         }
         return gen.do_draw(data);
     }

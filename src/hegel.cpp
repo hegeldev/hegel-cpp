@@ -113,7 +113,7 @@ namespace hegel {
             {"test_cases", test_cases},
             {"channel_id", test_channel}};
         if (options.seed.has_value()) {
-            run_test_msg["seed"] = options.seed.value();
+            run_test_msg["seed"] = static_cast<size_t>(options.seed.value());
         } else {
             run_test_msg["seed"] = nullptr;
         }

@@ -76,7 +76,7 @@ namespace hegel::internal {
     bool has_explicit_value(impl::data::TestCaseData* data);
 
     /// @brief Pop the next explicit value from the current test case.
-    json::json_raw_ref pop_explicit_value(impl::data::TestCaseData* data);
+    json::json pop_explicit_value(impl::data::TestCaseData* data);
 
 } // namespace hegel::internal
 /// @endcond
