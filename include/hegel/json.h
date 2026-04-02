@@ -38,6 +38,8 @@ namespace hegel::internal::json {
 
         size_t size() const noexcept;
 
+        std::string type_name() const noexcept;
+
         bool is_string() const noexcept;
         bool is_null() const noexcept;
         bool is_boolean() const noexcept;

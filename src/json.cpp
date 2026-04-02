@@ -167,6 +167,10 @@ namespace hegel::internal::json {
     }
 #endif
 
+    std::string json_raw_ref::type_name() const noexcept {
+        return ref->data.type_name();
+    }
+
     bool json_raw_ref::is_string() const noexcept {
         return ref->data.is_string();
     }

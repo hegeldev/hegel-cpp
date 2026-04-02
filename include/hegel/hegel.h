@@ -86,7 +86,18 @@ namespace hegel {
         }
         if (internal::has_explicit_value(data)) {
             auto val = internal::pop_explicit_value(data);
-            return internal::json_value_to<T>(val.to_ref());
+            auto ref = val.to_ref();
+            if constexpr (std::is_constructible_v<internal::json::json, T>) {
+                auto expected = internal::json::json(T{}).to_ref().type_name();
+                auto got = ref.type_name();
+                if (expected != got) {
+                    throw std::runtime_error(
+                        "Explicit example type mismatch: expected " +
+                        expected + ", got " + got + " " + val.dump());
+                }
+            }
+
+            return internal::json_value_to<T>(ref);
         }
         return gen.do_draw(data);
     }
