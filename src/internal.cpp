@@ -16,9 +16,6 @@ namespace hegel::internal {
             throw std::runtime_error(
                 "note() cannot be called outside of a Hegel test");
         }
-        if (data->is_last_run) {
-            std::cerr << message << std::endl;
-        }
     }
 
     void assume(bool condition) {

@@ -30,20 +30,7 @@ namespace hegel::impl::socket {
     // =============================================================================
     // Socket Setup
     // =============================================================================
-    bool wait_for_socket(const std::string& path, int timeout_ms) {
-        int elapsed = 0;
-        while (elapsed < timeout_ms) {
-            struct stat st;
-            if (stat(path.c_str(), &st) == 0) {
-                return true;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            elapsed += 100;
-        }
-        return false;
-    }
-
-    int connect_to_socket(const std::string& path) {
+    int connect_to_socket(const std::string& path, int timeout_ms) {
 #ifdef SOCK_CLOEXEC
         int fd = ::socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 #else
@@ -65,10 +52,17 @@ namespace hegel::impl::socket {
         std::copy(path.begin(), path.end(), addr.sun_path);
         addr.sun_path[path.size()] = '\0';
 
-        if (::connect(fd, reinterpret_cast<struct sockaddr*>(&addr),
-                      sizeof(addr)) < 0) {
-            ::close(fd);
-            throw std::runtime_error("Failed to connect to " + path);
+        int elapsed = 0;
+        while (::connect(fd, reinterpret_cast<struct sockaddr*>(&addr),
+                         sizeof(addr)) < 0) {
+            if (elapsed >= timeout_ms) {
+                int err = errno;
+                ::close(fd);
+                throw std::runtime_error("Failed to connect to " + path + ": " +
+                                         strerror(err));
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            elapsed += 100;
         }
 
         return fd;

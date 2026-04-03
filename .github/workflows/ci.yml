@@ -143,10 +143,7 @@ jobs:
         timeout-minutes: 10
         run: |
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
-            for i in $(seq 1 50); do
-              echo "=== Iteration $i/50 ==="
-              ctest --test-dir build/tests -V -j0 || exit 1
-            done
+            ctest --test-dir build/tests -V -j0 || exit 1
           else
             ctest --test-dir build/tests --output-on-failure -j0
           fi

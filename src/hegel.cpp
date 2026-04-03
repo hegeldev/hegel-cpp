@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -43,6 +44,15 @@ namespace hegel {
     // =============================================================================
     static void hegel_child(const std::string& socket_path,
                             const options::HegelOptions& options) {
+        // Detach stdout/stderr so the hegel server doesn't hold
+        // ctest's pipes open if the parent exits early.
+        int devnull = open("/dev/null", O_WRONLY);
+        if (devnull >= 0) {
+            dup2(devnull, STDOUT_FILENO);
+            dup2(devnull, STDERR_FILENO);
+            ::close(devnull);
+        }
+
         std::string hegel_path =
             options.hegel_path.value_or(HEGEL_DEFAULT_PATH);
         uint64_t test_cases = options.test_cases.value_or(100);
@@ -59,12 +69,7 @@ namespace hegel {
         argv.push_back(nullptr);
 
         int result = execvp(argv[0], argv.data());
-        if (result == -1) {
-            std::cerr << "Failed to run Hegel server at path "
-                      << hegel_path.c_str() << ": " << strerror(errno)
-                      << std::endl;
-        }
-        std::exit(1);
+        _exit(1);
     }
 
     // =============================================================================
@@ -75,8 +80,11 @@ namespace hegel {
                              const std::string& temp_dir,
                              pid_t child_pid, // NOLINT(misc-include-cleaner)
                              const options::HegelOptions& options) {
-        // Wait for hegel-core to create the socket
-        if (!impl::socket::wait_for_socket(socket_path, 10000)) {
+        // Connect as client (retries until the server is ready)
+        int fd;
+        try {
+            fd = impl::socket::connect_to_socket(socket_path, 10000);
+        } catch (const std::runtime_error&) {
             // Check if child died
             int status;
             // NOLINTNEXTLINE(misc-include-cleaner)
@@ -90,12 +98,8 @@ namespace hegel {
                     ")");
             }
             std::filesystem::remove_all(temp_dir);
-            throw std::runtime_error("Timed out waiting for socket at " +
-                                     socket_path);
+            throw;
         }
-
-        // Connect as client
-        int fd = impl::socket::connect_to_socket(socket_path);
         impl::Connection conn(fd);
 
         // Version negotiation
@@ -123,13 +127,10 @@ namespace hegel {
         bool done = false;
         int test_case_num = 0;
         while (!done) {
-            std::cerr << "[hegel] waiting for event on test stream "
-                      << test_stream << "\n";
             auto event = conn.recv_request(test_stream);
             auto& payload = event.payload;
 
             std::string event_type = payload.value("event", "");
-            std::cerr << "[hegel] got event: " << event_type << "\n";
 
             if (event_type == "test_case") {
                 test_case_num++;
@@ -140,10 +141,6 @@ namespace hegel {
 
                 uint32_t data_stream = payload.value("stream_id", uint32_t{0});
                 bool is_final = payload.value("is_final", false);
-
-                std::cerr << "[hegel] test_case #" << test_case_num
-                          << " data_stream=" << data_stream
-                          << " is_final=" << is_final << "\n";
 
                 // Set up per-test-case state
                 impl::data::TestCaseData data{
@@ -170,10 +167,6 @@ namespace hegel {
                     origin = "Unknown exception";
                 }
 
-                std::cerr << "[hegel] test_case #" << test_case_num
-                          << " status=" << status
-                          << " test_aborted=" << data.test_aborted << "\n";
-
                 // Clear per-test-case state
                 impl::data::clear();
 
@@ -188,8 +181,6 @@ namespace hegel {
                         {"origin", origin_value}};
                     conn.request(data_stream, mark);
                     conn.close_stream(data_stream);
-                } else {
-                    std::cerr << "[hegel] skipping mark_complete (aborted)\n";
                 }
 
                 if (is_final) {
@@ -210,17 +201,12 @@ namespace hegel {
                     final_replays_remaining =
                         results.value("interesting_test_cases", 0);
                 }
-                std::cerr << "[hegel] test_done passed=" << test_passed
-                          << " final_replays=" << final_replays_remaining
-                          << "\n";
+
                 if (final_replays_remaining <= 0) {
                     done = true;
                 }
-            } else {
-                std::cerr << "[hegel] unknown event: " << event_type << "\n";
             }
         }
-        std::cerr << "[hegel] event loop finished\n";
 
         // Cleanup: release socket before waiting for child
         conn.close();
