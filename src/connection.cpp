@@ -14,7 +14,7 @@
 using hegel::internal::json::ImplUtil;
 
 // =============================================================================
-// Connection and Channel Multiplexing
+// Connection and Stream Multiplexing
 // =============================================================================
 namespace hegel::impl {
 
@@ -30,24 +30,24 @@ namespace hegel::impl {
     }
 
     // =============================================================================
-    // Channel Management
+    // Stream Management
     // =============================================================================
-    uint32_t Connection::create_channel() {
-        uint32_t id = (next_channel_counter_ << 1) | 1;
-        next_channel_counter_++;
+    uint32_t Connection::create_stream() {
+        uint32_t id = (next_stream_counter_ << 1) | 1;
+        next_stream_counter_++;
         next_message_id_[id] = 0;
         return id;
     }
 
-    uint32_t Connection::alloc_message_id(uint32_t channel) {
-        return next_message_id_[channel]++;
+    uint32_t Connection::alloc_message_id(uint32_t stream) {
+        return next_message_id_[stream]++;
     }
 
     // =============================================================================
     // Handshake
     // =============================================================================
     static constexpr const char* MIN_PROTOCOL_VERSION = "0.1";
-    static constexpr const char* MAX_PROTOCOL_VERSION = "0.7";
+    static constexpr const char* MAX_PROTOCOL_VERSION = "0.8";
     static constexpr const char* HANDSHAKE_STRING = "hegel_handshake_start";
 
     void Connection::handshake() {
@@ -56,7 +56,7 @@ namespace hegel::impl {
         uint32_t msg_id = alloc_message_id(0);
         protocol::write_packet(fd_, 0, msg_id, false, payload);
 
-        // Wait for reply on channel 0
+        // Wait for reply on stream 0
         auto packet = wait_for(0, true);
         std::string response(packet.payload.begin(), packet.payload.end());
 
@@ -84,48 +84,48 @@ namespace hegel::impl {
     // Request / Reply
     // =============================================================================
     hegel::internal::json::json
-    Connection::request(uint32_t channel,
+    Connection::request(uint32_t stream,
                         const hegel::internal::json::json& msg) {
         auto payload = protocol::cbor_encode(ImplUtil::raw(msg));
-        uint32_t msg_id = alloc_message_id(channel);
-        protocol::write_packet(fd_, channel, msg_id, false, payload);
+        uint32_t msg_id = alloc_message_id(stream);
+        protocol::write_packet(fd_, stream, msg_id, false, payload);
 
-        auto packet = wait_for(channel, true);
+        auto packet = wait_for(stream, true);
         auto result = protocol::cbor_decode(packet.payload);
         return ImplUtil::create(result);
     }
 
-    void Connection::write_reply(uint32_t channel, uint32_t message_id,
+    void Connection::write_reply(uint32_t stream, uint32_t message_id,
                                  const hegel::internal::json::json& msg) {
         auto payload = protocol::cbor_encode(ImplUtil::raw(msg));
-        protocol::write_packet(fd_, channel, message_id, true, payload);
+        protocol::write_packet(fd_, stream, message_id, true, payload);
     }
 
-    IncomingRequest Connection::recv_request(uint32_t channel) {
-        auto packet = wait_for(channel, false);
+    IncomingRequest Connection::recv_request(uint32_t stream) {
+        auto packet = wait_for(stream, false);
 
-        // Check for close-channel signal
+        // Check for close-stream signal
         if (packet.payload.size() == 1 &&
             packet.payload[0] == protocol::CLOSE_PAYLOAD) {
-            throw std::runtime_error("Channel closed by server");
+            throw std::runtime_error("Stream closed by server");
         }
 
         auto decoded = protocol::cbor_decode(packet.payload);
         return IncomingRequest{packet.message_id, ImplUtil::create(decoded)};
     }
 
-    void Connection::close_channel(uint32_t channel) {
+    void Connection::close_stream(uint32_t stream) {
         std::vector<uint8_t> payload = {protocol::CLOSE_PAYLOAD};
-        protocol::write_packet(fd_, channel, protocol::CLOSE_MESSAGE_ID, false,
+        protocol::write_packet(fd_, stream, protocol::CLOSE_MESSAGE_ID, false,
                                payload);
     }
 
     // =============================================================================
     // Packet Routing
     // =============================================================================
-    protocol::Packet Connection::wait_for(uint32_t channel, bool want_reply) {
+    protocol::Packet Connection::wait_for(uint32_t stream, bool want_reply) {
         // Check pending buffer first
-        auto& queue = pending_[channel];
+        auto& queue = pending_[stream];
         for (auto it = queue.begin(); it != queue.end(); ++it) {
             if (it->is_reply == want_reply) {
                 auto packet = std::move(*it);
@@ -137,10 +137,10 @@ namespace hegel::impl {
         // Read packets until we get the one we want
         while (true) {
             auto packet = protocol::read_packet(fd_);
-            if (packet.channel == channel && packet.is_reply == want_reply) {
+            if (packet.stream == stream && packet.is_reply == want_reply) {
                 return packet;
             }
-            pending_[packet.channel].push_back(std::move(packet));
+            pending_[packet.stream].push_back(std::move(packet));
         }
     }
 

@@ -53,7 +53,7 @@ namespace hegel::impl::socket {
             throw std::runtime_error("Failed to create socket");
         }
 #ifndef SOCK_CLOEXEC
-        fcntl(fd, F_SETFD, FD_CLOEXEC); // NOLINT(misc-include-cleaner) 
+        fcntl(fd, F_SETFD, FD_CLOEXEC); // NOLINT(misc-include-cleaner)
 #endif
 
         struct sockaddr_un addr{};
@@ -80,7 +80,7 @@ namespace hegel::internal {
     communicate_with_socket(const hegel::internal::json::json& schema,
                             impl::data::TestCaseData* data) {
         auto* conn = data->connection;
-        uint32_t data_channel = data->data_channel;
+        uint32_t data_stream = data->data_stream;
 
         // Build generate request as CBOR
         hegel::internal::json::json request = {{"command", "generate"},
@@ -92,7 +92,7 @@ namespace hegel::internal {
 
         // Send request and get response
         hegel::internal::json::json response =
-            conn->request(data_channel, request);
+            conn->request(data_stream, request);
 
         auto response_raw = ImplUtil::raw(response);
 
