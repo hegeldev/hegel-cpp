@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.7 - 2026-04-03
+
+Add support for new hegel-core protocol version.
+
 ## 0.2.6 - 2026-03-11
 
 Fix socket setup to prevent child process from inheriting fd.
