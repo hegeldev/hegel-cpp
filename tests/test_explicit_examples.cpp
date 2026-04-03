@@ -62,7 +62,6 @@ TEST(ExplicitExamples, BooleanValues) {
     EXPECT_TRUE(ran);
 }
 
-
 struct Point {
     int x;
     int y;
@@ -132,12 +131,11 @@ TEST(ExplicitExamples, AssumeFailureIsError) {
 }
 
 TEST(ExplicitExamples, TypeMismatchThrows) {
-    EXPECT_THROW(
-        hegel::hegel(
-            [&] {
-                // Example stores int, but we draw a bool
-                hegel::draw(booleans());
-            },
-            {.test_cases = 0, .examples = {{42}}}),
-        std::runtime_error);
+    EXPECT_THROW(hegel::hegel(
+                     [&] {
+                         // Example stores int, but we draw a bool
+                         hegel::draw(booleans());
+                     },
+                     {.test_cases = 0, .examples = {{42}}}),
+                 std::runtime_error);
 }

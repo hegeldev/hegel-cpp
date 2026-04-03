@@ -79,7 +79,8 @@ namespace hegel::internal {
     /// @brief Pop the next explicit value from the current test case.
     std::any pop_explicit_value(impl::data::TestCaseData* data);
 
-    /// @brief Check if we're running an explicit example (no server connection).
+    /// @brief Check if we're running an explicit example (no server
+    /// connection).
     bool is_explicit_example(impl::data::TestCaseData* data);
 
 } // namespace hegel::internal

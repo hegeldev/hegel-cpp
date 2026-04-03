@@ -82,8 +82,7 @@ namespace hegel {
      */
     /// @cond INTERNAL
     namespace internal {
-        template <typename T>
-        T draw_explicit(impl::data::TestCaseData* data) {
+        template <typename T> T draw_explicit(impl::data::TestCaseData* data) {
             if (!has_explicit_value(data)) {
                 throw std::runtime_error(
                     "Explicit example has too few values for the "

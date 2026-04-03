@@ -224,7 +224,7 @@ namespace hegel {
         for (size_t i = 0; i < options.examples.size(); ++i) {
             // Copy the example and reverse so pop_back() yields in order
             std::vector<std::any> values(options.examples[i].begin(),
-                                        options.examples[i].end());
+                                         options.examples[i].end());
             std::reverse(values.begin(), values.end());
 
             impl::data::TestCaseData data{
