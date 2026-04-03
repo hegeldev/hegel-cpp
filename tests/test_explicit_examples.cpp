@@ -30,7 +30,7 @@ TEST(ExplicitExamples, MultipleDraws) {
             EXPECT_EQ(s, "hello");
             ran = true;
         },
-        {.test_cases = 0, .examples = {{7, "hello"}}});
+        {.test_cases = 0, .examples = {{7, std::string("hello")}}});
     EXPECT_TRUE(ran);
 }
 
@@ -62,6 +62,39 @@ TEST(ExplicitExamples, BooleanValues) {
     EXPECT_TRUE(ran);
 }
 
+
+struct Point {
+    int x;
+    int y;
+    bool operator==(const Point& o) const { return x == o.x && y == o.y; }
+};
+
+TEST(ExplicitExamples, StructValues) {
+    bool ran = false;
+    hegel::hegel(
+        [&] {
+            auto p = hegel::draw(builds<Point>());
+            EXPECT_EQ(p, (Point{3, 4}));
+            ran = true;
+        },
+        {.test_cases = 0, .examples = {{Point{3, 4}}}});
+    EXPECT_TRUE(ran);
+}
+
+TEST(ExplicitExamples, RandomValue) {
+    bool ran = false;
+    hegel::hegel(
+        [&] {
+            auto rng = hegel::draw(randoms());
+            std::uniform_int_distribution<int> dist(1, 100);
+            int val = dist(rng);
+            EXPECT_GE(val, 1);
+            EXPECT_LE(val, 100);
+            ran = true;
+        },
+        {.test_cases = 0, .examples = {{HegelRandom(uint64_t{42})}}});
+    EXPECT_TRUE(ran);
+}
 // =============================================================================
 // Error conditions
 // =============================================================================
@@ -96,4 +129,15 @@ TEST(ExplicitExamples, AssumeFailureIsError) {
                      },
                      {.test_cases = 0, .examples = {{42}}}),
                  std::runtime_error);
+}
+
+TEST(ExplicitExamples, TypeMismatchThrows) {
+    EXPECT_THROW(
+        hegel::hegel(
+            [&] {
+                // Example stores int, but we draw a bool
+                hegel::draw(booleans());
+            },
+            {.test_cases = 0, .examples = {{42}}}),
+        std::runtime_error);
 }

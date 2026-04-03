@@ -40,8 +40,8 @@ namespace hegel::internal {
                !data->explicit_values->empty();
     }
 
-    json::json pop_explicit_value(impl::data::TestCaseData* data) {
-        json::json val = std::move(data->explicit_values->back());
+    std::any pop_explicit_value(impl::data::TestCaseData* data) {
+        std::any val = std::move(data->explicit_values->back());
         data->explicit_values->pop_back();
         return val;
     }

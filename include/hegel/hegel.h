@@ -45,7 +45,9 @@
 #include "generators/random.h"
 #include "generators/strings.h"
 
+#include <any>
 #include <functional>
+#include <typeinfo>
 
 /** @namespace hegel
  * @brief Main Hegel namespace
@@ -88,17 +90,15 @@ namespace hegel {
                     "number of draw() calls");
             }
             auto val = pop_explicit_value(data);
-            auto ref = val.to_ref();
-            if constexpr (std::is_constructible_v<json::json, T>) {
-                auto expected = json::json(T{}).to_ref().type_name();
-                auto got = ref.type_name();
-                if (expected != got) {
-                    throw std::runtime_error(
-                        "Explicit example type mismatch: expected " +
-                        expected + ", got " + got + " " + val.dump());
-                }
+            auto* ptr = std::any_cast<T>(&val);
+            if (!ptr) {
+                throw std::runtime_error(
+                    "Explicit example type mismatch: expected " +
+                    std::string(typeid(T).name()) + ", got " +
+                    (val.has_value() ? std::string(val.type().name())
+                                     : "empty"));
             }
-            return json_value_to<T>(ref);
+            return std::move(*ptr);
         }
     } // namespace internal
     /// @endcond
