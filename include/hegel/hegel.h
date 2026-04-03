@@ -78,33 +78,39 @@ namespace hegel {
      * @return A randomly generated value of type T
      * @throws std::runtime_error if called outside of a Hegel test
      */
+    /// @cond INTERNAL
+    namespace internal {
+        template <typename T>
+        T draw_explicit(impl::data::TestCaseData* data) {
+            if (!has_explicit_value(data)) {
+                throw std::runtime_error(
+                    "Explicit example has too few values for the "
+                    "number of draw() calls");
+            }
+            auto val = pop_explicit_value(data);
+            auto ref = val.to_ref();
+            if constexpr (std::is_constructible_v<json::json, T>) {
+                auto expected = json::json(T{}).to_ref().type_name();
+                auto got = ref.type_name();
+                if (expected != got) {
+                    throw std::runtime_error(
+                        "Explicit example type mismatch: expected " +
+                        expected + ", got " + got + " " + val.dump());
+                }
+            }
+            return json_value_to<T>(ref);
+        }
+    } // namespace internal
+    /// @endcond
+
     template <typename T> T draw(const generators::Generator<T>& gen) {
         auto* data = internal::get_test_case_data();
         if (!data) {
             throw std::runtime_error(
                 "draw() cannot be called outside of a Hegel test");
         }
-        if (internal::has_explicit_value(data)) {
-            auto val = internal::pop_explicit_value(data);
-            auto ref = val.to_ref();
-            if constexpr (std::is_constructible_v<internal::json::json, T>) {
-                auto expected = internal::json::json(T{}).to_ref().type_name();
-                auto got = ref.type_name();
-                if (expected != got) {
-                    throw std::runtime_error(
-                        "Explicit example type mismatch: expected " + expected +
-                        ", got " + got + " " + val.dump());
-                }
-
-                return internal::json_value_to<T>(ref);
-            }
-            // need better error messages for structs probably
-            // doesn't work for all types
-        }
         if (internal::is_explicit_example(data)) {
-            throw std::runtime_error(
-                "Explicit example has too few values for the number "
-                "of draw() calls");
+            return internal::draw_explicit<T>(data);
         }
         return gen.do_draw(data);
     }
