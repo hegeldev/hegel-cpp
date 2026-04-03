@@ -127,8 +127,8 @@ namespace hegel::generators {
                 hegel::internal::json::json::array(
                     {hegel::internal::json::json{{"type", "ipv4"}},
                      hegel::internal::json::json{{"type", "ipv6"}}});
-            return from_schema<std::string>(
-                hegel::internal::json::json{{"one_of", one_of}});
+            return from_schema<std::string>(hegel::internal::json::json{
+                {"type", "one_of"}, {"generators", one_of}});
         }
     }
 
