@@ -55,6 +55,10 @@ namespace hegel::internal::json {
     json::json(const int64_t init) : impl(new json_holder(init)) {}
     json::json(const uint32_t init) : impl(new json_holder(init)) {}
     json::json(const uint64_t init) : impl(new json_holder(init)) {}
+#ifdef __APPLE__
+    json::json(const unsigned long init)
+        : impl(new json_holder(static_cast<uint64_t>(init))) {}
+#endif
     json::json(const bool init) : impl(new json_holder(init)) {}
     json::json(const double init) : impl(new json_holder(init)) {}
     json::json(const std::string& init) : impl(new json_holder(init)) {}
@@ -154,6 +158,13 @@ namespace hegel::internal::json {
         ref->data = other;
         return *this;
     }
+
+#ifdef __APPLE__
+    json_raw_ref& json_raw_ref::operator=(const uint64_t& other) {
+        ref->data = other;
+        return *this;
+    }
+#endif
 
     bool json_raw_ref::is_string() const noexcept {
         return ref->data.is_string();

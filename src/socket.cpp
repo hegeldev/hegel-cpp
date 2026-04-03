@@ -53,7 +53,7 @@ namespace hegel::impl::socket {
             throw std::runtime_error("Failed to create socket");
         }
 #ifndef SOCK_CLOEXEC
-        fcntl(fd, F_SETFD, FD_CLOEXEC);
+        fcntl(fd, F_SETFD, FD_CLOEXEC); // NOLINT(misc-include-cleaner) 
 #endif
 
         struct sockaddr_un addr{};
