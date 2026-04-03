@@ -122,7 +122,7 @@ namespace hegel {
         int final_replays_remaining = 0;
         bool done = false;
         while (!done) {
-            auto event = conn.recv_request(test_channel);
+            auto event = conn.recv_request(test_stream);
             auto& payload = event.payload;
 
             std::string event_type = payload.value("event", "");
