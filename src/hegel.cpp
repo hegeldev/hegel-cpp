@@ -242,8 +242,7 @@ namespace hegel {
             } catch (const internal::HegelReject&) {
                 impl::data::clear();
                 throw std::runtime_error(
-                    "assume() failed on explicit example " +
-                    std::to_string(i) +
+                    "assume() failed on explicit example " + std::to_string(i) +
                     ": explicit examples must not be filtered");
             } catch (...) {
                 impl::data::clear();

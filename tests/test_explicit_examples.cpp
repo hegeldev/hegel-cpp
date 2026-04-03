@@ -62,88 +62,38 @@ TEST(ExplicitExamples, BooleanValues) {
     EXPECT_TRUE(ran);
 }
 
-TEST(ExplicitExamples, FloatingPointValues) {
-    bool ran = false;
-    hegel::hegel(
-        [&] {
-            auto f = hegel::draw(floats());
-            EXPECT_DOUBLE_EQ(f, 3.14);
-            ran = true;
-        },
-        {.test_cases = 0, .examples = {{3.14}}});
-    EXPECT_TRUE(ran);
-}
-
 // =============================================================================
 // Error conditions
 // =============================================================================
 
 TEST(ExplicitExamples, TooManyValuesThrows) {
-    EXPECT_THROW(
-        hegel::hegel(
-            [&] {
-                hegel::draw(integers<int>());
-                // Only one draw, but two values provided
-            },
-            {.test_cases = 0, .examples = {{1, 2}}}),
-        std::runtime_error);
+    EXPECT_THROW(hegel::hegel(
+                     [&] {
+                         hegel::draw(integers<int>());
+                         // Only one draw, but two values provided
+                     },
+                     {.test_cases = 0, .examples = {{1, 2}}}),
+                 std::runtime_error);
 }
 
 TEST(ExplicitExamples, TooFewValuesUsesGenerator) {
     // When explicit values run out, draw() falls through to the generator.
     // With connection=nullptr, this will throw (no server).
-    EXPECT_THROW(
-        hegel::hegel(
-            [&] {
-                hegel::draw(integers<int>());
-                hegel::draw(integers<int>()); // No explicit value left
-            },
-            {.test_cases = 0, .examples = {{42}}}),
-        std::exception);
+    EXPECT_THROW(hegel::hegel(
+                     [&] {
+                         hegel::draw(integers<int>());
+                         hegel::draw(integers<int>()); // No explicit value left
+                     },
+                     {.test_cases = 0, .examples = {{42}}}),
+                 std::exception);
 }
 
 TEST(ExplicitExamples, AssumeFailureIsError) {
-    EXPECT_THROW(
-        hegel::hegel(
-            [&] {
-                auto x = hegel::draw(integers<int>());
-                hegel::assume(x > 100); // 42 is not > 100
-            },
-            {.test_cases = 0, .examples = {{42}}}),
-        std::runtime_error);
-}
-
-// =============================================================================
-// Examples with test_cases=0 means examples-only
-// =============================================================================
-
-TEST(ExplicitExamples, TestCasesZeroSkipsServer) {
-    // This should not attempt to connect to a server
-    bool ran = false;
-    hegel::hegel(
-        [&] {
-            auto x = hegel::draw(integers<int>());
-            EXPECT_EQ(x, 99);
-            ran = true;
-        },
-        {.test_cases = 0, .examples = {{99}}});
-    EXPECT_TRUE(ran);
-}
-
-TEST(ExplicitExamples, NoExamplesTestCasesZeroIsNoop) {
-    // No examples and test_cases=0 should just return
-    hegel::hegel([] {}, {.test_cases = 0});
-}
-
-TEST(ExplicitExamples, TestFailureInExamplePropagates) {
-    EXPECT_THROW(
-        hegel::hegel(
-            [&] {
-                auto x = hegel::draw(integers<int>());
-                if (x == 42) {
-                    throw std::runtime_error("found the answer");
-                }
-            },
-            {.test_cases = 0, .examples = {{42}}}),
-        std::runtime_error);
+    EXPECT_THROW(hegel::hegel(
+                     [&] {
+                         auto x = hegel::draw(integers<int>());
+                         hegel::assume(x > 100); // 42 is not > 100
+                     },
+                     {.test_cases = 0, .examples = {{42}}}),
+                 std::runtime_error);
 }

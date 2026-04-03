@@ -18,7 +18,8 @@
 namespace hegel::internal {
     /// Generate a schema for type T (wrapper around reflect-cpp)
     template <typename T> hegel::internal::json::json type_schema() {
-        return hegel::internal::json::json::parse(rfl::json::to_schema<T>().c_str());
+        return hegel::internal::json::json::parse(
+            rfl::json::to_schema<T>().c_str());
     }
 
     /// Deserialize a json_raw_ref into a value of type T.

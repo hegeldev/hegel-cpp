@@ -45,4 +45,8 @@ namespace hegel::internal {
         data->explicit_values->pop_back();
         return val;
     }
+
+    bool is_explicit_example(impl::data::TestCaseData* data) {
+        return data->explicit_values != nullptr;
+    }
 } // namespace hegel::internal

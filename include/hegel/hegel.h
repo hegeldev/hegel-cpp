@@ -92,13 +92,19 @@ namespace hegel {
                 auto got = ref.type_name();
                 if (expected != got) {
                     throw std::runtime_error(
-                        "Explicit example type mismatch: expected " +
-                        expected + ", got " + got + " " + val.dump());
+                        "Explicit example type mismatch: expected " + expected +
+                        ", got " + got + " " + val.dump());
                 }
+
+                return internal::json_value_to<T>(ref);
             }
             // need better error messages for structs probably
-
-            return internal::json_value_to<T>(ref);
+            // doesn't work for all types
+        }
+        if (internal::is_explicit_example(data)) {
+            throw std::runtime_error(
+                "Explicit example has too few values for the number "
+                "of draw() calls");
         }
         return gen.do_draw(data);
     }
