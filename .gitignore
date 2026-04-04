@@ -18,4 +18,6 @@ result
 .claude/*.local.md
 .claude/*.local.json
 .claude/*.local
+.claude/local/
 .claude-reliability/
+CLAUDE.local.md
