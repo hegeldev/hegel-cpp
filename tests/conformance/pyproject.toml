@@ -8,4 +8,4 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-hegel = { git = "https://github.com/hegeldev/hegel-core" }
+hegel = { git = "https://github.com/hegeldev/hegel-core", tag = "0.3.0" }
