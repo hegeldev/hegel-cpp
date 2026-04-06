@@ -169,7 +169,7 @@ jobs:
           python-version: '3.13'
 
       - name: Install hegel
-        run: pip install hegel-core
+        run: pip install hegel-core==0.3.0
 
       - name: Configure CMake
         run: cmake -B build
