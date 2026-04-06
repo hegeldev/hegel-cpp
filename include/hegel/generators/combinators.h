@@ -44,7 +44,8 @@ namespace hegel::generators {
                 hegel::internal::json::json::array();
             for (const auto& e : elements)
                 arr.push_back(e);
-            hegel::internal::json::json schema = {{"sampled_from", arr}};
+            hegel::internal::json::json schema = {{"type", "sampled_from"},
+                                                  {"values", arr}};
             return from_schema<T>(std::move(schema));
         } else {
             auto index_gen = integers<size_t>(
@@ -91,7 +92,8 @@ namespace hegel::generators {
                 one_of_arr.push_back(*gen.schema());
             }
 
-            hegel::internal::json::json schema = {{"one_of", one_of_arr}};
+            hegel::internal::json::json schema = {{"type", "one_of"},
+                                                  {"generators", one_of_arr}};
             return schema;
         }
 

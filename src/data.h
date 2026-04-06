@@ -16,7 +16,7 @@ namespace hegel::impl::data {
 
     struct TestCaseData {
         Connection* connection;
-        uint32_t data_channel;
+        uint32_t data_stream;
         bool is_last_run;
         bool test_aborted;
         options::Verbosity verbosity;
