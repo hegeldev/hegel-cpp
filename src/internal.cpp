@@ -1,6 +1,8 @@
 #include <data.h>
 #include <hegel/internal.h>
 
+#include "json_impl.h"
+
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -32,4 +34,19 @@ namespace hegel::internal {
     }
 
     [[noreturn]] void stop_test() { throw HegelReject(); }
+
+    bool has_explicit_value(impl::data::TestCaseData* data) {
+        return data->explicit_values != nullptr &&
+               !data->explicit_values->empty();
+    }
+
+    std::any pop_explicit_value(impl::data::TestCaseData* data) {
+        std::any val = std::move(data->explicit_values->back());
+        data->explicit_values->pop_back();
+        return val;
+    }
+
+    bool is_explicit_example(impl::data::TestCaseData* data) {
+        return data->explicit_values != nullptr;
+    }
 } // namespace hegel::internal

@@ -55,20 +55,26 @@ namespace hegel::internal::json {
     json::json(const int64_t init) : impl(new json_holder(init)) {}
     json::json(const uint32_t init) : impl(new json_holder(init)) {}
     json::json(const uint64_t init) : impl(new json_holder(init)) {}
+#ifdef __APPLE__
+    json::json(const unsigned long init)
+        : impl(new json_holder(static_cast<uint64_t>(init))) {}
+#endif
     json::json(const bool init) : impl(new json_holder(init)) {}
     json::json(const double init) : impl(new json_holder(init)) {}
     json::json(const std::string& init) : impl(new json_holder(init)) {}
     json::json(std::nullptr_t init) : impl(new json_holder(init)) {}
     json::~json() = default;
 
+    json_raw_ref json::to_ref() {
+        return json_raw_ref(new json_ref_holder(impl->data));
+    }
+
     json_raw_ref json::operator[](const std::string& key) {
         return json_raw_ref(new json_ref_holder(impl->data[key]));
     }
 
     json& json::operator=(json other) noexcept {
-        if (this != &other) {
-            impl->operator=(*other.impl);
-        }
+        impl = std::move(other.impl);
         return *this;
     }
 
@@ -153,6 +159,16 @@ namespace hegel::internal::json {
     json_raw_ref& json_raw_ref::operator=(const double& other) {
         ref->data = other;
         return *this;
+    }
+#ifdef __APPLE__
+    json_raw_ref& json_raw_ref::operator=(const uint64_t& other) {
+        ref->data = other;
+        return *this;
+    }
+#endif
+
+    std::string json_raw_ref::type_name() const noexcept {
+        return ref->data.type_name();
     }
 
     bool json_raw_ref::is_string() const noexcept {

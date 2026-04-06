@@ -1,7 +1,9 @@
 #pragma once
 
+#include <any>
 #include <cstdint>
 #include <hegel/options.h>
+#include <vector>
 
 namespace hegel::impl {
     class Connection;
@@ -18,6 +20,7 @@ namespace hegel::impl::data {
         bool is_last_run;
         bool test_aborted;
         options::Verbosity verbosity;
+        std::vector<std::any>* explicit_values = nullptr;
     };
 
     void set(TestCaseData* data);

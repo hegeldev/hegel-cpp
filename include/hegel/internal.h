@@ -12,6 +12,7 @@
  * and exist only in the src/ directory.
  */
 
+#include <any>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -71,6 +72,16 @@ namespace hegel::internal {
 
     /// @brief Get the current test case data, or nullptr if not in a test.
     impl::data::TestCaseData* get_test_case_data();
+
+    /// @brief Check if the current test case has an explicit value to consume.
+    bool has_explicit_value(impl::data::TestCaseData* data);
+
+    /// @brief Pop the next explicit value from the current test case.
+    std::any pop_explicit_value(impl::data::TestCaseData* data);
+
+    /// @brief Check if we're running an explicit example (no server
+    /// connection).
+    bool is_explicit_example(impl::data::TestCaseData* data);
 
 } // namespace hegel::internal
 /// @endcond

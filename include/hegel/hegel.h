@@ -45,7 +45,9 @@
 #include "generators/random.h"
 #include "generators/strings.h"
 
+#include <any>
 #include <functional>
+#include <typeinfo>
 
 /** @namespace hegel
  * @brief Main Hegel namespace
@@ -78,11 +80,36 @@ namespace hegel {
      * @return A randomly generated value of type T
      * @throws std::runtime_error if called outside of a Hegel test
      */
+    /// @cond INTERNAL
+    namespace internal {
+        template <typename T> T draw_explicit(impl::data::TestCaseData* data) {
+            if (!has_explicit_value(data)) {
+                throw std::runtime_error(
+                    "Explicit example has too few values for the "
+                    "number of draw() calls");
+            }
+            auto val = pop_explicit_value(data);
+            auto* ptr = std::any_cast<T>(&val);
+            if (!ptr) {
+                throw std::runtime_error(
+                    "Explicit example type mismatch: expected " +
+                    std::string(typeid(T).name()) + ", got " +
+                    (val.has_value() ? std::string(val.type().name())
+                                     : "empty"));
+            }
+            return std::move(*ptr);
+        }
+    } // namespace internal
+    /// @endcond
+
     template <typename T> T draw(const generators::Generator<T>& gen) {
         auto* data = internal::get_test_case_data();
         if (!data) {
             throw std::runtime_error(
                 "draw() cannot be called outside of a Hegel test");
+        }
+        if (internal::is_explicit_example(data)) {
+            return internal::draw_explicit<T>(data);
         }
         return gen.do_draw(data);
     }

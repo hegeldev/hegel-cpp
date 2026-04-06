@@ -18,7 +18,18 @@
 namespace hegel::internal {
     /// Generate a schema for type T (wrapper around reflect-cpp)
     template <typename T> hegel::internal::json::json type_schema() {
-        return hegel::internal::json::json::parse(rfl::json::to_schema<T>());
+        return hegel::internal::json::json::parse(
+            rfl::json::to_schema<T>().c_str());
+    }
+
+    /// Deserialize a json_raw_ref into a value of type T.
+    template <typename T>
+    T json_value_to(const hegel::internal::json::json_raw_ref& result) {
+        auto parse_result = read_nlohmann<T>(result);
+        if (!parse_result.has_value()) {
+            throw std::runtime_error(parse_result.error().what());
+        }
+        return parse_result.value();
     }
 } // namespace hegel::internal
 
@@ -346,32 +357,11 @@ namespace hegel::generators {
             hegel::internal::json::json response =
                 internal::communicate_with_socket(schema_, data);
 
-            // Extract the result value
             if (!response.contains("result")) {
                 throw std::runtime_error(
                     "Server response missing 'result' field");
             }
-            hegel::internal::json::json_raw_ref result = response["result"];
-
-            if constexpr (std::is_same_v<T, std::string>) {
-                return result.get_string();
-            } else if constexpr (std::is_same_v<std::remove_cvref_t<T>, bool>) {
-                return result.get_bool();
-            } else if constexpr (std::is_floating_point_v<T>) {
-                return static_cast<T>(result.get_double());
-            } else if constexpr (std::is_unsigned_v<T>) {
-                return static_cast<T>(result.get_uint64_t());
-            } else if constexpr (std::is_integral_v<T>) {
-                return static_cast<T>(result.get_int64_t());
-            } else {
-                auto parse_result = internal::read_nlohmann<T>(result);
-                if (!parse_result.has_value()) {
-                    throw std::runtime_error(
-                        "Failed to parse server response into "
-                        "requested type");
-                }
-                return parse_result.value();
-            }
+            return internal::json_value_to<T>(response["result"]);
         }
 
       private:
@@ -385,27 +375,6 @@ namespace hegel::generators {
     /**
      * @brief Create a generator for type T using automatic schema derivation.
      *
-     * Uses reflect-cpp to derive a schema from the type's structure.
-     * Works with structs, classes, and standard library types.
-     *
-     * @code{.cpp}
-     * struct Person {
-     *     std::string name;
-     *     int age;
-     * };
-     *
-     * auto gen = hegel::generators::default_generator<Person>();
-     * Person p = hegel::draw(gen);
-     * @endcode
-     *
-     * @tparam T The type to generate (must be reflect-cpp compatible)
-     * @return A SchemaBackedGenerator<T> instance
-     */
-    template <typename T> Generator<T> default_generator() {
-        return from_schema<T>(internal::type_schema<T>());
-    }
-
-    /**
      * @brief Construct a generator from a function.
      * @param fn Function that produces values of type T given test case data
      */
@@ -453,6 +422,29 @@ namespace hegel::generators {
     template <typename T>
     Generator<T> from_schema(hegel::internal::json::json schema) {
         return Generator<T>(new SchemaBackedGenerator<T>(std::move(schema)));
+    }
+
+    /**
+     * @brief Generate values of type T using reflect-cpp schema derivation.
+     *
+     * Uses reflect-cpp to derive a schema from the type's structure.
+     * Works with structs, classes, and standard library types.
+     *
+     * @code{.cpp}
+     * struct Person {
+     *     std::string name;
+     *     int age;
+     * };
+     *
+     * auto gen = hegel::generators::default_generator<Person>();
+     * Person p = hegel::draw(gen);
+     * @endcode
+     *
+     * @tparam T The type to generate (must be reflect-cpp compatible)
+     * @return A SchemaBackedGenerator<T> instance
+     */
+    template <typename T> Generator<T> default_generator() {
+        return from_schema<T>(internal::type_schema<T>());
     }
 
 } // namespace hegel::generators

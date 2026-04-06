@@ -24,6 +24,7 @@ namespace hegel::internal::json {
         static const nlohmann::json& raw(const json& json) {
             return json.impl->data;
         }
+        static nlohmann::json& raw(json& j) { return j.impl->data; }
         static json create(const nlohmann::json& from) {
             json result(nullptr);
             result.impl.reset(new json_holder(from));
