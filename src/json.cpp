@@ -175,11 +175,7 @@ namespace hegel::internal::json {
 #endif
 
     bool json_raw_ref::is_string() const noexcept {
-        if (ref->data.is_string()) {
-            return true;
-        }
-        return ref->data.is_binary() && ref->data.get_binary().has_subtype() &&
-               ref->data.get_binary().subtype() == HEGEL_STRING_TAG;
+        return ref->data.is_string() || ref->data.is_binary();
     }
 
     bool json_raw_ref::is_null() const noexcept { return ref->data.is_null(); }
