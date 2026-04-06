@@ -227,7 +227,7 @@ namespace hegel {
 
             impl::data::TestCaseData data{
                 .connection = nullptr,
-                .data_channel = 0,
+                .data_stream = 0,
                 .is_last_run = true,
                 .test_aborted = false,
                 .verbosity = options.verbosity,
