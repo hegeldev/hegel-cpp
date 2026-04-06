@@ -47,13 +47,13 @@ namespace hegel::impl::protocol {
 
     inline nlohmann::json cbor_decode(const std::vector<uint8_t>& bytes) {
         return nlohmann::json::from_cbor(
-            bytes, true, true, nlohmann::json::cbor_tag_handler_t::ignore);
+            bytes, true, true, nlohmann::json::cbor_tag_handler_t::store);
     }
 
     inline nlohmann::json cbor_decode(const uint8_t* data, size_t len) {
         return nlohmann::json::from_cbor(
             data, data + len, true, true,
-            nlohmann::json::cbor_tag_handler_t::ignore);
+            nlohmann::json::cbor_tag_handler_t::store);
     }
 
     // =============================================================================

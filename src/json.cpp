@@ -125,7 +125,16 @@ namespace hegel::internal::json {
         : ref(new json_ref_holder(other.ref->data)) {}
     json_raw_ref::~json_raw_ref() = default;
 
+    // CBOR tag 6 = HEGEL_STRING_TAG: server encodes strings as tagged byte
+    // strings (WTF-8) to allow surrogates through the CBOR layer.
+    static constexpr uint64_t HEGEL_STRING_TAG = 6;
+
     std::string json_raw_ref::get_string() const noexcept {
+        if (ref->data.is_binary() && ref->data.get_binary().has_subtype() &&
+            ref->data.get_binary().subtype() == HEGEL_STRING_TAG) {
+            auto& bytes = ref->data.get_binary();
+            return std::string(bytes.begin(), bytes.end());
+        }
         return ref->data.get<std::string>();
     }
     bool json_raw_ref::get_bool() const noexcept {
@@ -167,8 +176,13 @@ namespace hegel::internal::json {
 #endif
 
     bool json_raw_ref::is_string() const noexcept {
-        return ref->data.is_string();
+        if (ref->data.is_string()) {
+            return true;
+        }
+        return ref->data.is_binary() && ref->data.get_binary().has_subtype() &&
+               ref->data.get_binary().subtype() == HEGEL_STRING_TAG;
     }
+
     bool json_raw_ref::is_null() const noexcept { return ref->data.is_null(); }
     bool json_raw_ref::is_boolean() const noexcept {
         return ref->data.is_boolean();

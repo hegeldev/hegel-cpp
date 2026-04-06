@@ -47,8 +47,11 @@ namespace hegel::generators {
             throw std::invalid_argument("Cannot have max_size < min_size");
         }
 
-        hegel::internal::json::json schema = {{"type", "string"},
-                                              {"min_size", params.min_size}};
+        hegel::internal::json::json schema = {
+            {"type", "string"},
+            {"min_size", params.min_size},
+            {"blacklist_characters", std::string("\x00", 1)},
+            {"blacklist_categories", {"Cs"}}};
 
         if (params.max_size)
             schema["max_size"] = *params.max_size;
