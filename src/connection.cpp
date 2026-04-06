@@ -124,8 +124,8 @@ namespace hegel::impl {
 
     void Connection::close_stream(uint32_t stream) {
         std::vector<uint8_t> payload = {protocol::CLOSE_PAYLOAD};
-        protocol::write_packet(write_fd_, stream, protocol::CLOSE_MESSAGE_ID, false,
-                               payload);
+        protocol::write_packet(write_fd_, stream, protocol::CLOSE_MESSAGE_ID,
+                               false, payload);
     }
 
     // =============================================================================

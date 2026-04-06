@@ -47,14 +47,6 @@ namespace hegel {
         ::close(child_read_fd);
         ::close(child_write_fd);
 
-        // Detach stderr so the hegel server doesn't hold
-        // ctest's pipes open if the parent exits early.
-        int devnull = open("/dev/null", O_WRONLY);
-        if (devnull >= 0) {
-            dup2(devnull, STDERR_FILENO);
-            ::close(devnull);
-        }
-
         std::string hegel_path =
             options.hegel_path.value_or(HEGEL_DEFAULT_PATH);
 

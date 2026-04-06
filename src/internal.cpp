@@ -1,7 +1,6 @@
 #include <data.h>
 #include <hegel/internal.h>
 
-#include <iostream>
 #include <stdexcept>
 #include <string>
 
