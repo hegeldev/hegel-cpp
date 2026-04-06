@@ -53,5 +53,9 @@ namespace hegel::options {
         std::optional<std::string> hegel_path;
 
         std::optional<uint64_t> seed;
+
+        std::optional<std::string> failure_blob;
+
+        bool print_blob;
     };
 } // namespace hegel::options

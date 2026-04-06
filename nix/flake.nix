@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-compat.url = "https://flakehub.com/f/edolstra/flake-compat/1.tar.gz";
-    hegel.url = "git+https://github.com/hegeldev/hegel-core.git";
+    hegel.url = "git+https://github.com/hegeldev/hegel-core.git?dir=nix";
   };
 
   outputs =
@@ -126,6 +126,8 @@
             inputsFrom = [ self.packages.${system}.default ];
             packages = [
               pkgs.clang-tools
+              pkgs.uv
+              pkgs.just
             ];
           };
         }

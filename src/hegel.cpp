@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -115,10 +116,20 @@ namespace hegel {
         } else {
             run_test_msg["seed"] = nullptr;
         }
+
+        if (options.failure_blob.has_value()) {
+            run_test_msg["failure_blob"] = options.failure_blob.value();
+        } else {
+            run_test_msg["failure_blob"] = nullptr;
+        }
+
         conn.request(0, run_test_msg);
 
         // Event loop on test stream
         bool test_passed = true;
+        std::vector<std::string> failure_blobs;
+        std::string health_check_msg;
+        std::string flaky_test_msg;
         int final_replays_remaining = 0;
         bool done = false;
         while (!done) {
@@ -192,8 +203,18 @@ namespace hegel {
                 if (payload.contains("results")) {
                     auto& results = ImplUtil::raw(payload["results"]);
                     test_passed = results.value("passed", true);
+                    health_check_msg =
+                        results.value("health_check_failure", "");
+                    flaky_test_msg = results.value("flaky", "");
                     final_replays_remaining =
                         results.value("interesting_test_cases", 0);
+                    for (const auto& blob : results["failure_blobs"]) {
+                        auto byte_sequence = blob.get_binary();
+                        std::string failure_blob_string(
+                            reinterpret_cast<const char*>(byte_sequence.data()),
+                            byte_sequence.size());
+                        failure_blobs.push_back(failure_blob_string);
+                    }
                 }
                 if (final_replays_remaining <= 0) {
                     done = true;
@@ -208,6 +229,21 @@ namespace hegel {
         waitpid(child_pid, &status, 0);
         std::filesystem::remove_all(temp_dir);
 
+        if (test_passed && options.failure_blob.has_value()) {
+            throw std::runtime_error("Failure blob did not cause a failure");
+        }
+        if (options.print_blob && !failure_blobs.empty()) {
+            std::cerr << "Failure blobs for reproduction:\n";
+            for (const auto& blob : failure_blobs) {
+                std::cerr << blob << "\n";
+            }
+        }
+        if (health_check_msg.length() > 0) {
+            std::cerr << health_check_msg << "\n";
+        }
+        if (flaky_test_msg.length() > 0) {
+            std::cerr << flaky_test_msg << "\n";
+        }
         if (!test_passed) {
             throw std::runtime_error("Hegel test failed");
         }
