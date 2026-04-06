@@ -70,7 +70,7 @@ namespace hegel::generators {
         return from_function<std::vector<uint8_t>>(
             [schema](TestCaseData* data) -> std::vector<uint8_t> {
                 hegel::internal::json::json response =
-                    internal::communicate_with_socket(schema, data);
+                    internal::communicate_with_core(schema, data);
                 if (!response.contains("result")) {
                     throw std::runtime_error(
                         "Server response missing 'result' field");
@@ -168,7 +168,7 @@ namespace hegel::generators {
             {"max_value", std::numeric_limits<uint32_t>::max()}};
 
         hegel::internal::json::json response =
-            internal::communicate_with_socket(schema, data_);
+            internal::communicate_with_core(schema, data_);
         if (!response.contains("result")) {
             throw std::runtime_error("Server response missing 'result' field");
         }

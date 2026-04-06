@@ -1,3 +1,3 @@
 RELEASE_TYPE: patch
 
-Bring back support for macOS.
+Switches server communication from Unix sockets to stdin/stdout pipes, using hegel-core's --stdio flag and adds macos ci job.

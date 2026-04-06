@@ -11,11 +11,8 @@
 
 #include <connection.h>
 #include <data.h>
-#include <filesystem>
 #include <functional>
-#include <iostream>
 #include <protocol.h>
-#include <socket.h>
 #include <stdexcept>
 
 #include <cerrno>
@@ -42,23 +39,27 @@ namespace hegel {
     // =============================================================================
     // Child Process
     // =============================================================================
-    static void hegel_child(const std::string& socket_path,
+    static void hegel_child(int child_read_fd, int child_write_fd,
                             const options::HegelOptions& options) {
-        // Detach stdout/stderr so the hegel server doesn't hold
+        // Wire pipes to stdin/stdout for --stdio mode
+        dup2(child_read_fd, STDIN_FILENO);
+        dup2(child_write_fd, STDOUT_FILENO);
+        ::close(child_read_fd);
+        ::close(child_write_fd);
+
+        // Detach stderr so the hegel server doesn't hold
         // ctest's pipes open if the parent exits early.
         int devnull = open("/dev/null", O_WRONLY);
         if (devnull >= 0) {
-            dup2(devnull, STDOUT_FILENO);
             dup2(devnull, STDERR_FILENO);
             ::close(devnull);
         }
 
         std::string hegel_path =
             options.hegel_path.value_or(HEGEL_DEFAULT_PATH);
-        uint64_t test_cases = options.test_cases.value_or(100);
 
         std::vector<std::string> args = {
-            hegel_path, socket_path, "--verbosity",
+            hegel_path, "--stdio", "--verbosity",
             options::verbosity_to_string(options.verbosity)};
 
         std::vector<char*> argv;
@@ -68,39 +69,18 @@ namespace hegel {
         }
         argv.push_back(nullptr);
 
-        int result = execvp(argv[0], argv.data());
+        execvp(argv[0], argv.data());
         _exit(1);
     }
 
     // =============================================================================
     // Parent Process (Client)
     // =============================================================================
-    static void hegel_parent(const std::string& socket_path,
-                             const std::function<void()>& test_fn,
-                             const std::string& temp_dir,
+    static void hegel_parent(const std::function<void()>& test_fn,
                              pid_t child_pid, // NOLINT(misc-include-cleaner)
+                             int read_fd, int write_fd,
                              const options::HegelOptions& options) {
-        // Connect as client (retries until the server is ready)
-        int fd;
-        try {
-            fd = impl::socket::connect_to_socket(socket_path, 10000);
-        } catch (const std::runtime_error&) {
-            // Check if child died
-            int status;
-            // NOLINTNEXTLINE(misc-include-cleaner)
-            if (waitpid(child_pid, &status, WNOHANG) == child_pid) {
-                std::filesystem::remove_all(temp_dir);
-                throw std::runtime_error(
-                    "Hegel server exited before creating socket (exit code " +
-                    // NOLINTNEXTLINE(misc-include-cleaner)
-                    std::to_string(WIFEXITED(status) ? WEXITSTATUS(status)
-                                                     : -1) +
-                    ")");
-            }
-            std::filesystem::remove_all(temp_dir);
-            throw;
-        }
-        impl::Connection conn(fd);
+        impl::Connection conn(read_fd, write_fd);
 
         // Version negotiation
         conn.handshake();
@@ -208,12 +188,11 @@ namespace hegel {
             }
         }
 
-        // Cleanup: release socket before waiting for child
+        // Cleanup: close pipes before waiting for child
         conn.close();
 
         int status;
         waitpid(child_pid, &status, 0);
-        std::filesystem::remove_all(temp_dir);
 
         if (!test_passed) {
             throw std::runtime_error("Hegel test failed");
@@ -225,21 +204,31 @@ namespace hegel {
     // =============================================================================
     void hegel(const std::function<void()>& test_fn,
                const options::HegelOptions& options) {
-        // Create temp directory with socket path
-        std::string temp_dir = "/tmp/hegel_" + std::to_string(getpid());
-        std::filesystem::create_directories(temp_dir);
-        std::string socket_path = temp_dir + "/hegel.sock";
+        // Create pipes for parent<->child stdio communication
+        // parent_to_child: parent writes to [1], child reads from [0]
+        // child_to_parent: child writes to [1], parent reads from [0]
+        int parent_to_child[2];
+        int child_to_parent[2];
+        if (pipe(parent_to_child) < 0 || pipe(child_to_parent) < 0) {
+            throw std::runtime_error("Failed to create pipes");
+        }
 
         pid_t pid = fork();
         if (pid < 0) {
-            std::filesystem::remove_all(temp_dir);
             throw std::runtime_error("Failed to fork");
         }
 
         if (pid == 0) {
-            hegel_child(socket_path, options);
+            // Child: close unused pipe ends
+            ::close(parent_to_child[1]);
+            ::close(child_to_parent[0]);
+            hegel_child(parent_to_child[0], child_to_parent[1], options);
         } else {
-            hegel_parent(socket_path, test_fn, temp_dir, pid, options);
+            // Parent: close unused pipe ends
+            ::close(parent_to_child[0]);
+            ::close(child_to_parent[1]);
+            hegel_parent(test_fn, pid, child_to_parent[0], parent_to_child[1],
+                         options);
         }
     }
 } // namespace hegel

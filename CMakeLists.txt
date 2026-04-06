@@ -86,7 +86,7 @@ else()
       message(STATUS "using local hegel from ${HEGEL_LOCAL_DIR}")
       set(HEGEL_INSTALL_SOURCE "${HEGEL_LOCAL_DIR}")
     else()
-      set(HEGEL_INSTALL_SOURCE "git+https://github.com/hegeldev/hegel-core.git@bump-sock-buf")
+      set(HEGEL_INSTALL_SOURCE "git+https://github.com/hegeldev/hegel-core.git")
     endif()
 
     execute_process(
@@ -148,7 +148,6 @@ add_library(hegel
   STATIC
     src/hegel.cpp
     src/generators.cpp
-    src/socket.cpp
     src/data.cpp
     src/internal.cpp
     src/protocol.cpp

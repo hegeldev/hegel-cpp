@@ -344,7 +344,7 @@ namespace hegel::generators {
          */
         T do_draw(TestCaseData* data) const override {
             hegel::internal::json::json response =
-                internal::communicate_with_socket(schema_, data);
+                internal::communicate_with_core(schema_, data);
 
             // Extract the result value
             if (!response.contains("result")) {
