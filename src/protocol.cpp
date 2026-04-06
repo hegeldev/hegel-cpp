@@ -115,7 +115,7 @@ namespace hegel::impl::protocol {
     // =============================================================================
     // Packet I/O
     // =============================================================================
-    void write_packet(int fd, uint32_t channel, uint32_t message_id,
+    void write_packet(int fd, uint32_t stream, uint32_t message_id,
                       bool is_reply, const std::vector<uint8_t>& payload) {
         uint32_t raw_msg_id = message_id | (is_reply ? REPLY_BIT : 0);
         uint32_t length = static_cast<uint32_t>(payload.size());
@@ -123,8 +123,8 @@ namespace hegel::impl::protocol {
         // Build header with checksum zeroed for CRC calculation
         uint8_t header[HEADER_SIZE];
         // NOLINTNEXTLINE(misc-include-cleaner)
-        uint32_t fields[5] = {htonl(MAGIC), 0, htonl(channel),
-                              htonl(raw_msg_id), htonl(length)};
+        uint32_t fields[5] = {htonl(MAGIC), 0, htonl(stream), htonl(raw_msg_id),
+                              htonl(length)};
         std::memcpy(header, fields, HEADER_SIZE);
 
         // Compute CRC over header (checksum zeroed) + payload
@@ -141,7 +141,7 @@ namespace hegel::impl::protocol {
         std::memcpy(header + 4, &net_checksum, 4);
 
         if (protocol_debug_enabled()) {
-            std::cerr << "SEND ch=" << channel << " msg=" << message_id
+            std::cerr << "SEND ch=" << stream << " msg=" << message_id
                       << " reply=" << is_reply << " len=" << length << "\n";
         }
 
@@ -162,7 +162,7 @@ namespace hegel::impl::protocol {
         std::memcpy(fields, header, HEADER_SIZE);
         uint32_t magic = ntohl(fields[0]); // NOLINT(misc-include-cleaner)
         uint32_t checksum = ntohl(fields[1]);
-        uint32_t channel = ntohl(fields[2]);
+        uint32_t stream = ntohl(fields[2]);
         uint32_t raw_msg_id = ntohl(fields[3]);
         uint32_t length = ntohl(fields[4]);
 
@@ -205,12 +205,12 @@ namespace hegel::impl::protocol {
         uint32_t message_id = raw_msg_id & ~REPLY_BIT;
 
         if (protocol_debug_enabled()) {
-            std::cerr << "RECEIVE channel=" << channel
+            std::cerr << "RECEIVE stream=" << stream
                       << " message_id=" << message_id << " reply=" << is_reply
                       << " len=" << length << "\n";
         }
 
-        return Packet{channel, message_id, is_reply, std::move(payload)};
+        return Packet{stream, message_id, is_reply, std::move(payload)};
     }
 
 } // namespace hegel::impl::protocol

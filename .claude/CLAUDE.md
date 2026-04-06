@@ -36,17 +36,17 @@ ctest --test-dir build -R test_name
 The SDK spawns the hegel server as a subprocess and connects to it as a client:
 1. SDK creates a socket path and spawns the hegel server
 2. The hegel server binds to the socket and listens
-3. SDK connects as client
-4. Version negotiation: SDK sends `"Hegel/1.0"`, server responds `"Ok"`
-5. Control channel (0) receives `run_test`/`test_case`/`test_done` events
-6. Data channels handle `generate`/`start_span`/`stop_span`/`mark_complete`
+3. Client connects
+4. Version negotiation: client sends `"Hegel/1.0"`, server responds `"Ok"`
+5. Control stream (0) receives `run_test`/`test_case`/`test_done` events
+6. Data streams handle `generate`/`start_span`/`stop_span`/`mark_complete`
 
 ### Protocol
 
 Binary packet protocol with CBOR payloads over Unix socket:
-- 20-byte header: magic (`0x4845474C` / "HEGL"), CRC32, channel ID, message ID, payload length
+- 20-byte header: magic (`0x4845474C` / "HEGL"), CRC32, stream ID, message ID, payload length
 - CBOR-encoded payloads (nlohmann::json's `to_cbor()`/`from_cbor()`)
-- Channel multiplexing: control channel 0, client channels use odd IDs
+- Stream multiplexing: control stream 0, client streams use odd IDs
 - Reply bit (`1 << 31`) in message ID field distinguishes requests from responses
 
 ### Key Components
@@ -56,7 +56,7 @@ Binary packet protocol with CBOR payloads over Unix socket:
 - **`generators.h`** - `IGenerator<T>`, `Generator<T>`, `SchemaBackedGenerator<T>`, `FunctionBackedGenerator<T>` with `map()`, `flat_map()`, `filter()` combinators
 - **`strategies.h`** - Strategy factory functions in `hegel::generators` namespace
 - **`internal.h`** - `communicate_with_socket()`, `assume()`, `note()`, `stop_test()`
-- **`src/protocol.h`** - Binary packet protocol, Connection, Channel classes
+- **`src/protocol.h`** - Binary packet protocol, Connection, Stream classes
 - **`src/socket.h`** - Low-level socket I/O
 
 ### Generator Pattern
