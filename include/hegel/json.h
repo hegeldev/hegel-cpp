@@ -13,7 +13,6 @@ namespace hegel::internal {
 }
 
 namespace hegel::internal::json {
-
     class json;
     class json_ref;
     class ImplUtil;

@@ -15,6 +15,7 @@
 using hegel::internal::json::ImplUtil;
 
 namespace hegel::internal::json {
+    int HEGEL_STRING_TAG = 24;
 
     json::json(const json& init) : impl(new json_holder(*init.impl)) {}
     json::json(json&& init) noexcept : impl(std::move(init.impl)) {}
@@ -130,7 +131,8 @@ namespace hegel::internal::json {
     // for tags < 24, so we can't check the tag number — but any binary_t
     // without a subtype in a string context is a tagged string from the server.
     std::string json_raw_ref::get_string() const noexcept {
-        if (ref->data.is_binary()) {
+        if (ref->data.is_binary() && ref->data.get_binary().has_subtype() &&
+            ref->data.get_binary().subtype() == HEGEL_STRING_TAG) {
             auto& bytes = ref->data.get_binary();
             return std::string(bytes.begin(), bytes.end());
         }
@@ -175,7 +177,9 @@ namespace hegel::internal::json {
 #endif
 
     bool json_raw_ref::is_string() const noexcept {
-        return ref->data.is_string() || ref->data.is_binary();
+        return ref->data.is_string() ||
+               (ref->data.is_binary() && ref->data.get_binary().has_subtype() &&
+                ref->data.get_binary().subtype() == HEGEL_STRING_TAG);
     }
 
     bool json_raw_ref::is_null() const noexcept { return ref->data.is_null(); }
