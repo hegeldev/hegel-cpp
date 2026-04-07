@@ -127,9 +127,7 @@ namespace hegel::internal::json {
     json_raw_ref::~json_raw_ref() = default;
 
     // The server encodes generated strings as CBOR tag 6 + byte string
-    // (WTF-8) to allow surrogates through. nlohmann doesn't store subtypes
-    // for tags < 24, so we can't check the tag number — but any binary_t
-    // without a subtype in a string context is a tagged string from the server.
+    // (WTF-8) to allow surrogates through. 
     std::string json_raw_ref::get_string() const noexcept {
         if (ref->data.is_binary() && ref->data.get_binary().has_subtype() &&
             ref->data.get_binary().subtype() == HEGEL_STRING_TAG) {
