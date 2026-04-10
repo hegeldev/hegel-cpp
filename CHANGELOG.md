@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.8 - 2026-04-10
+
+Switches server communication from Unix sockets to stdin/stdout pipes, using hegel-core's --stdio.
+
 ## 0.2.7 - 2026-04-03
 
 Add support for new hegel-core protocol version.
