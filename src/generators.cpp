@@ -9,6 +9,8 @@
 
 #include "json_impl.h"
 
+#include <nlohmann/json.hpp>
+
 #include <cstdint>
 #include <limits>
 #include <optional>
@@ -42,22 +44,84 @@ namespace hegel::generators {
     // String strategy implementations
     // =============================================================================
 
+    /// Returns true if any individual character filtering param is set.
+    static bool has_char_params(const TextParams& params) {
+        return params.codec || params.min_codepoint || params.max_codepoint ||
+               params.categories || params.exclude_categories ||
+               params.include_characters || params.exclude_characters;
+    }
+
+    /// Apply character filtering fields to a nlohmann::json schema.
+    /// Used by both text() and characters().
+    static void apply_char_fields(
+        nlohmann::json& schema, const std::optional<std::string>& codec,
+        const std::optional<uint32_t>& min_codepoint,
+        const std::optional<uint32_t>& max_codepoint,
+        const std::optional<std::vector<std::string>>& categories,
+        const std::optional<std::vector<std::string>>& exclude_categories,
+        const std::optional<std::string>& include_characters,
+        const std::optional<std::string>& exclude_characters) {
+
+        if (codec)
+            schema["codec"] = *codec;
+        if (min_codepoint)
+            schema["min_codepoint"] = *min_codepoint;
+        if (max_codepoint)
+            schema["max_codepoint"] = *max_codepoint;
+
+        if (categories)
+            schema["categories"] = *categories;
+        if (exclude_categories)
+            schema["exclude_categories"] = *exclude_categories;
+
+        if (include_characters)
+            schema["include_characters"] = *include_characters;
+        if (exclude_characters)
+            schema["exclude_characters"] = *exclude_characters;
+    }
+
     Generator<std::string> text(TextParams params) {
         if (params.max_size && params.min_size > *params.max_size) {
             throw std::invalid_argument("Cannot have max_size < min_size");
         }
 
-        hegel::internal::json::json schema = {
-            {"type", "string"},
-            {"min_size", params.min_size},
-            // work around a bug in reflect-cpp:
-            // https://github.com/getml/reflect-cpp/issues/559.
-            {"blacklist_characters", std::string("\x00", 1)}};
+        if (params.alphabet && has_char_params(params)) {
+            throw std::invalid_argument(
+                "Cannot combine alphabet with individual character "
+                "filtering options");
+        }
+
+        nlohmann::json raw_schema = {{"type", "string"},
+                                     {"min_size", params.min_size}};
 
         if (params.max_size)
-            schema["max_size"] = *params.max_size;
+            raw_schema["max_size"] = *params.max_size;
 
-        return from_schema<std::string>(std::move(schema));
+        if (params.alphabet) {
+            // Alphabet translates to categories=[] + include_characters
+            raw_schema["categories"] = nlohmann::json::array();
+            raw_schema["include_characters"] = *params.alphabet;
+        } else {
+            apply_char_fields(raw_schema, params.codec, params.min_codepoint,
+                              params.max_codepoint, params.categories,
+                              params.exclude_categories,
+                              params.include_characters,
+                              params.exclude_characters);
+        }
+
+        return from_schema<std::string>(ImplUtil::create(raw_schema));
+    }
+
+    Generator<std::string> characters(CharactersParams params) {
+        nlohmann::json raw_schema = {
+            {"type", "string"}, {"min_size", 1}, {"max_size", 1}};
+
+        apply_char_fields(raw_schema, params.codec, params.min_codepoint,
+                          params.max_codepoint, params.categories,
+                          params.exclude_categories, params.include_characters,
+                          params.exclude_characters);
+
+        return from_schema<std::string>(ImplUtil::create(raw_schema));
     }
 
     Generator<std::vector<uint8_t>> binary(BinaryParams params) {
