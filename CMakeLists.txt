@@ -148,7 +148,6 @@ add_library(hegel
   STATIC
     src/hegel.cpp
     src/generators.cpp
-    src/socket.cpp
     src/data.cpp
     src/internal.cpp
     src/protocol.cpp

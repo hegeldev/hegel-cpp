@@ -5,8 +5,6 @@
 #include <stdexcept>
 #include <string>
 
-// Note: the socket part of this namespace is implemented in socket.cpp
-
 namespace hegel::internal {
     impl::data::TestCaseData* get_test_case_data() { return impl::data::get(); }
 

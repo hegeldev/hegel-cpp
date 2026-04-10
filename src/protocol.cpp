@@ -15,7 +15,7 @@
 #include <vector>
 
 #include <arpa/inet.h> // IWYU pragma: keep
-#include <sys/socket.h>
+#include <sys/types.h> // IWYU pragma: keep
 #include <unistd.h>
 
 // =============================================================================
@@ -82,8 +82,7 @@ namespace hegel::impl::protocol {
     static void write_all(int fd, const uint8_t* data, size_t len) {
         size_t total = 0;
         while (total < len) {
-            // NOLINTNEXTLINE(misc-include-cleaner)
-            ssize_t n = send(fd, data + total, len - total, MSG_NOSIGNAL);
+            ssize_t n = ::write(fd, data + total, len - total);
             if (n < 0) {
                 if (errno == EINTR)
                     continue;

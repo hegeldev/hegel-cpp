@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * @mainpage Hegel C++ SDK - Hypothesis-like property-based testing for C++20
+ * @mainpage Hegel - Hypothesis-like property-based testing for C++20
  *
  * This library provides type-safe random data generation for property-based
  * testing, communicating with the Hegel test runner via Unix sockets.

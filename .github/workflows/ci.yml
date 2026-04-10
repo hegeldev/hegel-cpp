@@ -13,22 +13,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check-release:
-    name: check release
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Check release
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: python .github/scripts/release.py check "$BASE_REF"
-
   lint:
     name: lint
     runs-on: ubuntu-latest
@@ -72,7 +56,7 @@ jobs:
 
   build-and-test:
     name: ${{ matrix.compiler }} ${{ matrix.stdlib && format('(with {0})', matrix.stdlib) || '' }} ${{ matrix.extra_label || '' }}
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.os || 'ubuntu-24.04' }}
     permissions:
       contents: read
 
@@ -106,6 +90,11 @@ jobs:
             cxx: g++-13
             extra_label: (nlohmann 3.11)
             cmake_flags: -DNLOHMANN_JSON_VERSION=3.10.0
+
+          - compiler: macos
+            cc: cc
+            cxx: c++
+            os: macos-latest
 
     steps:
       - name: Checkout
@@ -145,7 +134,10 @@ jobs:
             $CMAKE_FLAGS
 
       - name: Build
-        run: cmake --build build -j$(nproc)
+        run: |
+          # nproc on linux, sysctl on macos
+          JOBS=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+          cmake --build build -j$JOBS
 
       - name: Run property tests
         run: ctest --test-dir build/tests --output-on-failure -j$(nproc)
@@ -171,7 +163,7 @@ jobs:
           python-version: '3.13'
 
       - name: Install hegel
-        run: pip install hegel-core
+        run: pip install hegel-core==0.4.0
 
       - name: Configure CMake
         run: cmake -B build
@@ -278,4 +270,5 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          HEGEL_RELEASE_APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
         run: python .github/scripts/release.py release

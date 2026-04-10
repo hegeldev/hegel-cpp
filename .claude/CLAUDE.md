@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the C++ SDK for Hegel, a universal property-based testing framework. The SDK communicates with a hegel server (powered by Hypothesis) via a binary protocol over Unix sockets to generate random test data and perform shrinking.
+This is the C++ library for Hegel, a universal property-based testing protocol. The library communicates with a hegel server (powered by Hypothesis) via a binary protocol over Unix sockets to generate random test data and perform shrinking.
 
 ## Build & Test Commands
 
@@ -33,8 +33,8 @@ ctest --test-dir build -R test_name
 
 ### Execution Model
 
-The SDK spawns the hegel server as a subprocess and connects to it as a client:
-1. SDK creates a socket path and spawns the hegel server
+The library spawns the hegel server as a subprocess and connects to it as a client:
+1. Client creates a socket path and spawns the hegel server
 2. The hegel server binds to the socket and listens
 3. Client connects
 4. Version negotiation: client sends `"Hegel/1.0"`, server responds `"Ok"`
@@ -90,7 +90,7 @@ Michael (mgibson) has carefully curated this codebase. Match his conventions exa
 
 ### Error Handling: `assume()` vs exceptions
 
-`hegel::internal::assume(condition)` is **only** for filtering generated test data that doesn't meet preconditions. It signals to the framework that the current test case should be silently discarded (via `HegelReject`), not counted as a failure. It must never be used to handle errors in the SDK implementation itself.
+`hegel::internal::assume(condition)` is **only** for filtering generated test data that doesn't meet preconditions. It signals to the framework that the current test case should be silently discarded (via `HegelReject`), not counted as a failure. It must never be used to handle errors in the library implementation itself.
 
 **Correct use** - filtering generated values in tests:
 ```cpp

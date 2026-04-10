@@ -1,12 +1,12 @@
 # Getting Started with Hegel for C++
 
-Hegel is a universal property-based testing framework. Instead of writing
+Hegel is a universal property-based testing protocol. Instead of writing
 individual test cases by hand, you describe the *properties* your code should
 satisfy and let Hegel generate random inputs to find counterexamples. When a
 failing input is found, Hegel automatically shrinks it to a minimal
 reproducing case.
 
-This guide walks you through the C++ SDK from first test to advanced
+This guide walks you through Hegel for C++ from first test to advanced
 generation techniques.
 
 ## Install Hegel
@@ -404,10 +404,10 @@ hegel::hegel([]() {
 
 ## Guiding generation with target()
 
-> **Note:** `target()` is not yet available in the C++ SDK. This section
+> **Note:** `target()` is not yet available in Hegel for C++. This section
 > describes the concept for reference; it will be added in a future release.
 
-In other Hegel SDKs, `target(value, label)` lets you steer generation
+In other Hegel libraries, `target(value, label)` lets you steer generation
 toward inputs that maximize a numeric metric (for example, code coverage
 depth or collection size). When this feature becomes available in C++, it
 will enable more effective exploration of edge cases that are hard to reach
@@ -420,6 +420,5 @@ by random sampling alone.
   caches, and run-length encoding.
 - Read the generated Doxygen documentation (`just docs`) for the full API
   reference.
-- See the [hegel-core](https://github.com/antithesishq/hegel-core)
-  repository for details on the Hegel server, the binary protocol, and the
-  reference Python SDK.
+- See the [hegel-core](https://github.com/hegeldev/hegel-core)
+  repository for details on the Hegel server and the binary protocol.

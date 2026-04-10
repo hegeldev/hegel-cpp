@@ -2,9 +2,9 @@
 
 /**
  * @file internal.h
- * @brief Internal implementation details for Hegel SDK
+ * @brief Internal implementation details for Hegel
  *
- * Contains internal parts of the Hegel SDK that are referenced
+ * Contains internal parts of the Hegel library that are referenced
  * in any of the header files shipped in the public API.
  *
  * Constructs that are not used in any of the header files,
@@ -25,8 +25,8 @@ namespace hegel::impl::data {
 /// @cond INTERNAL
 namespace hegel::internal {
     hegel::internal::json::json
-    communicate_with_socket(const hegel::internal::json::json& schema,
-                            impl::data::TestCaseData* data);
+    communicate_with_core(const hegel::internal::json::json& schema,
+                          impl::data::TestCaseData* data);
 
     /* Print a note message for debugging.
      *

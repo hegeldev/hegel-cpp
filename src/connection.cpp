@@ -1,5 +1,8 @@
 #include <connection.h>
+#include <data.h>
+#include <hegel/internal.h>
 #include <hegel/json.h>
+#include <iostream>
 #include <protocol.h>
 
 #include "json_impl.h"
@@ -18,14 +21,19 @@ using hegel::internal::json::ImplUtil;
 // =============================================================================
 namespace hegel::impl {
 
-    Connection::Connection(int fd) : fd_(fd) {}
+    Connection::Connection(int read_fd, int write_fd)
+        : read_fd_(read_fd), write_fd_(write_fd) {}
 
     Connection::~Connection() { close(); }
 
     void Connection::close() {
-        if (fd_ >= 0) {
-            ::close(fd_);
-            fd_ = -1;
+        if (read_fd_ >= 0) {
+            ::close(read_fd_);
+            read_fd_ = -1;
+        }
+        if (write_fd_ >= 0 && write_fd_ != read_fd_) {
+            ::close(write_fd_);
+            write_fd_ = -1;
         }
     }
 
@@ -46,15 +54,44 @@ namespace hegel::impl {
     // =============================================================================
     // Handshake
     // =============================================================================
-    static constexpr const char* MIN_PROTOCOL_VERSION = "0.1";
-    static constexpr const char* MAX_PROTOCOL_VERSION = "0.8";
+    static constexpr const char* MIN_PROTOCOL_VERSION = "0.10";
+    static constexpr const char* MAX_PROTOCOL_VERSION = "0.10";
     static constexpr const char* HANDSHAKE_STRING = "hegel_handshake_start";
+
+    // Compare two "major.minor" version strings numerically.
+    // Returns -1 if a < b, 0 if a == b, 1 if a > b.
+    static int compare_versions(const std::string& a, const std::string& b) {
+        auto parse = [](const std::string& s) -> std::pair<int, int> {
+            auto dot = s.find('.');
+            if (dot == std::string::npos ||
+                s.find('.', dot + 1) != std::string::npos) {
+                throw std::invalid_argument("invalid version string '" + s +
+                                            "': expected 'major.minor' format");
+            }
+            auto major_str = s.substr(0, dot);
+            auto minor_str = s.substr(dot + 1);
+            if (major_str.empty() || minor_str.empty()) {
+                throw std::invalid_argument("invalid version string '" + s +
+                                            "': expected 'major.minor' format");
+            }
+            int major = std::stoi(major_str);
+            int minor = std::stoi(minor_str);
+            return {major, minor};
+        };
+        auto [a_major, a_minor] = parse(a);
+        auto [b_major, b_minor] = parse(b);
+        if (a_major != b_major)
+            return a_major < b_major ? -1 : 1;
+        if (a_minor != b_minor)
+            return a_minor < b_minor ? -1 : 1;
+        return 0;
+    }
 
     void Connection::handshake() {
         std::string hs(HANDSHAKE_STRING);
         std::vector<uint8_t> payload(hs.begin(), hs.end());
         uint32_t msg_id = alloc_message_id(0);
-        protocol::write_packet(fd_, 0, msg_id, false, payload);
+        protocol::write_packet(write_fd_, 0, msg_id, false, payload);
 
         // Wait for reply on stream 0
         auto packet = wait_for(0, true);
@@ -66,15 +103,14 @@ namespace hegel::impl {
         }
 
         std::string server_version = response.substr(prefix.size());
-        double v = std::stod(server_version);
-        double lo = std::stod(MIN_PROTOCOL_VERSION);
-        double hi = std::stod(MAX_PROTOCOL_VERSION);
-        if (v < lo || v > hi) {
+        if (compare_versions(server_version, MIN_PROTOCOL_VERSION) < 0 ||
+            compare_versions(server_version, MAX_PROTOCOL_VERSION) > 0) {
             throw std::runtime_error(
                 std::string("hegel-cpp supports protocol versions ") +
                 MIN_PROTOCOL_VERSION + " through " + MAX_PROTOCOL_VERSION +
-                ", but got server version " + server_version +
-                ". Upgrading hegel-cpp or downgrading your hegel server "
+                ", but the connected server is using protocol version " +
+                server_version +
+                ". Upgrading hegel-cpp or downgrading hegel-core "
                 "might help.");
         }
     }
@@ -87,7 +123,7 @@ namespace hegel::impl {
                         const hegel::internal::json::json& msg) {
         auto payload = protocol::cbor_encode(ImplUtil::raw(msg));
         uint32_t msg_id = alloc_message_id(stream);
-        protocol::write_packet(fd_, stream, msg_id, false, payload);
+        protocol::write_packet(write_fd_, stream, msg_id, false, payload);
 
         auto packet = wait_for(stream, true);
         auto result = protocol::cbor_decode(packet.payload);
@@ -97,7 +133,7 @@ namespace hegel::impl {
     void Connection::write_reply(uint32_t stream, uint32_t message_id,
                                  const hegel::internal::json::json& msg) {
         auto payload = protocol::cbor_encode(ImplUtil::raw(msg));
-        protocol::write_packet(fd_, stream, message_id, true, payload);
+        protocol::write_packet(write_fd_, stream, message_id, true, payload);
     }
 
     IncomingRequest Connection::recv_request(uint32_t stream) {
@@ -115,8 +151,8 @@ namespace hegel::impl {
 
     void Connection::close_stream(uint32_t stream) {
         std::vector<uint8_t> payload = {protocol::CLOSE_PAYLOAD};
-        protocol::write_packet(fd_, stream, protocol::CLOSE_MESSAGE_ID, false,
-                               payload);
+        protocol::write_packet(write_fd_, stream, protocol::CLOSE_MESSAGE_ID,
+                               false, payload);
     }
 
     // =============================================================================
@@ -135,7 +171,7 @@ namespace hegel::impl {
 
         // Read packets until we get the one we want
         while (true) {
-            auto packet = protocol::read_packet(fd_);
+            auto packet = protocol::read_packet(read_fd_);
             if (packet.stream == stream && packet.is_reply == want_reply) {
                 return packet;
             }
@@ -144,3 +180,58 @@ namespace hegel::impl {
     }
 
 } // namespace hegel::impl
+
+// =============================================================================
+// Core Communication
+// =============================================================================
+namespace hegel::internal {
+    hegel::internal::json::json
+    communicate_with_core(const hegel::internal::json::json& schema,
+                          impl::data::TestCaseData* data) {
+        auto* conn = data->connection;
+        uint32_t data_stream = data->data_stream;
+
+        // Build generate request as CBOR
+        hegel::internal::json::json request = {{"command", "generate"},
+                                               {"schema", schema}};
+
+        if (impl::protocol::protocol_debug_enabled()) {
+            std::cerr << "REQUEST: " << request.dump() << "\n";
+        }
+
+        // Send request and get response
+        hegel::internal::json::json response =
+            conn->request(data_stream, request);
+
+        auto response_raw = ImplUtil::raw(response);
+
+        if (impl::protocol::protocol_debug_enabled()) {
+            std::cerr << "RESPONSE: " << response_raw.dump() << "\n";
+        }
+
+        // Handle errors
+        if (response_raw.contains("error")) {
+            std::string error_type = response_raw.value("type", "");
+            if (error_type == "StopTest" || error_type == "Overflow") {
+                data->test_aborted = true;
+                internal::stop_test();
+            }
+            std::string error_msg =
+                response_raw["error"].is_string()
+                    ? response_raw["error"].get<std::string>()
+                    : "unknown error";
+            throw std::runtime_error(error_msg);
+        }
+
+        // Auto-log generated value during final replay (counterexample)
+        if (data->is_last_run) {
+            if (response_raw.contains("result")) {
+                std::cerr << "Generated: " << response_raw["result"].dump()
+                          << "\n";
+            }
+        }
+
+        return response;
+    }
+
+} // namespace hegel::internal
