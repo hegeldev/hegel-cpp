@@ -15,7 +15,7 @@
 #include <vector>
 
 #include <arpa/inet.h> // IWYU pragma: keep
-#include <sys/types.h>
+#include <sys/types.h> // IWYU pragma: keep
 #include <unistd.h>
 
 // =============================================================================
