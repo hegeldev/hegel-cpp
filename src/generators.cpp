@@ -112,7 +112,7 @@ namespace hegel::generators {
         return from_schema<std::string>(ImplUtil::create(raw_schema));
     }
 
-    Generator<std::string> characters(CharactersParams params) {
+    Generator<std::string> characters(const CharactersParams& params) {
         nlohmann::json raw_schema = {
             {"type", "string"}, {"min_size", 1}, {"max_size", 1}};
 

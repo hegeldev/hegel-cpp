@@ -89,7 +89,7 @@ namespace hegel::generators {
      * @param params Character filtering constraints
      * @return Generator producing single-character strings
      */
-    Generator<std::string> characters(CharactersParams params = {});
+    Generator<std::string> characters(const CharactersParams& params = {});
 
     /**
      * @brief Generate random binary data (byte sequences).
