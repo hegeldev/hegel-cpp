@@ -1,10 +1,9 @@
 #include <data.h>
 #include <hegel/internal.h>
 
+#include <iostream>
 #include <stdexcept>
 #include <string>
-
-// Note: the socket part of this namespace is implemented in socket.cpp
 
 namespace hegel::internal {
     impl::data::TestCaseData* get_test_case_data() { return impl::data::get(); }
@@ -14,6 +13,9 @@ namespace hegel::internal {
         if (!data) {
             throw std::runtime_error(
                 "note() cannot be called outside of a Hegel test");
+        }
+        if (data->is_last_run) {
+            std::cerr << message << std::endl;
         }
     }
 

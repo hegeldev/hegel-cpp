@@ -2,7 +2,6 @@ build/
 .hypothesis
 .hegel
 __pycache__
-.claude/settings.local.json
 .cache
 
 .devcontainer/
@@ -12,10 +11,10 @@ result
 
 .claude-reliability/
 **/.claude/reliability-config.yaml
-
-# claude-reliability managed
 .claude/bin/
+.claude/settings.local.json
 .claude/*.local.md
 .claude/*.local.json
 .claude/*.local
-.claude-reliability/
+.claude/local/
+CLAUDE.local.md

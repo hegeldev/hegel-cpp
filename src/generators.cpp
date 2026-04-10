@@ -50,8 +50,9 @@ namespace hegel::generators {
         hegel::internal::json::json schema = {
             {"type", "string"},
             {"min_size", params.min_size},
-            {"blacklist_characters", std::string("\x00", 1)},
-            {"blacklist_categories", {"Cs"}}};
+            // work around a bug in reflect-cpp:
+            // https://github.com/getml/reflect-cpp/issues/559.
+            {"blacklist_characters", std::string("\x00", 1)}};
 
         if (params.max_size)
             schema["max_size"] = *params.max_size;

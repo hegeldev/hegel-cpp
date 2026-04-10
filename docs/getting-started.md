@@ -421,5 +421,4 @@ by random sampling alone.
 - Read the generated Doxygen documentation (`just docs`) for the full API
   reference.
 - See the [hegel-core](https://github.com/hegeldev/hegel-core)
-  repository for details on the Hegel server, the binary protocol, and the
-  reference Python library.
+  repository for details on the Hegel server and the binary protocol.

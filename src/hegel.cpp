@@ -61,6 +61,9 @@ namespace hegel {
         argv.push_back(nullptr);
 
         execvp(argv[0], argv.data());
+        // execvp only returns on failure
+        fprintf(stderr, "Failed to run Hegel server at path %s: %s\n",
+                hegel_path.c_str(), strerror(errno));
         _exit(1);
     }
 
@@ -96,7 +99,6 @@ namespace hegel {
         bool test_passed = true;
         int final_replays_remaining = 0;
         bool done = false;
-        int test_case_num = 0;
         while (!done) {
             auto event = conn.recv_request(test_stream);
             auto& payload = event.payload;
@@ -104,7 +106,6 @@ namespace hegel {
             std::string event_type = payload.value("event", "");
 
             if (event_type == "test_case") {
-                test_case_num++;
                 // Acknowledge test_case event
                 conn.write_reply(
                     test_stream, event.message_id,

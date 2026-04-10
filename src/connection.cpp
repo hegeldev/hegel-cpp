@@ -54,9 +54,38 @@ namespace hegel::impl {
     // =============================================================================
     // Handshake
     // =============================================================================
-    static constexpr const char* MIN_PROTOCOL_VERSION = "0.1";
-    static constexpr const char* MAX_PROTOCOL_VERSION = "0.9";
+    static constexpr const char* MIN_PROTOCOL_VERSION = "0.10";
+    static constexpr const char* MAX_PROTOCOL_VERSION = "0.10";
     static constexpr const char* HANDSHAKE_STRING = "hegel_handshake_start";
+
+    // Compare two "major.minor" version strings numerically.
+    // Returns -1 if a < b, 0 if a == b, 1 if a > b.
+    static int compare_versions(const std::string& a, const std::string& b) {
+        auto parse = [](const std::string& s) -> std::pair<int, int> {
+            auto dot = s.find('.');
+            if (dot == std::string::npos ||
+                s.find('.', dot + 1) != std::string::npos) {
+                throw std::invalid_argument("invalid version string '" + s +
+                                            "': expected 'major.minor' format");
+            }
+            auto major_str = s.substr(0, dot);
+            auto minor_str = s.substr(dot + 1);
+            if (major_str.empty() || minor_str.empty()) {
+                throw std::invalid_argument("invalid version string '" + s +
+                                            "': expected 'major.minor' format");
+            }
+            int major = std::stoi(major_str);
+            int minor = std::stoi(minor_str);
+            return {major, minor};
+        };
+        auto [a_major, a_minor] = parse(a);
+        auto [b_major, b_minor] = parse(b);
+        if (a_major != b_major)
+            return a_major < b_major ? -1 : 1;
+        if (a_minor != b_minor)
+            return a_minor < b_minor ? -1 : 1;
+        return 0;
+    }
 
     void Connection::handshake() {
         std::string hs(HANDSHAKE_STRING);
@@ -74,10 +103,8 @@ namespace hegel::impl {
         }
 
         std::string server_version = response.substr(prefix.size());
-        double v = std::stod(server_version);
-        double lo = std::stod(MIN_PROTOCOL_VERSION);
-        double hi = std::stod(MAX_PROTOCOL_VERSION);
-        if (v < lo || v > hi) {
+        if (compare_versions(server_version, MIN_PROTOCOL_VERSION) < 0 ||
+            compare_versions(server_version, MAX_PROTOCOL_VERSION) > 0) {
             throw std::runtime_error(
                 std::string("hegel-cpp supports protocol versions ") +
                 MIN_PROTOCOL_VERSION + " through " + MAX_PROTOCOL_VERSION +
