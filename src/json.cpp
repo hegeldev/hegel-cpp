@@ -127,7 +127,7 @@ namespace hegel::internal::json {
     json_raw_ref::~json_raw_ref() = default;
 
     // The server encodes generated strings as CBOR tag 6 + byte string
-    // (WTF-8) to allow surrogates through. 
+    // (WTF-8) to allow surrogates through.
     std::string json_raw_ref::get_string() const noexcept {
         if (ref->data.is_binary() && ref->data.get_binary().has_subtype() &&
             ref->data.get_binary().subtype() == HEGEL_STRING_TAG) {
