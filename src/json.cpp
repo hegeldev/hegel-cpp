@@ -15,7 +15,7 @@
 using hegel::internal::json::ImplUtil;
 
 namespace hegel::internal::json {
-    int HEGEL_STRING_TAG = 24;
+    int HEGEL_STRING_TAG = 91;
 
     json::json(const json& init) : impl(new json_holder(*init.impl)) {}
     json::json(json&& init) noexcept : impl(std::move(init.impl)) {}
