@@ -22,17 +22,13 @@ int main(int argc, char* argv[]) {
         args["max_size"].is_null()
             ? std::nullopt
             : std::optional<size_t>(args["max_size"].get<size_t>());
-    std::string mode = conformance::get_mode(args);
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
         [=]() {
             auto gen = hegel::generators::binary(
                 {.min_size = min_size, .max_size = max_size});
-            std::vector<uint8_t> value =
-                mode == "non_basic"
-                    ? hegel::draw(conformance::make_non_basic(gen))
-                    : hegel::draw(gen);
+            std::vector<uint8_t> value = hegel::draw(gen);
             conformance::write_metrics({{"length", value.size()}});
         },
         {.test_cases = test_cases});
