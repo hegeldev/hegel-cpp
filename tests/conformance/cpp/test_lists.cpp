@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <hegel/json.h>
 #include <iostream>
 #include <optional>
@@ -42,15 +41,7 @@ int main(int argc, char* argv[]) {
                 {.min_size = min_size, .max_size = max_size});
 
             auto vec = hegel::draw(gen);
-
-            nlohmann::json metrics = {{"size", vec.size()}};
-            if (!vec.empty()) {
-                metrics["min_element"] =
-                    *std::min_element(vec.begin(), vec.end());
-                metrics["max_element"] =
-                    *std::max_element(vec.begin(), vec.end());
-            }
-            conformance::write_metrics(metrics);
+            conformance::write_metrics({{"elements", vec}});
         },
         {.test_cases = test_cases});
 
