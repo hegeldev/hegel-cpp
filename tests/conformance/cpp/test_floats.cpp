@@ -34,6 +34,7 @@ int main(int argc, char* argv[]) {
         args["allow_infinity"].is_null()
             ? std::nullopt
             : std::optional<bool>(args["allow_infinity"].get<bool>());
+    std::string mode = conformance::get_mode(args);
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
@@ -46,7 +47,9 @@ int main(int argc, char* argv[]) {
                 .allow_nan = allow_nan,
                 .allow_infinity = allow_infinity,
             });
-            auto value = hegel::draw(gen);
+            auto value = mode == "non_basic"
+                             ? hegel::draw(conformance::make_non_basic(gen))
+                             : hegel::draw(gen);
             conformance::write_metrics({
                 {"value", value},
                 {"is_nan", std::isnan(value)},

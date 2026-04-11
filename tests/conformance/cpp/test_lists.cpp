@@ -29,13 +29,16 @@ int main(int argc, char* argv[]) {
         args["max_value"].is_null()
             ? std::nullopt
             : std::optional<int>(args["max_value"].get<int>());
+    std::string mode = conformance::get_mode(args);
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
         [=]() {
+            auto elem_gen = hegel::generators::integers<int>(
+                {.min_value = min_value, .max_value = max_value});
             auto gen = hegel::generators::vectors(
-                hegel::generators::integers<int>(
-                    {.min_value = min_value, .max_value = max_value}),
+                mode == "non_basic" ? conformance::make_non_basic(elem_gen)
+                                    : elem_gen,
                 {.min_size = min_size, .max_size = max_size});
 
             auto vec = hegel::draw(gen);

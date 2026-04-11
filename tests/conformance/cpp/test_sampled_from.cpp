@@ -16,12 +16,15 @@ int main(int argc, char* argv[]) {
 
     auto args = ImplUtil::raw(hegel::internal::json::json::parse(argv[1]));
     std::vector<int> options = args["options"].get<std::vector<int>>();
+    std::string mode = conformance::get_mode(args);
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
         [&]() {
             auto gen = hegel::generators::sampled_from(options);
-            auto value = hegel::draw(gen);
+            auto value = mode == "non_basic"
+                             ? hegel::draw(conformance::make_non_basic(gen))
+                             : hegel::draw(gen);
             conformance::write_metrics({{"value", value}});
         },
         {.test_cases = test_cases});

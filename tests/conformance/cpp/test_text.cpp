@@ -98,6 +98,7 @@ int main(int argc, char* argv[]) {
                   args["exclude_characters"].get<std::string>())
             : std::nullopt;
 
+    std::string mode = conformance::get_mode(args);
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
@@ -112,7 +113,9 @@ int main(int argc, char* argv[]) {
                  .exclude_categories = exclude_categories,
                  .include_characters = include_characters,
                  .exclude_characters = exclude_characters});
-            auto value = hegel::draw(gen);
+            auto value = mode == "non_basic"
+                             ? hegel::draw(conformance::make_non_basic(gen))
+                             : hegel::draw(gen);
             auto cps = extract_codepoints(value);
             nlohmann::json cp_array = nlohmann::json::array();
             for (auto cp : cps) {
