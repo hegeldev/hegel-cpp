@@ -9,18 +9,9 @@
  */
 
 #include <memory>
-#include <rfl.hpp>
-#include <rfl/json.hpp>
 
 #include "internal.h"
 #include "nlohmann_reader.h"
-
-namespace hegel::internal {
-    /// Generate a schema for type T (wrapper around reflect-cpp)
-    template <typename T> hegel::internal::json::json type_schema() {
-        return hegel::internal::json::json::parse(rfl::json::to_schema<T>());
-    }
-} // namespace hegel::internal
 
 /**
  * @brief Namespace containing abstractions for data generation.
@@ -381,29 +372,6 @@ namespace hegel::generators {
     // =============================================================================
     // Factory functions
     // =============================================================================
-
-    /**
-     * @brief Create a generator for type T using automatic schema derivation.
-     *
-     * Uses reflect-cpp to derive a schema from the type's structure.
-     * Works with structs, classes, and standard library types.
-     *
-     * @code{.cpp}
-     * struct Person {
-     *     std::string name;
-     *     int age;
-     * };
-     *
-     * auto gen = hegel::generators::default_generator<Person>();
-     * Person p = hegel::draw(gen);
-     * @endcode
-     *
-     * @tparam T The type to generate (must be reflect-cpp compatible)
-     * @return A SchemaBackedGenerator<T> instance
-     */
-    template <typename T> Generator<T> default_generator() {
-        return from_schema<T>(internal::type_schema<T>());
-    }
 
     /**
      * @brief Construct a generator from a function.

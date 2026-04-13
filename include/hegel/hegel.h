@@ -45,6 +45,9 @@
 #include "generators/random.h"
 #include "generators/strings.h"
 
+// Derived generators — must be last (depends on all strategies above)
+#include "generators/derived.h"
+
 #include <functional>
 
 /** @namespace hegel
