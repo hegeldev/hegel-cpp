@@ -42,8 +42,7 @@ namespace hegel::generators {
         struct is_vector<std::vector<T>> : std::true_type {};
 
         template <typename T> struct is_set : std::false_type {};
-        template <typename T>
-        struct is_set<std::set<T>> : std::true_type {};
+        template <typename T> struct is_set<std::set<T>> : std::true_type {};
 
         template <typename T> struct is_map : std::false_type {};
         template <typename K, typename V>
@@ -77,8 +76,7 @@ namespace hegel::generators {
         // DefaultGenerator trait — primary template (struct fallback)
         // =================================================================
 
-        template <typename T, typename Enable = void>
-        struct DefaultGenerator {
+        template <typename T, typename Enable = void> struct DefaultGenerator {
             static_assert(
                 is_reflectable_struct<T>::value,
                 "default_generator<T>(): T must be a supported primitive, "
@@ -89,11 +87,11 @@ namespace hegel::generators {
                     T result{};
                     auto view = rfl::to_view(result);
                     view.apply([data](const auto& field) {
-                        using PtrType = typename std::remove_cvref_t<
-                            decltype(field)>::Type;
+                        using PtrType =
+                            typename std::remove_cvref_t<decltype(field)>::Type;
                         using FieldType = std::remove_pointer_t<PtrType>;
-                        *field.value() = default_generator<FieldType>()
-                                             .do_draw(data);
+                        *field.value() =
+                            default_generator<FieldType>().do_draw(data);
                     });
                     return result;
                 });
@@ -104,31 +102,27 @@ namespace hegel::generators {
         // Specializations for primitive types
         // =================================================================
 
-        template <>
-        struct DefaultGenerator<bool> {
+        template <> struct DefaultGenerator<bool> {
             static Generator<bool> generator() { return booleans(); }
         };
 
-        template <>
-        struct DefaultGenerator<std::string> {
+        template <> struct DefaultGenerator<std::string> {
             static Generator<std::string> generator() { return text(); }
         };
 
-        template <>
-        struct DefaultGenerator<std::monostate> {
+        template <> struct DefaultGenerator<std::monostate> {
             static Generator<std::monostate> generator() { return nulls(); }
         };
 
         template <typename T>
-        struct DefaultGenerator<
-            T, std::enable_if_t<std::is_integral_v<T> &&
-                                !std::is_same_v<T, bool>>> {
+        struct DefaultGenerator<T, std::enable_if_t<std::is_integral_v<T> &&
+                                                    !std::is_same_v<T, bool>>> {
             static Generator<T> generator() { return integers<T>(); }
         };
 
         template <typename T>
-        struct DefaultGenerator<
-            T, std::enable_if_t<std::is_floating_point_v<T>>> {
+        struct DefaultGenerator<T,
+                                std::enable_if_t<std::is_floating_point_v<T>>> {
             static Generator<T> generator() { return floats<T>(); }
         };
 
@@ -174,16 +168,15 @@ namespace hegel::generators {
 
         template <typename Tuple, size_t... Is>
         auto make_default_tuple_gen(std::index_sequence<Is...>) {
-            return tuples(default_generator<
-                          std::tuple_element_t<Is, Tuple>>()...);
+            return tuples(
+                default_generator<std::tuple_element_t<Is, Tuple>>()...);
         }
 
         template <typename T>
         struct DefaultGenerator<T, std::enable_if_t<is_tuple<T>::value>> {
             static Generator<T> generator() {
                 return make_default_tuple_gen<T>(
-                    std::make_index_sequence<
-                        std::tuple_size_v<T>>{});
+                    std::make_index_sequence<std::tuple_size_v<T>>{});
             }
         };
 
@@ -191,17 +184,15 @@ namespace hegel::generators {
 
         template <typename Variant, size_t... Is>
         auto make_default_variant_gen(std::index_sequence<Is...>) {
-            return variant_(
-                default_generator<
-                    std::variant_alternative_t<Is, Variant>>()...);
+            return variant_(default_generator<
+                            std::variant_alternative_t<Is, Variant>>()...);
         }
 
         template <typename T>
         struct DefaultGenerator<T, std::enable_if_t<is_variant<T>::value>> {
             static Generator<T> generator() {
                 return make_default_variant_gen<T>(
-                    std::make_index_sequence<
-                        std::variant_size_v<T>>{});
+                    std::make_index_sequence<std::variant_size_v<T>>{});
             }
         };
 
@@ -238,7 +229,7 @@ namespace hegel::generators {
     }
 
     /**
-     * @brief Create a derived generator for a struct with field overrides.
+     * @brief Create a default generator for a struct with field overrides.
      *
      * Generates all fields using their default generators, then applies
      * any field overrides specified via field<&T::member>(generator).
@@ -250,7 +241,7 @@ namespace hegel::generators {
      * };
      *
      * // Override only the age field; name uses default_generator<string>
-     * auto gen = hegel::generators::derive<Person>(
+     * auto gen = hegel::generators::default_generator<Person>(
      *     field<&Person::age>(integers<int>({.min_value = 0,
      *                                       .max_value = 120}))
      * );
@@ -262,35 +253,34 @@ namespace hegel::generators {
      * @return A Generator<T> with defaults plus overrides
      */
     template <typename T, typename... Overrides>
-    Generator<T> derive(Overrides... overrides) {
+    Generator<T> default_generator(Overrides... overrides) {
         auto override_tuple = std::make_tuple(std::move(overrides)...);
 
-        return from_function<T>(
-            [override_tuple](TestCaseData* data) mutable -> T {
-                T result{};
-                auto view = rfl::to_view(result);
+        return from_function<T>([override_tuple](
+                                    TestCaseData* data) mutable -> T {
+            T result{};
+            auto view = rfl::to_view(result);
 
-                // Draw all fields from their default generators
-                view.apply([data](const auto& field) {
-                    using PtrType =
-                        typename std::remove_cvref_t<decltype(field)>::Type;
-                    using FieldType = std::remove_pointer_t<PtrType>;
-                    *field.value() =
-                        default_generator<FieldType>().do_draw(data);
-                });
-
-                // Apply overrides (replaces default-generated values)
-                std::apply(
-                    [&result, data](auto&... fs) {
-                        ((result.*(std::remove_reference_t<
-                                       decltype(fs)>::member_ptr) =
-                              fs.generator.do_draw(data)),
-                         ...);
-                    },
-                    override_tuple);
-
-                return result;
+            // Draw all fields from their default generators
+            view.apply([data](const auto& field) {
+                using PtrType =
+                    typename std::remove_cvref_t<decltype(field)>::Type;
+                using FieldType = std::remove_pointer_t<PtrType>;
+                *field.value() = default_generator<FieldType>().do_draw(data);
             });
+
+            // Apply overrides (replaces default-generated values)
+            std::apply(
+                [&result, data](auto&... fs) {
+                    ((result.*
+                          (std::remove_reference_t<decltype(fs)>::member_ptr) =
+                          fs.generator.do_draw(data)),
+                     ...);
+                },
+                override_tuple);
+
+            return result;
+        });
     }
 
 } // namespace hegel::generators
