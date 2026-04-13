@@ -1,5 +1,11 @@
 #pragma once
 
+/**
+ * @file json.h
+ * @brief Internal JSON wrapper types
+ * @cond INTERNAL
+ */
+
 #include <cstddef>
 #include <initializer_list>
 #include <memory>
@@ -140,3 +146,5 @@ namespace hegel::internal::json {
         json const* value_ref = nullptr;
     };
 } // namespace hegel::internal::json
+
+/// @endcond

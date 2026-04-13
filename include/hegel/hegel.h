@@ -11,22 +11,25 @@
  * @code{.cpp}
  * #include "hegel/hegel.h"
  *
+ * struct Person {
+ *     std::string name;
+ *     int age;
+ * };
+ *
  * hegel::hegel([]() {
  *     using namespace hegel::generators;
  *
  *     // Type-based generation (schema derived via reflect-cpp)
- *     Person p = hegel::draw(hegel::generators::default_generator<Person>());
+ *     Person p = hegel::draw(default_generator<Person>());
  *
  *     // Generator-based generation
- *     int value = hegel::draw(integers<int>({.min_value = 0, .max_value =
- * 100}));
+ *     int value = hegel::draw(integers<int>({.min_value = 0, .max_value = 100}));
  * });
  * @endcode
  *
  * @section deps Dependencies
  * - reflect-cpp (https://github.com/getml/reflect-cpp) - C++20 reflection
  * - nlohmann library - CBOR serialization
- * - POSIX sockets (sys/socket.h, sys/un.h, unistd.h)
  */
 
 // HegelOptions and supporting classes

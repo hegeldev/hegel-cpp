@@ -13,10 +13,10 @@ namespace hegel::options {
      * @brief Verbosity levels for hegel output.
      */
     enum class Verbosity {
-        Quiet,   /// Minimal output (used by TUI)
-        Normal,  /// Default - standard test output
-        Verbose, /// More detailed output
-        Debug    /// Maximum verbosity + request/response logging
+        Quiet,   ///< Minimal output (used by TUI)
+        Normal,  ///< Default - standard test output
+        Verbose, ///< More detailed output
+        Debug    ///< Maximum verbosity + request/response logging
     };
 
     /**
@@ -52,6 +52,7 @@ namespace hegel::options {
         /// Path to the hegel binary. Default: "hegel" (uses PATH)
         std::optional<std::string> hegel_path;
 
+        /// Fixed random seed for reproducible runs. Default: random
         std::optional<uint64_t> seed;
     };
 } // namespace hegel::options
