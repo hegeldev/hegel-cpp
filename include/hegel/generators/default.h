@@ -30,8 +30,10 @@ namespace hegel::generators {
     /// @name Deriving Generators
     /// @{
 
+    template <typename T> class DerivedGenerator;
+
     // Forward declaration — defined below after all specializations
-    template <typename T> Generator<T> default_generator();
+    template <typename T> DerivedGenerator<T> default_generator();
 
     /// @cond INTERNAL
     namespace detail {
@@ -207,25 +209,59 @@ namespace hegel::generators {
     // =============================================================================
 
     /**
-     * @brief Override a derived generator for a field in default_generator<T>.
+     * @brief A Generator produced by default_generator<T>().
+     *
+     * Behaves exactly like a Generator<T> (it publicly derives from one), but
+     * additionally exposes an override() method for supplying per-field
+     * generator overrides on struct types.
      *
      * @code{.cpp}
-     * // Bound only the width to [1, 100], height uses default_generator<int>()
-     * auto rect = default_generator<Rectangle>(
-     *     override<&Rectangle::width>(integers<int>({.min_value = 1, .max_value
-     * = 100}))
-     * );
+     * auto gen = default_generator<Rectangle>()
+     *     .override(field<&Rectangle::width>(integers<int>({.min_value = 1})));
      * @endcode
      *
-     * @tparam MemberPtr Pointer-to-member specifying which field
-     * @tparam Gen Generator type
-     * @param gen Generator for the field value
-     * @return A Field specification for use with default_generator<T>
+     * @tparam T The type produced by the generator
      */
-    template <auto MemberPtr, typename Gen>
-    Field<MemberPtr, Gen> override(Gen gen) {
-        return Field<MemberPtr, Gen>{std::move(gen)};
-    }
+    template <typename T> class DerivedGenerator : public Generator<T> {
+      public:
+        DerivedGenerator(Generator<T> base) : Generator<T>(std::move(base)) {}
+
+        /**
+         * @brief Overlay per-field generators on top of the defaults.
+         *
+         * Each field specification (from `field<&T::member>(gen)`) replaces
+         * the default generator for that member. Other fields keep the
+         * defaults from default_generator<T>().
+         *
+         * @code{.cpp}
+         * auto gen = default_generator<Person>()
+         *     .override(field<&Person::age>(
+         *         integers<int>({.min_value = 0, .max_value = 120})));
+         * @endcode
+         *
+         * @tparam Fields Field specification types (from field<>())
+         * @param fields Field specifications for overridden members
+         * @return A DerivedGenerator<T> with the overrides applied
+         */
+        template <typename... Fields>
+        DerivedGenerator<T> override(Fields... fields) const {
+            Generator<T> base = *this;
+            auto fields_tuple = std::make_tuple(std::move(fields)...);
+            return DerivedGenerator<T>(from_function<T>(
+                [base, fields_tuple](TestCaseData* data) mutable -> T {
+                    T result = base.do_draw(data);
+                    std::apply(
+                        [&result, data](auto&... fs) {
+                            ((result.*(std::remove_reference_t<
+                                          decltype(fs)>::member_ptr) =
+                                  fs.generator.do_draw(data)),
+                             ...);
+                        },
+                        fields_tuple);
+                    return result;
+                }));
+        }
+    };
 
     /**
      * @brief Create a default generator for type T.
@@ -236,65 +272,22 @@ namespace hegel::generators {
      * - Reflected structs: any struct with public fields (via reflect-cpp)
      *
      * For structs, each field is generated using default_generator for its
-     * type.
+     * type. Call `.override(...)` on the returned generator to customize
+     * individual fields:
      *
      * @code{.cpp}
-     * struct Point { double x; double y; };
+     * struct Person { std::string name; int age; };
      *
-     * auto gen = hegel::generators::default_generator<Point>();
-     * Point p = hegel::draw(gen);
+     * auto gen = default_generator<Person>()
+     *     .override(field<&Person::age>(
+     *         integers<int>({.min_value = 0, .max_value = 120})));
      * @endcode
      *
      * @tparam T The type to generate
-     * @return A Generator<T> instance
+     * @return A DerivedGenerator<T> (usable anywhere a Generator<T> is)
      */
-    template <typename T> Generator<T> default_generator() {
-        return detail::DefaultGenerator<T>::generator();
-    }
-
-    /**
-     * @brief Create a default generator for a struct with field overrides.
-     * This function allows you to specify custom generators for specific fields
-     * of a struct while using default generation for the rest.
-     *
-     * @code{.cpp}
-     * struct Person {
-     *     std::string name;
-     *     int age;
-     * };
-     *
-     * // Override only the age field; name uses default_generator<string>
-     * auto gen = hegel::generators::default_generator<Person>(
-     *     override<&Person::age>(integers<int>({.min_value = 0, .max_value =
-     * 120}))
-     * );
-     * @endcode
-     *
-     * @tparam T The struct type to generate
-     * @tparam Overrides Field override types (from override<>())
-     * @param overrides Field specifications for overridden fields
-     * @return A Generator<T> with defaults plus overrides
-     */
-    template <typename T, typename... Overrides>
-    Generator<T> default_generator(Overrides... overrides) {
-        // Start from the all-defaults generator, then overlay overrides
-        // (reuses the same per-field assignment pattern as builds_agg).
-        auto base = default_generator<T>();
-        auto override_tuple = std::make_tuple(std::move(overrides)...);
-
-        return from_function<T>([base, override_tuple](
-                                    TestCaseData* data) mutable -> T {
-            T result = base.do_draw(data);
-            std::apply(
-                [&result, data](auto&... fs) {
-                    ((result.*
-                          (std::remove_reference_t<decltype(fs)>::member_ptr) =
-                          fs.generator.do_draw(data)),
-                     ...);
-                },
-                override_tuple);
-            return result;
-        });
+    template <typename T> DerivedGenerator<T> default_generator() {
+        return DerivedGenerator<T>(detail::DefaultGenerator<T>::generator());
     }
 
     /// @}
