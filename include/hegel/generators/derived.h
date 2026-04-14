@@ -204,6 +204,26 @@ namespace hegel::generators {
     // =============================================================================
 
     /**
+     * @brief Override a derived generator for a field in default_generator<T>.
+     *
+     * @code{.cpp}
+     * auto rect = default_generator<Rectangle>(
+     *     override<&Rectangle::width>(integers<int>({.min_value = 1, .max_value
+     * = 100}))
+     * );
+     * @endcode
+     *
+     * @tparam MemberPtr Pointer-to-member specifying which field
+     * @tparam Gen Generator type
+     * @param gen Generator for the field value
+     * @return A Field specification for use with default_generator<T>
+     */
+    template <auto MemberPtr, typename Gen>
+    Field<MemberPtr, Gen> override(Gen gen) {
+        return Field<MemberPtr, Gen>{std::move(gen)};
+    }
+
+    /**
      * @brief Create a default generator for type T.
      *
      * Dispatches to the appropriate built-in strategy based on the type:
@@ -254,22 +274,14 @@ namespace hegel::generators {
      */
     template <typename T, typename... Overrides>
     Generator<T> default_generator(Overrides... overrides) {
+        // Start from the all-defaults generator, then overlay overrides
+        // (reuses the same per-field assignment pattern as builds_agg).
+        auto base = default_generator<T>();
         auto override_tuple = std::make_tuple(std::move(overrides)...);
 
-        return from_function<T>([override_tuple](
+        return from_function<T>([base, override_tuple](
                                     TestCaseData* data) mutable -> T {
-            T result{};
-            auto view = rfl::to_view(result);
-
-            // Draw all fields from their default generators
-            view.apply([data](const auto& field) {
-                using PtrType =
-                    typename std::remove_cvref_t<decltype(field)>::Type;
-                using FieldType = std::remove_pointer_t<PtrType>;
-                *field.value() = default_generator<FieldType>().do_draw(data);
-            });
-
-            // Apply overrides (replaces default-generated values)
+            T result = base.do_draw(data);
             std::apply(
                 [&result, data](auto&... fs) {
                     ((result.*
@@ -278,7 +290,6 @@ namespace hegel::generators {
                      ...);
                 },
                 override_tuple);
-
             return result;
         });
     }
