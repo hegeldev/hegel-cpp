@@ -9,19 +9,9 @@
  */
 
 #include <memory>
-#include <rfl.hpp>
-#include <rfl/json.hpp>
 
 #include "internal.h"
 #include "nlohmann_reader.h"
-
-namespace hegel::internal {
-    /// Generate a schema for type T (wrapper around reflect-cpp)
-    template <typename T> hegel::internal::json::json type_schema() {
-        return hegel::internal::json::json::parse(
-            rfl::json::to_schema<T>().c_str());
-    }
-} // namespace hegel::internal
 
 /**
  * @brief Namespace containing abstractions for data generation.

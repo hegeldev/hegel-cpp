@@ -4,7 +4,8 @@
  * @mainpage Hegel - Hypothesis-like property-based testing for C++20
  *
  * This library provides type-safe random data generation for property-based
- * testing, communicating with the Hegel test runner via Unix sockets.
+ * testing, spawning the Hegel test runner as a subprocess and communicating
+ * with it over its stdin/stdout.
  *
  * @section usage Basic Usage
  *
@@ -31,6 +32,7 @@
  * @section deps Dependencies
  * - reflect-cpp (https://github.com/getml/reflect-cpp) - C++20 reflection
  * - nlohmann library - CBOR serialization
+ * - POSIX process APIs (fork, pipe, execvp)
  */
 
 // HegelOptions and supporting classes
@@ -43,6 +45,7 @@
 #include "generators/builds.h"
 #include "generators/collections.h"
 #include "generators/combinators.h"
+#include "generators/default.h"
 #include "generators/formats.h"
 #include "generators/numeric.h"
 #include "generators/primitives.h"
@@ -95,11 +98,11 @@ namespace hegel {
      * @brief Run property-based tests using Hegel in embedded mode.
      *
      * This is the recommended way to run property tests. The function:
-     * 1. Creates a Unix socket server for communication
-     * 2. Spawns the Hegel CLI as a subprocess
-     * 3. Runs the test function for each generated test case
-     * 4. Handles shrinking when failures occur
-     * 5. Throws std::runtime_error if any test case fails
+     * 1. Spawns the Hegel CLI as a subprocess, connected via pipes to its
+     *    stdin and stdout
+     * 2. Runs the test function for each generated test case
+     * 3. Handles shrinking when failures occur
+     * 4. Throws std::runtime_error if any test case fails
      *
      * @code{.cpp}
      * #include "hegel/hegel.h"
