@@ -76,7 +76,7 @@ To run more or fewer test cases, or to enable verbose output:
 ```cpp
 hegel::hegel([]() {
     // ...
-}, {.test_cases = 500, .verbosity = hegel::Verbosity::Verbose});
+}, {.test_cases = 500, .verbosity = hegel::options::Verbosity::Verbose});
 ```
 
 ## Generating multiple values
