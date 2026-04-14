@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * @file derived.h
+ * @file default.h
  * @brief Default and derived generators: automatic generator dispatch
  *        for primitive types, containers, and reflected structs.
  *
@@ -232,7 +232,7 @@ namespace hegel::generators {
      * - Reflected structs: any struct with public fields (via reflect-cpp)
      *
      * For structs, each field is generated using default_generator for its
-     * type. Nested structs are supported recursively.
+     * type.
      *
      * @code{.cpp}
      * struct Point { double x; double y; };
@@ -250,9 +250,8 @@ namespace hegel::generators {
 
     /**
      * @brief Create a default generator for a struct with field overrides.
-     *
-     * Generates all fields using their default generators, then applies
-     * any field overrides specified via field<&T::member>(generator).
+     * This function allows you to specify custom generators for specific fields
+     * of a struct while using default generation for the rest.
      *
      * @code{.cpp}
      * struct Person {
@@ -262,13 +261,13 @@ namespace hegel::generators {
      *
      * // Override only the age field; name uses default_generator<string>
      * auto gen = hegel::generators::default_generator<Person>(
-     *     field<&Person::age>(integers<int>({.min_value = 0,
-     *                                       .max_value = 120}))
+     *     override<&Person::age>(integers<int>({.min_value = 0, .max_value =
+     * 120}))
      * );
      * @endcode
      *
      * @tparam T The struct type to generate
-     * @tparam Overrides Field override types (from field<>())
+     * @tparam Overrides Field override types (from override<>())
      * @param overrides Field specifications for overridden fields
      * @return A Generator<T> with defaults plus overrides
      */
