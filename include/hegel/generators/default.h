@@ -227,7 +227,7 @@ namespace hegel::generators {
         DerivedGenerator(Generator<T> base) : Generator<T>(std::move(base)) {}
 
         /**
-         * @brief Overlay per-field generators on top of the defaults.
+         * @brief Override default per-field generators.
          *
          * Each field specification (from `field<&T::member>(gen)`) replaces
          * the default generator for that member. Other fields keep the
