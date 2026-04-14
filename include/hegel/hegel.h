@@ -12,11 +12,16 @@
  * @code{.cpp}
  * #include "hegel/hegel.h"
  *
+ * struct Person {
+ *     std::string name;
+ *     int age;
+ * };
+ *
  * hegel::hegel([]() {
  *     using namespace hegel::generators;
  *
  *     // Type-based generation (schema derived via reflect-cpp)
- *     Person p = hegel::draw(hegel::generators::default_generator<Person>());
+ *     Person p = hegel::draw(default_generator<Person>());
  *
  *     // Generator-based generation
  *     int value = hegel::draw(integers<int>({.min_value = 0, .max_value =
@@ -40,6 +45,7 @@
 #include "generators/builds.h"
 #include "generators/collections.h"
 #include "generators/combinators.h"
+#include "generators/default.h"
 #include "generators/formats.h"
 #include "generators/numeric.h"
 #include "generators/primitives.h"
