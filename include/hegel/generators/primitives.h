@@ -49,7 +49,9 @@ namespace hegel::generators {
         }
     }
 
-    /// @overload just(const char*) - convenience overload for string literals
+    /**
+     * @brief Convenience overload for string literals.
+     */
     inline Generator<std::string> just(const char* value) {
         return just(std::string(value));
     }

@@ -58,7 +58,7 @@ namespace hegel::generators {
         }
     }
 
-    /// @overload sampled_from(std::initializer_list<T>)
+    /// @overload
     template <typename T>
     Generator<T> sampled_from(std::initializer_list<T> elements) {
         return sampled_from(std::vector<T>(elements));

@@ -23,7 +23,8 @@
  *     Person p = hegel::draw(default_generator<Person>());
  *
  *     // Generator-based generation
- *     int value = hegel::draw(integers<int>({.min_value = 0, .max_value = 100}));
+ *     int value = hegel::draw(integers<int>({.min_value = 0, .max_value =
+ * 100}));
  * });
  * @endcode
  *

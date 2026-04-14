@@ -32,7 +32,7 @@ Requirements: a C++20 compiler and CMake 3.14 or later.
 
 ## Write your first test
 
-Create a file called `test_add.cpp`:
+Create a file called `test_sort.cpp`:
 
 ```cpp
 #include <hegel/hegel.h>
@@ -40,14 +40,22 @@ Create a file called `test_add.cpp`:
 
 using namespace hegel::generators;
 
+std::vector<int> my_sort(std::vector<int> v) {
+    std::vector<int> v_(v);
+    std::sort(v_.begin(), v_.end());
+    auto last = std::unique(v_.begin(), v_.end());
+    v_.erase(last, v_.end());
+    return v_;
+}
+
 int main() {
     hegel::hegel([]() {
-        auto x = hegel::draw(integers<int>());
-        auto y = hegel::draw(integers<int>());
+        auto vec1 = hegel::draw(vectors(integers<int>()));
+        auto vec2 = my_sort(vec1);
+        std::sort(vec1.begin(), vec1.end());
 
-        // Addition should be commutative
-        if (x + y != y + x) {
-            throw std::runtime_error("commutativity violated");
+        if (vec1 != vec2) {
+            throw std::runtime_error("vectors not equal");
         }
     });
 
@@ -60,23 +68,26 @@ values. If the lambda throws, Hegel records the failure and then replays
 the test with progressively simpler inputs until it finds a minimal
 counterexample.
 
+For example, Hegel might initially find the following counterexample:
+`[-2147483393,-749521737,-749521737]` which then becomes `[0, 0]` after shrinking.
+
 ## Running in a test suite
 
 Each Hegel test is a standalone executable. You can integrate it with CTest
 in the usual way:
 
 ```cmake
-add_executable(test_add test_add.cpp)
-target_link_libraries(test_add PRIVATE hegel)
-add_test(NAME test_add COMMAND test_add)
+add_executable(test_sort test_sort.cpp)
+target_link_libraries(test_sort PRIVATE hegel)
+add_test(NAME test_sort COMMAND test_sort)
 ```
 
-To run more or fewer test cases, or to enable verbose output:
+To run more or fewer test cases, to enable verbose output, or to set a seed:
 
 ```cpp
 hegel::hegel([]() {
     // ...
-}, {.test_cases = 500, .verbosity = hegel::Verbosity::Verbose});
+}, {.test_cases = 500, .verbosity = hegel::Verbosity::Verbose, .seed = 1234});
 ```
 
 ## Generating multiple values
@@ -323,7 +334,23 @@ int main() {
 }
 ```
 
-For more control over how each field is generated, use `builds` for
+You can also let Hegel derive a generator automatically, but override some of the 
+default generators.
+
+```cpp
+
+int main() {
+    hegel::hegel([]() {
+        auto p = hegel::draw(hegel::generators::default_generator<Point>());
+        // todo override
+        // p.x and p.y are random doubles
+    });
+
+    return 0;
+}
+```
+
+For explicitly defining the struct generator, use `builds` for
 positional construction or `builds_agg` for named-field construction:
 
 ```cpp
@@ -415,10 +442,7 @@ by random sampling alone.
 
 ## Next steps
 
-- Browse the [examples/](../examples/) directory for complete, runnable
-  property-based tests covering data structures like bounded queues, LRU
-  caches, and run-length encoding.
-- Read the generated Doxygen documentation (`just docs`) for the full API
-  reference.
-- See the [hegel-core](https://github.com/hegeldev/hegel-core)
-  repository for details on the Hegel server and the binary protocol.
+- Browse [tests/property_tests.cpp](../tests/property_tests.cpp) to see example property-based tests.
+- Read the generated Doxygen documentation (`just docs`) for the full API reference.
+- See the [hegel-core](https://github.com/hegeldev/hegel-core) repository for details on the Hegel server 
+  and the Hegel [website](https://hegel.dev/reference/protocol) for details on the binary protocol.
