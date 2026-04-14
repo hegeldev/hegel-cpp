@@ -28,6 +28,7 @@ int main(int argc, char* argv[]) {
         args["max_value"].is_null()
             ? std::nullopt
             : std::optional<int>(args["max_value"].get<int>());
+    bool unique = args["unique"].get<bool>();
     std::string mode = conformance::get_mode(args);
     int test_cases = conformance::get_test_cases();
 
@@ -38,7 +39,7 @@ int main(int argc, char* argv[]) {
             auto gen = hegel::generators::vectors(
                 mode == "non_basic" ? conformance::make_non_basic(elem_gen)
                                     : elem_gen,
-                {.min_size = min_size, .max_size = max_size});
+                {.min_size = min_size, .max_size = max_size, .unique = unique});
 
             auto vec = hegel::draw(gen);
             conformance::write_metrics({{"elements", vec}});

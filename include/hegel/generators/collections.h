@@ -5,6 +5,7 @@
  * @brief Collection generator functions: vectors, sets, dictionaries, tuples
  */
 
+#include <algorithm>
 #include <map>
 #include <set>
 #include <tuple>
@@ -12,6 +13,7 @@
 
 #include "hegel/core.h"
 #include "hegel/generators/numeric.h"
+#include "hegel/internal.h"
 
 namespace hegel::generators {
 
@@ -91,11 +93,32 @@ namespace hegel::generators {
         auto length_gen = integers<size_t>(
             {.min_value = params.min_size, .max_value = max_size});
 
+        bool unique = params.unique;
         return from_function<std::vector<T>>(
-            [elements, length_gen](TestCaseData* data) {
+            [elements, length_gen, unique](TestCaseData* data) {
                 size_t len = length_gen.do_draw(data);
                 std::vector<T> result;
                 result.reserve(len);
+
+                if constexpr (requires(T a, T b) { a == b; }) {
+                    if (unique) {
+                        size_t max_attempts = len * 10 + 10;
+                        for (size_t attempts = 0;
+                             result.size() < len && attempts < max_attempts;
+                             ++attempts) {
+                            T elem = elements.do_draw(data);
+                            if (std::find(result.begin(), result.end(), elem) ==
+                                result.end()) {
+                                result.push_back(std::move(elem));
+                            }
+                        }
+                        // If the element generator can't produce enough unique
+                        // values (e.g. it's heavily constrained), reject this
+                        // test case rather than returning a short vector.
+                        hegel::internal::assume(result.size() == len);
+                        return result;
+                    }
+                }
 
                 for (size_t i = 0; i < len; ++i) {
                     result.push_back(elements.do_draw(data));
@@ -217,19 +240,28 @@ namespace hegel::generators {
         auto length_gen = integers<size_t>(
             {.min_value = params.min_size, .max_value = max_size});
 
-        return from_function<std::map<K, V>>(
-            [keys, values, length_gen](TestCaseData* data) {
-                size_t len = length_gen.do_draw(data);
-                std::map<K, V> result;
+        return from_function<std::map<K, V>>([keys, values,
+                                              length_gen](TestCaseData* data) {
+            size_t len = length_gen.do_draw(data);
+            std::map<K, V> result;
 
-                while (result.size() < len) {
-                    K key = keys.do_draw(data);
-                    V value = values.do_draw(data);
-                    result[std::move(key)] = std::move(value);
+            size_t max_attempts = len * 10 + 10;
+            for (size_t attempts = 0;
+                 result.size() < len && attempts < max_attempts; ++attempts) {
+                K key = keys.do_draw(data);
+                if (result.find(key) != result.end()) {
+                    continue;
                 }
+                V value = values.do_draw(data);
+                result.emplace(std::move(key), std::move(value));
+            }
+            // If the key generator can't produce enough unique keys
+            // (e.g. it's heavily constrained), reject this test case
+            // rather than returning a smaller map.
+            hegel::internal::assume(result.size() == len);
 
-                return result;
-            });
+            return result;
+        });
     }
 
     /// @cond INTERNAL
