@@ -27,6 +27,9 @@
 
 namespace hegel::generators {
 
+    /// @name Deriving Generators
+    /// @{
+
     // Forward declaration — defined below after all specializations
     template <typename T> Generator<T> default_generator();
 
@@ -207,6 +210,7 @@ namespace hegel::generators {
      * @brief Override a derived generator for a field in default_generator<T>.
      *
      * @code{.cpp}
+     * // Bound only the width to [1, 100], height uses default_generator<int>()
      * auto rect = default_generator<Rectangle>(
      *     override<&Rectangle::width>(integers<int>({.min_value = 1, .max_value
      * = 100}))
@@ -292,5 +296,7 @@ namespace hegel::generators {
             return result;
         });
     }
+
+    /// @}
 
 } // namespace hegel::generators
