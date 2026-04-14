@@ -397,27 +397,4 @@ namespace hegel::generators {
         return Generator<T>(new SchemaBackedGenerator<T>(std::move(schema)));
     }
 
-    /**
-     * @brief Create a generator for type T using automatic schema derivation.
-     *
-     * Uses reflect-cpp to derive a schema from the type's structure.
-     * Works with structs, classes, and standard library types.
-     *
-     * @code{.cpp}
-     * struct Person {
-     *     std::string name;
-     *     int age;
-     * };
-     *
-     * auto gen = hegel::generators::default_generator<Person>();
-     * Person p = hegel::draw(gen);
-     * @endcode
-     *
-     * @tparam T The type to generate (must be reflect-cpp compatible)
-     * @return A SchemaBackedGenerator<T> instance
-     */
-    template <typename T> Generator<T> default_generator() {
-        return from_schema<T>(internal::type_schema<T>());
-    }
-
 } // namespace hegel::generators

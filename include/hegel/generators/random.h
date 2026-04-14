@@ -26,8 +26,9 @@ namespace hegel::generators {
      */
     struct RandomsParams {
         bool use_true_random =
-            false; ///< If true, use a seeded local PRNG instead of
-                   ///< per-value Hypothesis requests
+            false; ///< If true, use a local PRNG seed by Hegel instead of
+                   ///< per-value Hypothesis requests. Use this mode when the
+                   ///< cost of routing every draw through Hypothesis would be too expensive.
     };
 
     // =============================================================================
@@ -55,10 +56,24 @@ namespace hegel::generators {
       public:
         using result_type = uint32_t;
 
-        // Construct in artificial mode
+        /**
+         * @brief Construct in artificial (Hypothesis-backed) mode.
+         *
+         * Each call to `operator()` draws entropy from Hypothesis via the
+         * given test-case data, so the resulting values can be shrunken. 
+         *
+         * @param data The active test case's data stream (non-owning).
+         */
         explicit HegelRandom(impl::data::TestCaseData* data);
 
-        // Construct in true-random mode
+        /**
+         * @brief Construct in true-random mode using a seeded local PRNG.
+         *
+         * Values are produced by an internal `std::mt19937` seeded with
+         * @p seed. Values produced in true-random mode cannot be shrunk.
+         *
+         * @param seed Seed for the internal Mersenne Twister engine.
+         */
         explicit HegelRandom(uint64_t seed);
 
         static constexpr result_type min() {
