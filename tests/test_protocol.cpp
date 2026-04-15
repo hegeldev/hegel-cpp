@@ -9,6 +9,7 @@
 #include "../src/json_impl.h"
 #include "../src/protocol.h"
 
+#include <arpa/inet.h>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -379,6 +380,92 @@ TEST(ProtocolDebug, SetAndGet) {
     ASSERT_FALSE(hegel::impl::protocol::protocol_debug_enabled());
     // Restore
     hegel::impl::protocol::set_protocol_debug(original);
+}
+
+TEST(ProtocolDebug, InitFromVerbosity) {
+    hegel::impl::protocol::init_protocol_debug(
+        hegel::options::Verbosity::Debug);
+    ASSERT_TRUE(hegel::impl::protocol::protocol_debug_enabled());
+    hegel::impl::protocol::init_protocol_debug(
+        hegel::options::Verbosity::Normal);
+    // Without env var set, normal should not enable debug
+}
+
+TEST(ProtocolDebug, WriteWithDebugEnabled) {
+    // Enable debug, write a packet, and verify it still works
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+
+    hegel::impl::protocol::set_protocol_debug(true);
+
+    std::vector<uint8_t> payload = {0x01};
+    hegel::impl::protocol::write_packet(fds[0], 0, 0, false, payload);
+    auto packet = hegel::impl::protocol::read_packet(fds[1]);
+    ASSERT_EQ(packet.payload, payload);
+
+    hegel::impl::protocol::set_protocol_debug(false);
+    close(fds[0]);
+    close(fds[1]);
+}
+
+// =============================================================================
+// Protocol error paths
+// =============================================================================
+
+TEST(PacketErrors, ReadFromClosedFd) {
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+    close(fds[0]); // Close writer end
+    ASSERT_THROW(hegel::impl::protocol::read_packet(fds[1]),
+                 std::runtime_error);
+    close(fds[1]);
+}
+
+TEST(PacketErrors, CorruptedMagic) {
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+
+    // Write a header with bad magic
+    uint8_t header[20] = {};
+    uint32_t bad_magic = htonl(0xDEADBEEFu);
+    memcpy(header, &bad_magic, 4);
+    // Fill rest to avoid read stall
+    write(fds[0], header, 20);
+    close(fds[0]);
+
+    ASSERT_THROW(hegel::impl::protocol::read_packet(fds[1]),
+                 std::runtime_error);
+    close(fds[1]);
+}
+
+TEST(PacketErrors, CorruptedCRC) {
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+
+    // Write a valid packet then corrupt the CRC
+    std::vector<uint8_t> payload = {0x42};
+    hegel::impl::protocol::write_packet(fds[0], 0, 0, false, payload);
+
+    // Read the raw bytes, corrupt CRC, rewrite
+    // Simpler: just write a valid-looking header with wrong CRC
+    // Actually, the packet is already on fds[1]. Let's just read
+    // the valid packet and test the corrupted one separately.
+    auto valid = hegel::impl::protocol::read_packet(fds[1]);
+    ASSERT_EQ(valid.payload, payload); // sanity check
+
+    // Now write a header with correct magic but wrong CRC
+    uint8_t header[20];
+    uint32_t fields[5] = {htonl(0x4845474Cu), htonl(0xBADC0000u), 0, 0, 0};
+    memcpy(header, fields, 20);
+    uint8_t term = 0x0A;
+    write(fds[0], header, 20);
+    write(fds[0], &term, 1);
+
+    ASSERT_THROW(hegel::impl::protocol::read_packet(fds[1]),
+                 std::runtime_error);
+
+    close(fds[0]);
+    close(fds[1]);
 }
 
 int main(int argc, char** argv) {
