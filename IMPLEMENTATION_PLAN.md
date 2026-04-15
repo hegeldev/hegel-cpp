@@ -52,10 +52,13 @@ Based on audit conducted 2026-04-15.
 - [x] Protocol error path tests (closed fd, corrupted magic, CRC mismatch)
 - [x] JSON wrapper tests (construction, access, type checking, iteration)
 
-## Priority 7: Generator Completeness -- DEFERRED
+## Priority 7: Generator Completeness -- DONE
 
-- [ ] Implement one_of Path 2 (tuple schema for mixed basic/transformed)
-- [ ] Make map() preserve schema on basic generators
+- [x] Implement one_of Path 2 (tuple schema for mixed basic/transformed)
+- [x] Make map() preserve schema on basic generators
+- [x] Add start_span/stop_span protocol commands for filter()
+- [x] Fix filter() to use spans with 3 retries (matching Rust/Go)
+- [x] Add is_test_aborted() for OVERRUN vs filter exhaustion distinction
 
 ## Priority 8: Documentation Fixes -- DONE
 
