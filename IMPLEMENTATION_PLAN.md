@@ -60,12 +60,12 @@ Based on audit conducted 2026-04-15.
 - [x] Fix filter() to use spans with 3 retries (matching Rust/Go)
 - [x] Add is_test_aborted() for OVERRUN vs filter exhaustion distinction
 
-## Priority 8: DataSource Abstraction
+## Priority 8: DataSource Abstraction -- DONE
 
-- [ ] Create DataSource interface (abstract class) with generate/start_span/stop_span/mark_complete
-- [ ] Make communicate_with_core and span functions go through DataSource
-- [ ] Connection-backed DataSource as concrete implementation
-- [ ] Use DataSource in TestCaseData instead of raw Connection*
+- [x] Create DataSource interface (abstract class) with generate/start_span/stop_span
+- [x] Make communicate_with_core and span functions go through DataSource
+- [x] Connection-backed DataSource as concrete implementation
+- [x] Use DataSource in TestCaseData instead of raw Connection*
 
 ## Priority 9: Documentation Fixes -- DONE
 
