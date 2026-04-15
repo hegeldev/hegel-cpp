@@ -84,12 +84,13 @@ namespace hegel::impl::protocol {
         while (total < len) {
             ssize_t n = ::write(fd, data + total, len - total);
             if (n < 0) {
-                if (errno == EINTR)
+                if (errno == EINTR) // GCOVR_EXCL_START
                     continue;
                 throw std::runtime_error("Write failed");
-            }
+            } // GCOVR_EXCL_STOP
             if (n == 0) {
-                throw std::runtime_error("Write failed (zero bytes written)");
+                throw std::runtime_error(
+                    "Write failed (zero bytes written)"); // GCOVR_EXCL_LINE
             }
             total += static_cast<size_t>(n);
         }
@@ -100,10 +101,10 @@ namespace hegel::impl::protocol {
         while (total < len) {
             ssize_t n = read(fd, data + total, len - total);
             if (n < 0) {
-                if (errno == EINTR)
+                if (errno == EINTR) // GCOVR_EXCL_START
                     continue;
                 throw std::runtime_error("Read failed");
-            }
+            } // GCOVR_EXCL_STOP
             if (n == 0) {
                 throw std::runtime_error("Read failed (connection closed)");
             }

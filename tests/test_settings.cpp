@@ -14,3 +14,17 @@ TEST(Settings, DefaultRuns100TestCases) {
 
     ASSERT_EQ(count, 100);
 }
+
+TEST(Settings, SeedMakesRunDeterministic) {
+    std::vector<int> first_run, second_run;
+
+    hegel::hegel(
+        [&first_run] { first_run.push_back(hegel::draw(integers<int>())); },
+        {.seed = 12345});
+
+    hegel::hegel(
+        [&second_run] { second_run.push_back(hegel::draw(integers<int>())); },
+        {.seed = 12345});
+
+    ASSERT_EQ(first_run, second_run);
+}

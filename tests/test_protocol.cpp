@@ -1,17 +1,25 @@
 // test_protocol.cpp - Protocol and JSON wrapper unit tests
 // Exercises CRC32, CBOR encode/decode, JSON wrapper methods,
-// and packet serialization without requiring a live server.
+// packet serialization, and Connection unit tests without requiring a live
+// server.
 
 #include <gtest/gtest.h>
 
+#include <hegel/internal.h>
 #include <hegel/json.h>
+#include <hegel/options.h>
 
+#include "../src/connection.h"
+#include "../src/data.h"
 #include "../src/json_impl.h"
 #include "../src/protocol.h"
 
 #include <arpa/inet.h>
+#include <cassert>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -466,6 +474,286 @@ TEST(PacketErrors, CorruptedCRC) {
 
     close(fds[0]);
     close(fds[1]);
+}
+
+// =============================================================================
+// Protocol error paths (payload too large, missing terminator)
+// =============================================================================
+
+TEST(PacketErrors, PayloadTooLarge) {
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+
+    // Write a header where length > 64MB
+    uint8_t header[20];
+    uint32_t magic = htonl(0x4845474Cu);
+    uint32_t crc = htonl(0u);
+    uint32_t stream = htonl(0u);
+    uint32_t msg_id = htonl(0u);
+    uint32_t length = htonl(64 * 1024 * 1024 + 1); // just over limit
+    memcpy(header + 0, &magic, 4);
+    memcpy(header + 4, &crc, 4);
+    memcpy(header + 8, &stream, 4);
+    memcpy(header + 12, &msg_id, 4);
+    memcpy(header + 16, &length, 4);
+    write(fds[0], header, 20);
+    close(fds[0]);
+
+    ASSERT_THROW(hegel::impl::protocol::read_packet(fds[1]),
+                 std::runtime_error);
+    close(fds[1]);
+}
+
+TEST(PacketErrors, MissingTerminator) {
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+
+    // Write a valid header (correct magic, zero-byte payload) followed by
+    // a wrong terminator byte. The terminator check fires before CRC check,
+    // so the CRC in the header doesn't need to be correct.
+    uint8_t header[20];
+    uint32_t magic = htonl(0x4845474Cu);
+    memcpy(header + 0, &magic, 4);
+    memset(header + 4, 0, 16); // crc=0, stream=0, msg_id=0, length=0
+    write(fds[0], header, 20);
+    uint8_t bad_term = 0xFF; // wrong terminator (not 0x0A)
+    write(fds[0], &bad_term, 1);
+    close(fds[0]);
+
+    ASSERT_THROW(hegel::impl::protocol::read_packet(fds[1]),
+                 std::runtime_error);
+    close(fds[1]);
+}
+
+// =============================================================================
+// Protocol debug env var (HEGEL_PROTOCOL_DEBUG)
+// =============================================================================
+
+TEST(ProtocolDebug, EnvVarEnabled) {
+    // Save original state
+    bool original = hegel::impl::protocol::protocol_debug_enabled();
+
+    setenv("HEGEL_PROTOCOL_DEBUG", "1", 1);
+    hegel::impl::protocol::init_protocol_debug(
+        hegel::options::Verbosity::Normal);
+    ASSERT_TRUE(hegel::impl::protocol::protocol_debug_enabled());
+
+    unsetenv("HEGEL_PROTOCOL_DEBUG");
+    hegel::impl::protocol::init_protocol_debug(
+        hegel::options::Verbosity::Normal);
+    ASSERT_FALSE(hegel::impl::protocol::protocol_debug_enabled());
+
+    // Restore
+    hegel::impl::protocol::set_protocol_debug(original);
+}
+
+// =============================================================================
+// JSON wrapper: push_back(const json&) and get_binary()
+// =============================================================================
+
+TEST(JsonWrapper, PushBackConstRef) {
+    json arr = json::array({});
+    const json elem(99);
+    arr.push_back(elem); // calls push_back(const json&)
+    auto raw = ImplUtil::raw(arr);
+    ASSERT_EQ(raw.size(), 1u);
+    ASSERT_EQ(raw[0].get<int>(), 99);
+}
+
+TEST(JsonWrapper, GetBinary) {
+    // Create a json containing binary data via nlohmann
+    nlohmann::json bin_json = nlohmann::json::binary({0x01, 0x02, 0x03});
+    auto j = ImplUtil::create(bin_json);
+    auto& bytes = j.get_binary();
+    ASSERT_EQ(bytes.size(), 3u);
+    ASSERT_EQ(bytes[0], 0x01);
+    ASSERT_EQ(bytes[2], 0x03);
+}
+
+// =============================================================================
+// Connection unit tests using socketpairs
+// =============================================================================
+
+namespace {
+
+    // Write a fake server handshake reply to server_fd.
+    // The handshake flow: client sends request (stream=0, is_reply=false),
+    // then waits for reply (stream=0, is_reply=true).
+    // We pre-write the reply so it's ready when the client reads.
+    void send_handshake_reply(int server_fd, const std::string& response) {
+        std::vector<uint8_t> payload(response.begin(), response.end());
+        hegel::impl::protocol::write_packet(server_fd, 0, 0, true, payload);
+    }
+
+} // namespace
+
+TEST(Connection, HandshakeBadResponse) {
+    int sv[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+    send_handshake_reply(sv[1], "NotHegel/anything");
+    {
+        hegel::impl::Connection conn(sv[0], sv[0]);
+        ASSERT_THROW(conn.handshake(), std::runtime_error);
+    }
+    close(sv[1]);
+}
+
+TEST(Connection, HandshakeMajorVersionTooHigh) {
+    // "Hegel/1.0" — major version 1 > 0, out of supported range.
+    // Exercises compare_versions line where a_major != b_major (line 84).
+    int sv[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+    send_handshake_reply(sv[1], "Hegel/1.0");
+    {
+        hegel::impl::Connection conn(sv[0], sv[0]);
+        ASSERT_THROW(conn.handshake(), std::runtime_error);
+    }
+    close(sv[1]);
+}
+
+TEST(Connection, HandshakeMinorVersionTooLow) {
+    // "Hegel/0.9" — minor version 9 < 10, out of supported range.
+    // Exercises compare_versions line where a_minor != b_minor (line 86).
+    int sv[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+    send_handshake_reply(sv[1], "Hegel/0.9");
+    {
+        hegel::impl::Connection conn(sv[0], sv[0]);
+        ASSERT_THROW(conn.handshake(), std::runtime_error);
+    }
+    close(sv[1]);
+}
+
+TEST(Connection, RecvRequestClosedStream) {
+    // recv_request should throw when payload is CLOSE_PAYLOAD.
+    int sv[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+
+    // Pre-write a close-stream signal: stream=1, is_reply=false (not a reply)
+    std::vector<uint8_t> close_payload = {hegel::impl::protocol::CLOSE_PAYLOAD};
+    hegel::impl::protocol::write_packet(sv[1], 1, 0, false, close_payload);
+
+    {
+        hegel::impl::Connection conn(sv[0], sv[0]);
+        ASSERT_THROW(conn.recv_request(1), std::runtime_error);
+    }
+    close(sv[1]);
+}
+
+TEST(Connection, CloseStream) {
+    // close_stream should write a CLOSE_PAYLOAD packet.
+    int sv[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+
+    {
+        hegel::impl::Connection conn(sv[0], sv[0]);
+        conn.close_stream(3);
+    }
+    // Read the packet from server side and verify it's a close signal
+    auto pkt = hegel::impl::protocol::read_packet(sv[1]);
+    ASSERT_EQ(pkt.stream, 3u);
+    ASSERT_EQ(pkt.payload.size(), 1u);
+    ASSERT_EQ(pkt.payload[0], hegel::impl::protocol::CLOSE_PAYLOAD);
+
+    close(sv[1]);
+}
+
+// =============================================================================
+// communicate_with_core: debug logging and generic error paths
+// =============================================================================
+
+namespace {
+
+    // Write a CBOR-encoded JSON value as a fake server reply on the given
+    // stream.
+    void send_cbor_reply(int server_fd, uint32_t stream,
+                         const nlohmann::json& value) {
+        auto payload = hegel::impl::protocol::cbor_encode(value);
+        hegel::impl::protocol::write_packet(server_fd, stream, 0, true,
+                                            payload);
+    }
+
+} // namespace
+
+TEST(CommunicateWithCore, DebugLoggingEnabled) {
+    int sv[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+
+    // Pre-write a successful response: {"result": 42}
+    send_cbor_reply(sv[1], 1, {{"result", 42}});
+
+    hegel::impl::Connection conn(sv[0], sv[0]);
+    hegel::impl::data::TestCaseData data{
+        .connection = &conn,
+        .data_stream = 1,
+        .is_last_run = false,
+        .test_aborted = false,
+        .verbosity = hegel::options::Verbosity::Normal,
+    };
+    hegel::impl::data::set(&data);
+
+    // Enable debug logging so the REQUEST/RESPONSE paths execute
+    hegel::impl::protocol::set_protocol_debug(true);
+
+    json schema = {{"type", "integer"}};
+    auto result = hegel::internal::communicate_with_core(schema, &data);
+
+    hegel::impl::protocol::set_protocol_debug(false);
+    hegel::impl::data::clear();
+    close(sv[1]);
+
+    ASSERT_TRUE(result.contains("result"));
+}
+
+TEST(CommunicateWithCore, GenericErrorNoType) {
+    // Server returns {"error": "something went wrong"} without a "type" field.
+    // This exercises the generic throw path (lines 224-227 of connection.cpp).
+    int sv[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+
+    send_cbor_reply(sv[1], 1, {{"error", "something went wrong"}});
+
+    hegel::impl::Connection conn(sv[0], sv[0]);
+    hegel::impl::data::TestCaseData data{
+        .connection = &conn,
+        .data_stream = 1,
+        .is_last_run = false,
+        .test_aborted = false,
+        .verbosity = hegel::options::Verbosity::Normal,
+    };
+    hegel::impl::data::set(&data);
+
+    json schema = {{"type", "integer"}};
+    bool threw = false;
+    try {
+        hegel::internal::communicate_with_core(schema, &data);
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+
+    hegel::impl::data::clear();
+    close(sv[1]);
+
+    ASSERT_TRUE(threw);
+}
+
+// =============================================================================
+// internal::note() with is_last_run = true
+// =============================================================================
+
+TEST(InternalNote, PrintsOnLastRun) {
+    hegel::impl::Connection conn(-1, -1); // fd=-1; we won't do I/O
+    hegel::impl::data::TestCaseData data{
+        .connection = &conn,
+        .data_stream = 0,
+        .is_last_run = true, // triggers the std::cerr path
+        .test_aborted = false,
+        .verbosity = hegel::options::Verbosity::Normal,
+    };
+    hegel::impl::data::set(&data);
+    // note() prints to std::cerr when is_last_run; no exception expected
+    ASSERT_NO_THROW(hegel::internal::note("test note message"));
+    hegel::impl::data::clear();
 }
 
 int main(int argc, char** argv) {

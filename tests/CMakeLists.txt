@@ -36,6 +36,10 @@ target_link_libraries(test_hegel
         hegel
         GTest::gtest_main
 )
+target_include_directories(test_hegel
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src
+)
 gtest_discover_tests(test_hegel)
 
 

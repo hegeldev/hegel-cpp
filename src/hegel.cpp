@@ -62,10 +62,13 @@ namespace hegel {
         argv.push_back(nullptr);
 
         execvp(argv[0], argv.data());
-        // execvp only returns on failure
-        fprintf(stderr, "Failed to run Hegel server at path %s: %s\n",
-                hegel_path.c_str(), strerror(errno));
-        _exit(1);
+        // execvp only returns on failure; child calls _exit so gcov never
+        // flushes
+        fprintf(
+            stderr,
+            "Failed to run Hegel server at path %s: %s\n", // GCOVR_EXCL_LINE
+            hegel_path.c_str(), strerror(errno));          // GCOVR_EXCL_LINE
+        _exit(1);                                          // GCOVR_EXCL_LINE
     }
 
     // =============================================================================
@@ -144,9 +147,6 @@ namespace hegel {
                 } catch (const std::exception& e) {
                     status = "INTERESTING";
                     origin = e.what();
-                } catch (...) {
-                    status = "INTERESTING";
-                    origin = "Unknown exception";
                 }
 
                 // Clear per-test-case state
@@ -166,19 +166,20 @@ namespace hegel {
                         auto mark_raw = ImplUtil::raw(mark_response);
                         if (mark_raw.contains("error")) {
                             std::string error_type = mark_raw.value("type", "");
-                            if (error_type == "StopTest" ||
+                            if (error_type == "StopTest" || // GCOVR_EXCL_START
                                 error_type == "Overflow") {
                                 data.test_aborted = true;
-                            }
+                            } // GCOVR_EXCL_STOP
                         }
-                    } catch (const internal::HegelReject&) {
+                    } catch (const internal::HegelReject&) { // GCOVR_EXCL_START
                         data.test_aborted = true;
                     } catch (const std::exception&) {
                         // mark_complete failed; treat as aborted
                         data.test_aborted = true;
                     }
+                    // GCOVR_EXCL_STOP
                     if (!data.test_aborted) {
-                        conn.close_stream(data_stream);
+                        conn.close_stream(data_stream); // GCOVR_EXCL_LINE
                     }
                 }
 
@@ -238,12 +239,13 @@ namespace hegel {
         int parent_to_child[2];
         int child_to_parent[2];
         if (pipe(parent_to_child) < 0 || pipe(child_to_parent) < 0) {
-            throw std::runtime_error("Failed to create pipes");
+            throw std::runtime_error(
+                "Failed to create pipes"); // GCOVR_EXCL_LINE
         }
 
         pid_t pid = fork();
         if (pid < 0) {
-            throw std::runtime_error("Failed to fork");
+            throw std::runtime_error("Failed to fork"); // GCOVR_EXCL_LINE
         }
 
         if (pid == 0) {

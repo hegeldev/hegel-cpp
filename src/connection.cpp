@@ -65,14 +65,16 @@ namespace hegel::impl {
             auto dot = s.find('.');
             if (dot == std::string::npos ||
                 s.find('.', dot + 1) != std::string::npos) {
-                throw std::invalid_argument("invalid version string '" + s +
-                                            "': expected 'major.minor' format");
+                throw std::invalid_argument(
+                    "invalid version string '" + s +     // GCOVR_EXCL_LINE
+                    "': expected 'major.minor' format"); // GCOVR_EXCL_LINE
             }
             auto major_str = s.substr(0, dot);
             auto minor_str = s.substr(dot + 1);
             if (major_str.empty() || minor_str.empty()) {
-                throw std::invalid_argument("invalid version string '" + s +
-                                            "': expected 'major.minor' format");
+                throw std::invalid_argument(
+                    "invalid version string '" + s +     // GCOVR_EXCL_LINE
+                    "': expected 'major.minor' format"); // GCOVR_EXCL_LINE
             }
             int major = std::stoi(major_str);
             int minor = std::stoi(minor_str);

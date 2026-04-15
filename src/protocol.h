@@ -72,7 +72,7 @@ namespace hegel::impl::protocol {
             bytes, true, true, nlohmann::json::cbor_tag_handler_t::store);
         convert_tagged_strings(result);
         return result;
-    }
+    } // GCOVR_EXCL_LINE
 
     inline nlohmann::json cbor_decode(const uint8_t* data, size_t len) {
         auto result = nlohmann::json::from_cbor(
@@ -80,7 +80,7 @@ namespace hegel::impl::protocol {
             nlohmann::json::cbor_tag_handler_t::store);
         convert_tagged_strings(result);
         return result;
-    }
+    } // GCOVR_EXCL_LINE
 
     // =============================================================================
     // Protocol Debug

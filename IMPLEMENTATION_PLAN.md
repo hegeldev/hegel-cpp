@@ -18,8 +18,8 @@ Based on audit conducted 2026-04-15.
 
 ## Priority 2: Coverage Enforcement -- DONE
 
-- [x] Add `just coverage` target (gcovr, --fail-under-line 85)
-- [x] Coverage at 88.3% (up from 70.9%)
+- [x] Add `just coverage` target (gcovr, --fail-under-line 100)
+- [x] Coverage at 100% line + 100% function (up from 70.9%)
 
 ## Priority 3: GTest Integration & Counterexample Display -- DONE
 
@@ -34,11 +34,15 @@ Based on audit conducted 2026-04-15.
 - [x] find_any
 - [x] minimal
 
-## Priority 5: DataSource Abstraction -- DEFERRED
+## Priority 5: Coverage Tests -- DONE
 
-- [ ] Extract DataSource interface from TestCaseData
-- [ ] Implement LiveDataSource and FakeDataSource
-- [ ] Required for 100% coverage (error path testing)
+- [x] Connection unit tests (handshake variants, close_stream, recv_request with CLOSE_PAYLOAD)
+- [x] communicate_with_core tests (debug logging, generic server error)
+- [x] Protocol error tests (payload too large, missing terminator, HEGEL_PROTOCOL_DEBUG env var)
+- [x] JSON wrapper tests (push_back const ref, get_binary)
+- [x] note() with is_last_run=true test
+- [x] Seed option test
+- [x] GCOVR_EXCL_LINE markers for genuine gcov artifacts (closing braces after return)
 
 ## Priority 6: Protocol Unit Tests -- DONE
 

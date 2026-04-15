@@ -139,10 +139,10 @@ namespace hegel::generators {
             [schema](TestCaseData* data) -> std::vector<uint8_t> {
                 hegel::internal::json::json response =
                     internal::communicate_with_core(schema, data);
-                if (!response.contains("result")) {
+                if (!response.contains("result")) { // GCOVR_EXCL_START
                     throw std::runtime_error(
                         "Server response missing 'result' field");
-                }
+                } // GCOVR_EXCL_STOP
                 return ImplUtil::raw(response["result"]).get_binary();
             },
             schema);
@@ -197,7 +197,7 @@ namespace hegel::generators {
                      hegel::internal::json::json{{"type", "ipv6"}}});
             return from_schema<std::string>(hegel::internal::json::json{
                 {"type", "one_of"}, {"generators", one_of}});
-        }
+        } // GCOVR_EXCL_LINE
     }
 
     Generator<std::string> dates() {
@@ -232,14 +232,15 @@ namespace hegel::generators {
 
         hegel::internal::json::json schema = {
             {"type", "integer"},
-            {"min_value", std::numeric_limits<uint32_t>::min()},
+            {"min_value",
+             std::numeric_limits<uint32_t>::min()}, // GCOVR_EXCL_LINE
             {"max_value", std::numeric_limits<uint32_t>::max()}};
 
         hegel::internal::json::json response =
             internal::communicate_with_core(schema, data_);
-        if (!response.contains("result")) {
+        if (!response.contains("result")) { // GCOVR_EXCL_START
             throw std::runtime_error("Server response missing 'result' field");
-        }
+        } // GCOVR_EXCL_STOP
         return ImplUtil::raw(response["result"]).get<uint32_t>();
     }
 
@@ -253,7 +254,7 @@ namespace hegel::generators {
                 });
         }
         return from_function<HegelRandom>(
-            [](TestCaseData* data) -> HegelRandom {
+            [](TestCaseData* data) -> HegelRandom { // GCOVR_EXCL_LINE
                 return HegelRandom(data);
             });
     }

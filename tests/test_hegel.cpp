@@ -1,6 +1,10 @@
 #include <gtest/gtest.h>
 
 #include <hegel/hegel.h>
+#include <hegel/options.h>
+
+#include "../src/connection.h"
+#include "../src/data.h"
 
 using namespace hegel::generators;
 
@@ -40,6 +44,22 @@ TEST(OutsideContext, AssumeThrowsOutsideTest) {
                   std::string::npos)
             << "Unexpected error message: " << e.what();
     }
+}
+
+TEST(OutsideContext, AssumeThrowsHegelRejectWhenFalse) {
+    // assume(false) must throw HegelReject (not runtime_error) when inside a
+    // test context — this covers the stop_test() branch in internal.cpp
+    hegel::impl::Connection conn(-1, -1);
+    hegel::impl::data::TestCaseData data{
+        .connection = &conn,
+        .data_stream = 0,
+        .is_last_run = false,
+        .test_aborted = false,
+        .verbosity = hegel::options::Verbosity::Normal,
+    };
+    hegel::impl::data::set(&data);
+    EXPECT_THROW(hegel::assume(false), hegel::internal::HegelReject);
+    hegel::impl::data::clear();
 }
 
 // =============================================================================
