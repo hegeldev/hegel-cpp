@@ -26,12 +26,13 @@ int main(int argc, char* argv[]) {
             {.min_value = lo, .max_value = hi});
 
         if (mode == "transformed") {
-            // Path 2: basic generators with identity transform
-            gens.push_back(gen.map([](int x) { return x; }));
+            // Path 2: basic generators with negation transform
+            // Conformance expects values negated: lo,hi -> -hi,-lo
+            gens.push_back(gen.map([](int x) { return -x; }));
         } else if (mode == "non_basic") {
-            // Path 3: force non-basic by wrapping in flat_map
-            gens.push_back(
-                gen.flat_map([](int x) { return hegel::generators::just(x); }));
+            // Path 3: force non-basic via filter
+            // Conformance expects even values within original range
+            gens.push_back(gen.filter([](int x) { return x % 2 == 0; }));
         } else {
             // Path 1: all basic generators
             gens.push_back(gen);
