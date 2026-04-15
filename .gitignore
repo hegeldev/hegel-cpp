@@ -1,4 +1,5 @@
 build/
+build-*/
 .hypothesis
 .hegel
 __pycache__
