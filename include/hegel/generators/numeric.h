@@ -51,7 +51,9 @@ namespace hegel::generators {
     /// @{
 
     /**
-     * @brief Generate random integers.
+     * @brief Generate random integers. For a given integral type T, produces
+     * values in the range [std::numeric_limits<T>::min(),
+     * std::numeric_limits<T>::max()] by default.
      *
      * @code{.cpp}
      * auto any_int = integers<int>();

@@ -28,7 +28,8 @@ namespace hegel::generators {
         bool use_true_random =
             false; ///< If true, use a local PRNG seed by Hegel instead of
                    ///< per-value Hypothesis requests. Use this mode when the
-                   ///< cost of routing every draw through Hypothesis would be too expensive.
+                   ///< cost of routing every draw through Hypothesis would be
+                   ///< too expensive.
     };
 
     // =============================================================================
@@ -60,7 +61,7 @@ namespace hegel::generators {
          * @brief Construct in artificial (Hypothesis-backed) mode.
          *
          * Each call to `operator()` draws entropy from Hypothesis via the
-         * given test-case data, so the resulting values can be shrunken. 
+         * given test-case data, so the resulting values can be shrunken.
          *
          * @param data The active test case's data stream (non-owning).
          */
