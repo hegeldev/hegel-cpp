@@ -63,6 +63,14 @@ target_link_libraries(test_derived
 )
 gtest_discover_tests(test_derived)
 
+add_executable(test_utils test_utils.cpp)
+target_link_libraries(test_utils
+    PRIVATE
+        hegel
+        GTest::gtest
+)
+gtest_discover_tests(test_utils)
+
 add_executable(test_protocol test_protocol.cpp)
 target_link_libraries(test_protocol
     PRIVATE
