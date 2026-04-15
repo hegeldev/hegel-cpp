@@ -49,10 +49,8 @@ TEST(OutsideContext, AssumeThrowsOutsideTest) {
 TEST(OutsideContext, AssumeThrowsHegelRejectWhenFalse) {
     // assume(false) must throw HegelReject (not runtime_error) when inside a
     // test context — this covers the stop_test() branch in internal.cpp
-    hegel::impl::Connection conn(-1, -1);
     hegel::impl::data::TestCaseData data{
-        .connection = &conn,
-        .data_stream = 0,
+        .source = nullptr,
         .is_last_run = false,
         .test_aborted = false,
         .verbosity = hegel::options::Verbosity::Normal,
@@ -67,10 +65,8 @@ TEST(OutsideContext, IsTestAborted) {
     EXPECT_FALSE(hegel::internal::is_test_aborted());
 
     // Inside test context with test_aborted=false → false
-    hegel::impl::Connection conn(-1, -1);
     hegel::impl::data::TestCaseData data{
-        .connection = &conn,
-        .data_stream = 0,
+        .source = nullptr,
         .is_last_run = false,
         .test_aborted = false,
         .verbosity = hegel::options::Verbosity::Normal,

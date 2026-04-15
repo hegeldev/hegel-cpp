@@ -152,6 +152,7 @@ add_library(hegel
     src/internal.cpp
     src/protocol.cpp
     src/connection.cpp
+    src/data_source.cpp
     src/json.cpp
 )
 target_include_directories(hegel PUBLIC

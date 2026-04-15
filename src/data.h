@@ -5,7 +5,8 @@
 
 namespace hegel::impl {
     class Connection;
-}
+    class DataSource;
+} // namespace hegel::impl
 
 // =============================================================================
 // Per-test-case State
@@ -13,8 +14,7 @@ namespace hegel::impl {
 namespace hegel::impl::data {
 
     struct TestCaseData {
-        Connection* connection;
-        uint32_t data_stream;
+        DataSource* source;
         bool is_last_run;
         bool test_aborted;
         options::Verbosity verbosity;

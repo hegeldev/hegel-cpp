@@ -1,5 +1,6 @@
 #include <connection.h>
 #include <data.h>
+#include <data_source.h>
 #include <hegel/internal.h>
 #include <hegel/json.h>
 #include <iostream>
@@ -210,20 +211,13 @@ namespace hegel::internal {
     hegel::internal::json::json
     communicate_with_core(const hegel::internal::json::json& schema,
                           impl::data::TestCaseData* data) {
-        auto* conn = data->connection;
-        uint32_t data_stream = data->data_stream;
-
-        // Build generate request as CBOR
-        hegel::internal::json::json request = {{"command", "generate"},
-                                               {"schema", schema}};
-
         if (impl::protocol::protocol_debug_enabled()) {
-            std::cerr << "REQUEST: " << request.dump() << "\n";
+            hegel::internal::json::json dbg_req = {{"command", "generate"},
+                                                   {"schema", schema}};
+            std::cerr << "REQUEST: " << dbg_req.dump() << "\n";
         }
 
-        // Send request and get response
-        hegel::internal::json::json response =
-            conn->request(data_stream, request);
+        hegel::internal::json::json response = data->source->generate(schema);
 
         auto response_raw = ImplUtil::raw(response);
 
@@ -244,27 +238,12 @@ namespace hegel::internal {
         return response;
     }
 
-    static void send_data_command(const hegel::internal::json::json& request,
-                                  impl::data::TestCaseData* data) {
-        auto* conn = data->connection;
-        uint32_t data_stream = data->data_stream;
-
-        hegel::internal::json::json response =
-            conn->request(data_stream, request);
-
-        handle_error_response(ImplUtil::raw(response), data);
-    }
-
     void start_span(uint64_t label, impl::data::TestCaseData* data) {
-        hegel::internal::json::json request = {{"command", "start_span"},
-                                               {"label", label}};
-        send_data_command(request, data);
+        data->source->start_span(label);
     }
 
     void stop_span(bool discard, impl::data::TestCaseData* data) {
-        hegel::internal::json::json request = {{"command", "stop_span"},
-                                               {"discard", discard}};
-        send_data_command(request, data);
+        data->source->stop_span(discard);
     }
 
 } // namespace hegel::internal

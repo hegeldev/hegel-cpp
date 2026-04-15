@@ -11,6 +11,7 @@
 
 #include <connection.h>
 #include <data.h>
+#include <data_source.h>
 #include <functional>
 #include <protocol.h>
 #include <stdexcept>
@@ -128,9 +129,9 @@ namespace hegel {
                 }
 
                 // Set up per-test-case state
+                impl::ConnectionDataSource source(&conn, data_stream);
                 impl::data::TestCaseData data{
-                    .connection = &conn,
-                    .data_stream = data_stream,
+                    .source = &source,
                     .is_last_run = is_final,
                     .test_aborted = false,
                     .verbosity = options.verbosity,

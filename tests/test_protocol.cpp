@@ -11,6 +11,7 @@
 
 #include "../src/connection.h"
 #include "../src/data.h"
+#include "../src/data_source.h"
 #include "../src/json_impl.h"
 #include "../src/protocol.h"
 
@@ -683,9 +684,9 @@ TEST(CommunicateWithCore, DebugLoggingEnabled) {
     send_cbor_reply(sv[1], 1, {{"result", 42}});
 
     hegel::impl::Connection conn(sv[0], sv[0]);
+    hegel::impl::ConnectionDataSource source(&conn, 1);
     hegel::impl::data::TestCaseData data{
-        .connection = &conn,
-        .data_stream = 1,
+        .source = &source,
         .is_last_run = false,
         .test_aborted = false,
         .verbosity = hegel::options::Verbosity::Normal,
@@ -714,9 +715,9 @@ TEST(CommunicateWithCore, GenericErrorNoType) {
     send_cbor_reply(sv[1], 1, {{"error", "something went wrong"}});
 
     hegel::impl::Connection conn(sv[0], sv[0]);
+    hegel::impl::ConnectionDataSource source(&conn, 1);
     hegel::impl::data::TestCaseData data{
-        .connection = &conn,
-        .data_stream = 1,
+        .source = &source,
         .is_last_run = false,
         .test_aborted = false,
         .verbosity = hegel::options::Verbosity::Normal,
@@ -742,10 +743,8 @@ TEST(CommunicateWithCore, GenericErrorNoType) {
 // =============================================================================
 
 TEST(InternalNote, PrintsOnLastRun) {
-    hegel::impl::Connection conn(-1, -1); // fd=-1; we won't do I/O
     hegel::impl::data::TestCaseData data{
-        .connection = &conn,
-        .data_stream = 0,
+        .source = nullptr,   // no I/O needed
         .is_last_run = true, // triggers the std::cerr path
         .test_aborted = false,
         .verbosity = hegel::options::Verbosity::Normal,
