@@ -29,7 +29,8 @@ namespace hegel::generators {
             false; ///< If true, use a local PRNG seed by Hegel instead of
                    ///< per-value Hypothesis requests. Use this mode when the
                    ///< cost of routing every draw through Hypothesis would be
-                   ///< too expensive. Values produced in true-random mode cannot be shrunk.
+                   ///< too expensive. Values produced in true-random mode
+                   ///< cannot be shrunk.
     };
 
     // =============================================================================
@@ -101,16 +102,19 @@ namespace hegel::generators {
      *
      * Returns a Generator that produces HegelRandom instances satisfying
      * UniformRandomBitGenerator, enabling use with any `<random>` distribution.
-     * If use_true_random is set to true then values will be drawn from their 
-     * usual distribution, seeded by Hegel. Otherwise they will actually be Hegel 
-     * generated values (and will be shrunk accordingly for any failing test case). 
-     * Setting use_true_random=false will tend to expose bugs that would occur 
-     * with very low probability when it is set to true, and this flag should 
-     * only be set to true when your code relies on the distribution of values 
-     * for correctness.
-     * 
-     * @note C++ distributions implemented using rejection sampling, such as 
-     * 
+     * If use_true_random is set to true then values will be drawn from their
+     * usual distribution, seeded by Hegel. Otherwise they will actually be
+     * Hegel generated values (and will be shrunk accordingly for any failing
+     * test case). Setting use_true_random=false will tend to expose bugs that
+     * would occur with very low probability when it is set to true, and this
+     * flag should only be set to true when your code relies on the distribution
+     * of values for correctness.
+     *
+     * @note C++ distributions implemented using rejection sampling, such as
+     * std::normal_distribution, std::lognormal_distribution, and
+     * std::poisson_distribution for mean >= 10, and
+     * std::gamma_distribution, must use true random mode.
+     *
      *
      * @code{.cpp}
      * using namespace hegel::generators;
