@@ -50,15 +50,21 @@ docs:
 coverage:
     #!/usr/bin/env bash
     set -euo pipefail
+    # Ensure regular build exists so we can reuse downloaded deps
+    cmake -B build
+    cmake --build build -j{{ num_cpus() }}
     rm -rf build-coverage
-    cmake -B build-coverage -DHEGEL_COVERAGE=ON
-    cmake --build build-coverage -j{{ num_cpus() }}
+    cmake -B build-coverage -DHEGEL_COVERAGE=ON \
+        -DFETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON="$(pwd)/build/_deps/nlohmann_json-src" \
+        -DFETCHCONTENT_SOURCE_DIR_REFLECTCPP="$(pwd)/build/_deps/reflectcpp-src" \
+        -DFETCHCONTENT_SOURCE_DIR_GOOGLETEST="$(pwd)/build/_deps/googletest-src"
+    cmake --build build-coverage -j4
     ctest --test-dir build-coverage/tests --output-on-failure -j{{ num_cpus() }}
     uvx gcovr --root . --filter 'src/' build-coverage \
         --print-summary --fail-under-line 85
 
 format:
-    find . \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) ! -path "./build/*" | xargs uvx clang-format -i
+    find . \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) ! -path "./build/*" ! -path "./build-*/*" | xargs uvx clang-format -i
 
 format-check:
-    find . \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) ! -path "./build/*" | xargs uvx clang-format --dry-run -Werror
+    find . \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) ! -path "./build/*" ! -path "./build-*/*" | xargs uvx clang-format --dry-run -Werror

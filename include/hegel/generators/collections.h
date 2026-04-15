@@ -101,8 +101,11 @@ namespace hegel::generators {
 
                 if constexpr (std::equality_comparable<T>) {
                     if (unique) {
-                        size_t consecutive_dupes = 0;
-                        while (result.size() < len) {
+                        size_t total_attempts = 0;
+                        const size_t max_attempts = len * 10 + 100;
+                        while (result.size() < len &&
+                               total_attempts < max_attempts) {
+                            ++total_attempts;
                             T value = elements.do_draw(data);
                             bool is_dup = false;
                             for (const auto& existing : result) {
@@ -113,13 +116,10 @@ namespace hegel::generators {
                             }
                             if (!is_dup) {
                                 result.push_back(std::move(value));
-                                consecutive_dupes = 0;
-                            } else {
-                                ++consecutive_dupes;
-                                if (consecutive_dupes >= 3) {
-                                    internal::stop_test();
-                                }
                             }
+                        }
+                        if (result.size() < len) {
+                            internal::stop_test();
                         }
                         return result;
                     }
@@ -250,20 +250,16 @@ namespace hegel::generators {
                 size_t len = length_gen.do_draw(data);
                 std::map<K, V> result;
 
-                size_t consecutive_dupes = 0;
-                while (result.size() < len) {
+                size_t total_attempts = 0;
+                const size_t max_attempts = len * 10 + 100;
+                while (result.size() < len && total_attempts < max_attempts) {
+                    ++total_attempts;
                     K key = keys.do_draw(data);
                     V value = values.do_draw(data);
-                    size_t prev_size = result.size();
-                    result[std::move(key)] = std::move(value);
-                    if (result.size() == prev_size) {
-                        ++consecutive_dupes;
-                        if (consecutive_dupes >= 3) {
-                            internal::stop_test();
-                        }
-                    } else {
-                        consecutive_dupes = 0;
-                    }
+                    result.try_emplace(std::move(key), std::move(value));
+                }
+                if (result.size() < len) {
+                    internal::stop_test();
                 }
 
                 return result;
