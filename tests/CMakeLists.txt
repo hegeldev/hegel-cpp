@@ -63,6 +63,14 @@ target_link_libraries(test_derived
 )
 gtest_discover_tests(test_derived)
 
+add_executable(test_coverage test_coverage.cpp)
+target_link_libraries(test_coverage
+    PRIVATE
+        hegel
+        GTest::gtest
+)
+gtest_discover_tests(test_coverage)
+
 add_executable(gtest_failure_test gtest_failure_test.cpp)
 target_link_libraries(gtest_failure_test
     PRIVATE

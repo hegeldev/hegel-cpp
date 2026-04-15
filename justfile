@@ -47,6 +47,16 @@ docs:
     cmake --build build --target docs
     open build/docs/html/index.html
 
+coverage:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rm -rf build-coverage
+    cmake -B build-coverage -DHEGEL_COVERAGE=ON
+    cmake --build build-coverage -j{{ num_cpus() }}
+    ctest --test-dir build-coverage/tests --output-on-failure -j{{ num_cpus() }}
+    uvx gcovr --root . --filter 'src/' build-coverage \
+        --print-summary --fail-under-line 100
+
 format:
     find . \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) ! -path "./build/*" | xargs uvx clang-format -i
 
