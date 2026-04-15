@@ -75,10 +75,6 @@ namespace hegel::generators {
             throw std::invalid_argument("Cannot have max_value < min_value");
         }
 
-        if (min_val > max_val) {
-            throw std::invalid_argument("Cannot have max_value < min_value");
-        }
-
         hegel::internal::json::json schema = {{"type", "integer"},
                                               {"min_value", min_val},
                                               {"max_value", max_val}};
@@ -112,19 +108,6 @@ namespace hegel::generators {
         bool has_max = params.max_value.has_value();
         bool nan = params.allow_nan.value_or(!has_min && !has_max);
         bool inf = params.allow_infinity.value_or(!has_min || !has_max);
-
-        if (nan && (has_min || has_max)) {
-            throw std::invalid_argument(
-                "Cannot have allow_nan=true with min_value or max_value");
-        }
-        if (has_min && has_max && *params.min_value > *params.max_value) {
-            throw std::invalid_argument("Cannot have max_value < min_value");
-        }
-        if (inf && has_min && has_max) {
-            throw std::invalid_argument(
-                "Cannot have allow_infinity=true with both min_value and "
-                "max_value");
-        }
 
         if (nan && (has_min || has_max)) {
             throw std::invalid_argument(

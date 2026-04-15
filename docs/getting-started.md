@@ -87,7 +87,7 @@ To run more or fewer test cases, to enable verbose output, or to set a seed:
 ```cpp
 hegel::hegel([]() {
     // ...
-}, {.test_cases = 500, .verbosity = hegel::Verbosity::Verbose, .seed = 1234});
+}, {.test_cases = 500, .verbosity = hegel::options::Verbosity::Verbose, .seed = 1234});
 ```
 
 ## Generating multiple values
@@ -298,6 +298,8 @@ auto var = hegel::draw(variant_(integers<int>(), text(), booleans()));
 
 ### Formats and addresses
 
+Generate strings conforming to common standards — RFC emails, URLs, ISO 8601 dates, regex patterns
+
 ```cpp
 auto email = hegel::draw(emails());                        // e.g. "user@example.com"
 auto url   = hegel::draw(urls());                          // e.g. "https://example.com/path"
@@ -338,12 +340,13 @@ You can also let Hegel derive a generator automatically, but override some of th
 default generators.
 
 ```cpp
-
 int main() {
     hegel::hegel([]() {
-        auto p = hegel::draw(hegel::generators::default_generator<Point>());
-        // todo override
-        // p.x and p.y are random doubles
+        auto p = hegel::draw(
+            hegel::generators::default_generator<Point>().override(
+                field<&Point::x>(hegel::generators::floats<double>(
+                    {.min_value = 1.0}))));
+        // p.x >= 1.0
     });
 
     return 0;

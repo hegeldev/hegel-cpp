@@ -20,7 +20,7 @@
  * hegel::hegel([]() {
  *     using namespace hegel::generators;
  *
- *     // Type-based generation (schema derived via reflect-cpp)
+ *     // Derived generator for a struct
  *     Person p = hegel::draw(default_generator<Person>());
  *
  *     // Generator-based generation

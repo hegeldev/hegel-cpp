@@ -22,16 +22,18 @@ namespace hegel::impl::data {
     struct TestCaseData;
 }
 
-/// @cond INTERNAL
 namespace hegel::internal {
     hegel::internal::json::json
     communicate_with_core(const hegel::internal::json::json& schema,
                           impl::data::TestCaseData* data);
 
-    /* Print a note message for debugging.
+    /**
+     * @brief Print a note message for debugging.
      *
      * Only prints on the last run (final replay for counterexample output)
      * to avoid cluttering output during the many test iterations.
+     *
+     * @param message The message to print
      */
     void note(const std::string& message);
 
@@ -73,4 +75,3 @@ namespace hegel::internal {
     impl::data::TestCaseData* get_test_case_data();
 
 } // namespace hegel::internal
-/// @endcond
