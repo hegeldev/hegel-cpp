@@ -137,7 +137,7 @@ namespace hegel::generators {
         });
     }
 
-    /// @overload one_of(std::initializer_list<Generator<T>>)
+    /// @overload
     template <typename T>
     Generator<T> one_of(std::initializer_list<Generator<T>> gens) {
         return one_of(std::vector<Generator<T>>(gens));

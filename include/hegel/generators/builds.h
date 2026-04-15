@@ -57,15 +57,14 @@ namespace hegel::generators {
         static constexpr auto member_ptr = MemberPtr; ///< The member pointer
         Gen generator; ///< Generator for the field value
     };
-
+    // clang-format off
     /**
      * @brief Create a field specification for builds_agg().
      *
      * @code{.cpp}
      * auto rect = builds_agg<Rectangle>(
-     *     field<&Rectangle::width>(integers<int>({.min_value = 1, .max_value =
-     * 100})), field<&Rectangle::height>(integers<int>({.min_value = 1,
-     * .max_value = 100}))
+     *     field<&Rectangle::width>(integers<int>({.min_value = 1, .max_value = 100})),
+     *     field<&Rectangle::height>(integers<int>({.min_value = 1, .max_value = 100}))
      * );
      * @endcode
      *
@@ -74,17 +73,18 @@ namespace hegel::generators {
      * @param gen Generator for the field value
      * @return A Field specification for use with builds_agg()
      */
+    // clang-format on
     template <auto MemberPtr, typename Gen>
     Field<MemberPtr, Gen> field(Gen gen) {
         return Field<MemberPtr, Gen>{std::move(gen)};
     }
 
+    // clang-format off
     /**
      * @brief Construct aggregates using named field initialization.
      *
      * Useful for structs where you want to specify fields by name rather
      * than position. Each field() specifies a member pointer and generator.
-     *
      * @code{.cpp}
      * struct Rectangle {
      *     int width;
@@ -92,17 +92,16 @@ namespace hegel::generators {
      * };
      *
      * auto rect = builds_agg<Rectangle>(
-     *     field<&Rectangle::width>(integers<int>({.min_value = 1, .max_value =
-     * 100})), field<&Rectangle::height>(integers<int>({.min_value = 1,
-     * .max_value = 100}))
+     *     field<&Rectangle::width>(integers<int>({.min_value = 1, .max_value = 100})), 
+     *     field<&Rectangle::height>(integers<int>({.min_value = 1, .max_value = 100}))
      * );
      * @endcode
-     *
      * @tparam T Aggregate type to construct
      * @tparam Fields Field specification types
      * @param fields Field specifications from field()
      * @return Generator producing T instances
      */
+    // clang-format on
     template <typename T, typename... Fields>
     Generator<T> builds_agg(Fields... fields) {
         auto gen_tuple = std::make_tuple(std::move(fields)...);

@@ -1,5 +1,5 @@
 #pragma once
-
+// clang-format off
 /**
  * @mainpage Hegel - Hypothesis-like property-based testing for C++20
  *
@@ -24,8 +24,7 @@
  *     Person p = hegel::draw(default_generator<Person>());
  *
  *     // Generator-based generation
- *     int value = hegel::draw(integers<int>({.min_value = 0, .max_value =
- * 100}));
+ *     int value = hegel::draw(integers<int>({.min_value = 0, .max_value = 100}));
  * });
  * @endcode
  *
@@ -34,7 +33,7 @@
  * - nlohmann library - CBOR serialization
  * - POSIX process APIs (fork, pipe, execvp)
  */
-
+// clang-format on
 // HegelOptions and supporting classes
 #include "options.h"
 
@@ -65,7 +64,7 @@ namespace hegel {
     using internal::assume;
     using internal::note;
     using internal::stop_test;
-
+    // clang-format off
     /**
      * @brief Draw a random value from a generator.
      *
@@ -75,8 +74,7 @@ namespace hegel {
      * @code{.cpp}
      * hegel::hegel([]() {
      *     using namespace hegel::generators;
-     *     auto x = hegel::draw(integers<int>({.min_value = 0, .max_value =
-     * 100}));
+     *     auto x = hegel::draw(integers<int>({.min_value = 0, .max_value = 100}));
      * });
      * @endcode
      *
@@ -85,6 +83,7 @@ namespace hegel {
      * @return A randomly generated value of type T
      * @throws std::runtime_error if called outside of a Hegel test
      */
+    // clang-format on
     template <typename T> T draw(const generators::Generator<T>& gen) {
         auto* data = internal::get_test_case_data();
         if (!data) {
@@ -93,7 +92,7 @@ namespace hegel {
         }
         return gen.do_draw(data);
     }
-
+    // clang-format off
     /**
      * @brief Run property-based tests using Hegel in embedded mode.
      *
@@ -110,9 +109,8 @@ namespace hegel {
      * int main() {
      *     hegel::hegel([]() {
      *         using namespace hegel::generators;
-     *         auto x = hegel::draw(integers<int>({.min_value = 0, .max_value =
-     * 100})); auto y = hegel::draw(integers<int>({.min_value = 0, .max_value =
-     * 100}));
+     *         auto x = hegel::draw(integers<int>({.min_value = 0, .max_value = 100})); 
+     *         auto y = hegel::draw(integers<int>({.min_value = 0, .max_value = 100}));
      *
      *         // Property: x + y >= x (true for non-negative integers)
      *         if (x + y < x) {
@@ -130,6 +128,7 @@ namespace hegel {
      * @throws std::runtime_error if any test case fails
      * @see HegelOptions for configuration options
      */
+    // clang-format on
     void hegel(const std::function<void()>& test_fn,
                const options::HegelOptions& options = {});
 } // namespace hegel

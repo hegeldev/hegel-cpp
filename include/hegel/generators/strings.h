@@ -102,9 +102,8 @@ namespace hegel::generators {
      * @brief Generate strings matching a regular expression.
      *
      * The pattern is interpreted server-side using Python's `re` syntax
-     * (Hypothesis's `from_regex` strategy), which differs from C++
-     * `std::regex` — notably it supports `\d`, `\w`, `\s`, non-greedy
-     * quantifiers, and Unicode character classes.
+     * which differs from C++ `std::regex` — notably it supports `\d`, `\w`,
+     * `\s`, non-greedy quantifiers, and Unicode character classes.
      *
      * @code{.cpp}
      * // Default: generated string only needs to *contain* a match,

@@ -160,7 +160,7 @@ namespace hegel::generators {
             return result;
         });
     }
-
+    // clang-format off
     /**
      * @brief Generate dictionaries (maps) with configurable key and value
      * types.
@@ -173,8 +173,7 @@ namespace hegel::generators {
      * auto intDict = dictionaries(integers<int>(), text());
      *
      * // With size bounds
-     * auto bounded = dictionaries(text(), integers<int>(), {.min_size = 1,
-     * .max_size = 3});
+     * auto bounded = dictionaries(text(), integers<int>(), {.min_size = 1, .max_size = 3});
      * @endcode
      *
      * @tparam K Key type
@@ -184,6 +183,7 @@ namespace hegel::generators {
      * @param params Size constraints
      * @return Generator producing maps
      */
+    // clang-format on
     template <typename K, typename V>
     Generator<std::map<K, V>> dictionaries(Generator<K> keys,
                                            Generator<V> values,
