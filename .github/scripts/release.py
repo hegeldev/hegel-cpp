@@ -112,17 +112,32 @@ def check(base_ref: str) -> None:
     parse_release_file(release_file)
 
 
+def latest_tagged_version() -> str | None:
+    result = subprocess.run(
+        ["git", "describe", "--tags", "--abbrev=0", "--match", "v*"],
+        capture_output=True,
+        text=True,
+        cwd=ROOT,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip().removeprefix("v")
+
+
 def release() -> None:
     release_file = ROOT / "RELEASE.md"
     assert release_file.exists()
 
     release_type, content = parse_release_file(release_file)
 
-    cmake_file = ROOT / "CMakeLists.txt"
-    m = re.search(r"project\(hegel-cpp\s+VERSION\s+(\S+)", cmake_file.read_text())
-    new_version = bump_version(m.group(1), release_type)
+    current = latest_tagged_version()
+    if current is None:
+        # First release: pin to 0.1.0 regardless of release type.
+        new_version = "0.1.0"
+    else:
+        new_version = bump_version(current, release_type)
 
-    set_version(cmake_file, new_version)
+    set_version(ROOT / "CMakeLists.txt", new_version)
 
     add_changelog(ROOT / "CHANGELOG.md", version=new_version, content=content)
 
