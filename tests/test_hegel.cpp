@@ -62,6 +62,28 @@ TEST(OutsideContext, AssumeThrowsHegelRejectWhenFalse) {
     hegel::impl::data::clear();
 }
 
+TEST(OutsideContext, IsTestAborted) {
+    // Outside test context: no data → false
+    EXPECT_FALSE(hegel::internal::is_test_aborted());
+
+    // Inside test context with test_aborted=false → false
+    hegel::impl::Connection conn(-1, -1);
+    hegel::impl::data::TestCaseData data{
+        .connection = &conn,
+        .data_stream = 0,
+        .is_last_run = false,
+        .test_aborted = false,
+        .verbosity = hegel::options::Verbosity::Normal,
+    };
+    hegel::impl::data::set(&data);
+    EXPECT_FALSE(hegel::internal::is_test_aborted());
+
+    // With test_aborted=true → true
+    data.test_aborted = true;
+    EXPECT_TRUE(hegel::internal::is_test_aborted());
+    hegel::impl::data::clear();
+}
+
 // =============================================================================
 // Validation tests
 // =============================================================================

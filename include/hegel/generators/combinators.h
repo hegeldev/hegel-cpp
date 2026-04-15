@@ -79,10 +79,48 @@ namespace hegel::generators {
     namespace detail {
 
         template <typename T>
+        auto make_tagged_one_of(std::vector<Generator<T>> gens)
+            -> Generator<T> {
+            using json = hegel::internal::json::json;
+            using json_raw_ref = hegel::internal::json::json_raw_ref;
+
+            std::vector<std::function<T(json_raw_ref)>> appliers;
+            json tagged_schemas = json::array();
+
+            for (size_t i = 0; i < gens.size(); ++i) {
+                appliers.push_back(*gens[i].get_applier());
+
+                json elements = json::array();
+                elements.push_back(
+                    json({{"type", "constant"}, {"value", (int64_t)i}}));
+                elements.push_back(*gens[i].schema());
+                json tuple_schema = {{"type", "tuple"}, {"elements", elements}};
+                tagged_schemas.push_back(std::move(tuple_schema));
+            }
+
+            json one_of_schema = {{"type", "one_of"},
+                                  {"generators", tagged_schemas}};
+
+            return from_function<T>(
+                [appliers, one_of_schema](TestCaseData* data) -> T {
+                    json response =
+                        internal::communicate_with_core(one_of_schema, data);
+                    if (!response.contains("result")) {
+                        throw std::runtime_error(
+                            "Server response missing 'result' field");
+                    }
+                    json_raw_ref result = response["result"];
+                    auto idx = static_cast<size_t>(result[0].get_int64_t());
+                    return appliers[idx](result[1]);
+                },
+                one_of_schema);
+        }
+
+        template <typename T>
         auto make_one_of_schema(const std::vector<Generator<T>>& gens)
             -> std::optional<hegel::internal::json::json> {
             for (const auto& gen : gens) {
-                if (!gen.schema())
+                if (!gen.schema() || gen.has_client_transform())
                     return std::nullopt;
             }
 
@@ -105,6 +143,9 @@ namespace hegel::generators {
      *
      * Randomly selects one generator and uses it to produce a value.
      *
+     * Uses a single server round-trip whenever all generators are
+     * schema-backed (with or without a client-side transform via map()).
+     *
      * @code{.cpp}
      * auto range = one_of({
      *     integers<int>({.min_value = 0, .max_value = 10}),
@@ -122,12 +163,26 @@ namespace hegel::generators {
                 "one_of requires a non-empty vector of generators");
         }
 
+        // Path 1: all basic (schema, no client transform) → simple one_of
         auto maybe_schema = detail::make_one_of_schema(gens);
-
         if (maybe_schema) {
             return from_schema<T>(std::move(*maybe_schema));
         }
 
+        // Path 2: all have schema + applier, some with client transform →
+        // tagged-tuple schema for a single server round-trip
+        bool all_have_appliers = true;
+        for (const auto& gen : gens) {
+            if (!gen.schema() || !gen.get_applier()) {
+                all_have_appliers = false;
+                break;
+            }
+        }
+        if (all_have_appliers) {
+            return detail::make_tagged_one_of(std::move(gens));
+        }
+
+        // Path 3: at least one generator lacks a schema → function-based
         auto index_gen =
             integers<size_t>({.min_value = 0, .max_value = gens.size() - 1});
 

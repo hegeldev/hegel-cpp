@@ -28,6 +28,9 @@ namespace hegel::internal {
     communicate_with_core(const hegel::internal::json::json& schema,
                           impl::data::TestCaseData* data);
 
+    void start_span(uint64_t label, impl::data::TestCaseData* data);
+    void stop_span(bool discard, impl::data::TestCaseData* data);
+
     /* Print a note message for debugging.
      *
      * Only prints on the last run (final replay for counterexample output)
@@ -71,6 +74,9 @@ namespace hegel::internal {
 
     /// @brief Get the current test case data, or nullptr if not in a test.
     impl::data::TestCaseData* get_test_case_data();
+
+    /// @brief Return true if the current test case was aborted by the server.
+    [[nodiscard]] bool is_test_aborted() noexcept;
 
 } // namespace hegel::internal
 /// @endcond

@@ -187,6 +187,26 @@ namespace hegel::impl {
 // Core Communication
 // =============================================================================
 namespace hegel::internal {
+
+    static void handle_error_response(const nlohmann::json& response_raw,
+                                      impl::data::TestCaseData* data) {
+        if (!response_raw.contains("error")) {
+            return;
+        }
+        std::string error_type;
+        if (response_raw.contains("type") && response_raw["type"].is_string()) {
+            error_type = response_raw["type"].get<std::string>();
+        }
+        if (error_type == "StopTest" || error_type == "Overflow") {
+            data->test_aborted = true;
+            internal::stop_test();
+        }
+        std::string error_msg = response_raw["error"].is_string()
+                                    ? response_raw["error"].get<std::string>()
+                                    : "unknown error";
+        throw std::runtime_error(error_msg);
+    }
+
     hegel::internal::json::json
     communicate_with_core(const hegel::internal::json::json& schema,
                           impl::data::TestCaseData* data) {
@@ -211,23 +231,7 @@ namespace hegel::internal {
             std::cerr << "RESPONSE: " << response_raw.dump() << "\n";
         }
 
-        // Handle errors
-        if (response_raw.contains("error")) {
-            std::string error_type;
-            if (response_raw.contains("type") &&
-                response_raw["type"].is_string()) {
-                error_type = response_raw["type"].get<std::string>();
-            }
-            if (error_type == "StopTest" || error_type == "Overflow") {
-                data->test_aborted = true;
-                internal::stop_test();
-            }
-            std::string error_msg =
-                response_raw["error"].is_string()
-                    ? response_raw["error"].get<std::string>()
-                    : "unknown error";
-            throw std::runtime_error(error_msg);
-        }
+        handle_error_response(response_raw, data);
 
         // Auto-log generated value during final replay (counterexample)
         if (data->is_last_run) {
@@ -238,6 +242,29 @@ namespace hegel::internal {
         }
 
         return response;
+    }
+
+    static void send_data_command(const hegel::internal::json::json& request,
+                                  impl::data::TestCaseData* data) {
+        auto* conn = data->connection;
+        uint32_t data_stream = data->data_stream;
+
+        hegel::internal::json::json response =
+            conn->request(data_stream, request);
+
+        handle_error_response(ImplUtil::raw(response), data);
+    }
+
+    void start_span(uint64_t label, impl::data::TestCaseData* data) {
+        hegel::internal::json::json request = {{"command", "start_span"},
+                                               {"label", label}};
+        send_data_command(request, data);
+    }
+
+    void stop_span(bool discard, impl::data::TestCaseData* data) {
+        hegel::internal::json::json request = {{"command", "stop_span"},
+                                               {"discard", discard}};
+        send_data_command(request, data);
     }
 
 } // namespace hegel::internal

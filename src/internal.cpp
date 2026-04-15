@@ -30,4 +30,9 @@ namespace hegel::internal {
     }
 
     [[noreturn]] void stop_test() { throw HegelReject(); }
+
+    bool is_test_aborted() noexcept {
+        auto* data = get_test_case_data();
+        return data && data->test_aborted;
+    }
 } // namespace hegel::internal

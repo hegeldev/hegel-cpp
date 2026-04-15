@@ -1,6 +1,7 @@
 #include <cmath>
 #include <hegel/json.h>
 #include <iostream>
+#include <limits>
 #include <optional>
 
 #include "hegel/hegel.h"
@@ -38,6 +39,25 @@ int main(int argc, char* argv[]) {
 
     hegel::hegel(
         [=]() {
+            // When both bounds are excluded, check that a valid float exists
+            // strictly between them. Adjacent IEEE-754 doubles have no float
+            // between them; asking the server to generate such a value would
+            // raise InvalidArgument on the Python side and crash the server.
+            // In that case, write a dummy NaN metric and skip the draw.
+            if (min_value.has_value() && max_value.has_value() && exclude_min &&
+                exclude_max) {
+                double lo = *min_value;
+                double hi = *max_value;
+                double next =
+                    std::nextafter(lo, std::numeric_limits<double>::infinity());
+                if (next >= hi) {
+                    conformance::write_metrics({{"value", 0.0},
+                                                {"is_nan", true},
+                                                {"is_infinite", false}});
+                    return;
+                }
+            }
+
             auto gen = hegel::generators::floats<double>({
                 .min_value = min_value,
                 .max_value = max_value,

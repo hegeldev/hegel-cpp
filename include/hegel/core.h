@@ -70,7 +70,223 @@ namespace hegel::generators {
          * schema-based
          */
         virtual std::optional<hegel::internal::json::json> schema() const = 0;
+
+        /// @cond INTERNAL
+        /**
+         * @brief Get a function that applies this generator's full
+         * transformation to a pre-fetched raw JSON value.
+         *
+         * Used by one_of to build tagged-tuple schemas that allow a single
+         * server round-trip for generators that include a client-side
+         * transform (e.g. after map()).  Returns nullopt for generators whose
+         * transform cannot be separated from their server request (e.g.
+         * filter, flat_map).
+         */
+        virtual std::optional<
+            std::function<T(hegel::internal::json::json_raw_ref)>>
+        get_applier() const {
+            return std::nullopt;
+        }
+
+        /**
+         * @brief Returns true if this generator applies a client-side
+         * transform to the server's value (i.e., created via map()).
+         *
+         * Distinguishes Path 1 (schema-backed, no transform) from Path 2
+         * (schema-backed with transform) in one_of composition.
+         */
+        virtual bool has_client_transform() const noexcept { return false; }
+        /// @endcond
     };
+
+    // =============================================================================
+    // FunctionBackedGenerator
+    // =============================================================================
+
+    /**
+     * @brief A generator that uses a function to produce random values of type
+     * T.
+     *
+     * You shouldn't create this directly, but rather use the from_function()
+     * function.
+     *
+     * @tparam T The type of values this generator produces
+     */
+    template <typename T> class FunctionBackedGenerator : public IGenerator<T> {
+      public:
+        /// @brief Create from a function
+        /// @param fn function that will be called repeatedly to draw values
+        explicit FunctionBackedGenerator(std::function<T(TestCaseData*)> fn)
+            : gen_fn_(std::move(fn)) {}
+
+        /// @brief Create from a function
+        /// @param fn function that will be called repeatedly to draw values
+        /// @param schema schema for this generator; not used in do_draw(), but
+        /// may be used when composing this generator
+        FunctionBackedGenerator(std::function<T(TestCaseData*)> fn,
+                                hegel::internal::json::json schema)
+            : gen_fn_(std::move(fn)), schema_(std::move(schema)) {}
+
+        /**
+         * @brief Get the CBOR schema for this generator, if any.
+         * @return Optional containing the schema, or nullopt if not
+         * schema-based
+         */
+        std::optional<hegel::internal::json::json> schema() const override {
+            return schema_;
+        }
+
+        /**
+         * @brief Draw a random value.
+         * @param data The current test case data
+         * @return A randomly generated value of type T
+         */
+        T do_draw(TestCaseData* data) const override { return gen_fn_(data); }
+
+      private:
+        std::function<T(TestCaseData*)> gen_fn_;
+        std::optional<hegel::internal::json::json> schema_;
+    };
+
+    // =============================================================================
+    // Deserialization helper
+    // =============================================================================
+
+    /// @cond INTERNAL
+    namespace detail {
+
+        /// Deserialize a raw JSON value into T using the same rules as
+        /// SchemaBackedGenerator::do_draw().
+        template <typename T>
+        T deserialize_raw(hegel::internal::json::json_raw_ref result) {
+            if constexpr (std::is_same_v<T, std::string>) {
+                return result.get_string();
+            } else if constexpr (std::is_same_v<std::remove_cvref_t<T>, bool>) {
+                return result.get_bool();
+            } else if constexpr (std::is_floating_point_v<T>) {
+                return static_cast<T>(result.get_double());
+            } else if constexpr (std::is_unsigned_v<T>) {
+                return static_cast<T>(result.get_uint64_t());
+            } else if constexpr (std::is_integral_v<T>) {
+                return static_cast<T>(result.get_int64_t());
+            } else {
+                auto parse_result = internal::read_nlohmann<T>(result);
+                if (!parse_result.has_value()) {
+                    throw std::runtime_error(
+                        "Failed to parse server response into "
+                        "requested type");
+                }
+                return parse_result.value();
+            }
+        }
+
+    } // namespace detail
+    /// @endcond
+
+    // =============================================================================
+    // SchemaBackedGenerator
+    // =============================================================================
+
+    /**
+     * @brief A generator that generates data based on a schema.
+     *
+     * You shouldn't create this directly, but rather use the from_schema() or
+     * default_generator() functions.
+     *
+     * @tparam T The type to generate values for (must be reflect-cpp
+     * compatible)
+     * @see default_generator() Factory function for creating DefaultGenerators
+     */
+    template <typename T> class SchemaBackedGenerator : public IGenerator<T> {
+      public:
+        /// @brief Create, given the schema
+        SchemaBackedGenerator(hegel::internal::json::json schema)
+            : schema_(std::move(schema)) {}
+
+        /// Get the CBOR schema
+        std::optional<hegel::internal::json::json> schema() const override {
+            return schema_;
+        }
+
+        /**
+         * @brief Draw a random value of type T based on the schema.
+         * @param data The current test case data
+         * @return A randomly generated value
+         */
+        T do_draw(TestCaseData* data) const override {
+            hegel::internal::json::json response =
+                internal::communicate_with_core(schema_, data);
+
+            if (!response.contains("result")) {
+                throw std::runtime_error(
+                    "Server response missing 'result' field");
+            }
+            return detail::deserialize_raw<T>(response["result"]);
+        }
+
+        /// @cond INTERNAL
+        std::optional<std::function<T(hegel::internal::json::json_raw_ref)>>
+        get_applier() const override {
+            return [](hegel::internal::json::json_raw_ref raw) -> T {
+                return detail::deserialize_raw<T>(raw);
+            };
+        }
+        /// @endcond
+
+      private:
+        hegel::internal::json::json schema_;
+    };
+
+    // =============================================================================
+    // MappedSchemaGenerator
+    // =============================================================================
+
+    /// @cond INTERNAL
+    /**
+     * @brief A generator backed by a schema with an additional client-side
+     * transform.
+     *
+     * Created by Generator::map() when the source generator has a schema.
+     * Preserves the raw schema so one_of can build tagged-tuple schemas,
+     * enabling a single server round-trip even for transformed branches.
+     */
+    template <typename T> class MappedSchemaGenerator : public IGenerator<T> {
+      public:
+        MappedSchemaGenerator(
+            hegel::internal::json::json schema,
+            std::function<T(hegel::internal::json::json_raw_ref)> applier)
+            : schema_(std::move(schema)), applier_(std::move(applier)) {}
+
+        T do_draw(TestCaseData* data) const override {
+            hegel::internal::json::json response =
+                internal::communicate_with_core(schema_, data);
+            if (!response.contains("result")) {
+                throw std::runtime_error(
+                    "Server response missing 'result' field");
+            }
+            return applier_(response["result"]);
+        }
+
+        std::optional<hegel::internal::json::json> schema() const override {
+            return schema_;
+        }
+
+        std::optional<std::function<T(hegel::internal::json::json_raw_ref)>>
+        get_applier() const override {
+            return applier_;
+        }
+
+        bool has_client_transform() const noexcept override { return true; }
+
+      private:
+        hegel::internal::json::json schema_;
+        std::function<T(hegel::internal::json::json_raw_ref)> applier_;
+    };
+    /// @endcond
+
+    // =============================================================================
+    // Generator
+    // =============================================================================
 
     /**
      * @brief A Generator; this is the class that most methods return.
@@ -131,6 +347,17 @@ namespace hegel::generators {
             return inner_->schema();
         }
 
+        /// @cond INTERNAL
+        std::optional<std::function<T(hegel::internal::json::json_raw_ref)>>
+        get_applier() const {
+            return inner_->get_applier();
+        }
+
+        bool has_client_transform() const noexcept {
+            return inner_->has_client_transform();
+        }
+        /// @endcond
+
         /**
          * @brief Transform generated values with a function.
          *
@@ -162,6 +389,22 @@ namespace hegel::generators {
         Generator<std::invoke_result_t<F, T>> map(F&& f) const {
             // F is of type T -> ResultType
             using ResultType = std::invoke_result_t<F, T>;
+            auto maybe_applier = inner_->get_applier();
+            auto maybe_schema = inner_->schema();
+            if (maybe_applier && maybe_schema) {
+                // Compose: deserialize/transform raw value, then apply f.
+                // Preserves the schema so one_of can build tagged-tuple
+                // schemas with a single server round-trip.
+                auto applier = *maybe_applier;
+                auto composed =
+                    [applier,
+                     f](hegel::internal::json::json_raw_ref raw) -> ResultType {
+                    return f(applier(raw));
+                };
+                return Generator<ResultType>(
+                    new MappedSchemaGenerator<ResultType>(*maybe_schema,
+                                                          std::move(composed)));
+            }
             auto inner = inner_;
             return from_function<ResultType>(
                 [inner,
@@ -223,14 +466,10 @@ namespace hegel::generators {
          * Creates a Generator that only produces values satisfying the
          * predicate. The new Generator has the same type as this Generator.
          *
-         * For performance reasons, if 3 consecutive values fail the predicate,
-         * Hegel rejects the test case.
-         *
-         * So for example, if you want sorted lists of length N, you should
-         * generate sorted lists of length N, not generate random lists and
-         * filter by a predicate of 'length == N && is_sorted'. (Although the
-         * latter is logically correct, it would be a performance nightmare, so
-         * Hegel doesn't let you do it that way.)
+         * If many consecutive values fail the predicate, Hegel rejects the
+         * test case. Keep filters selective: use direct generation with
+         * appropriate constraints rather than generating broadly and filtering
+         * most values away.
          *
          * @code{.cpp}
          * Generator<int> even =                                  // Return type
@@ -249,10 +488,13 @@ namespace hegel::generators {
             auto inner = inner_;
             return from_function<T>([inner, pred](TestCaseData* data) -> T {
                 for (int i = 0; i < 3; ++i) {
+                    internal::start_span(12, data);
                     T value = inner->do_draw(data);
                     if (pred(value)) {
+                        internal::stop_span(false, data);
                         return value;
                     }
+                    internal::stop_span(true, data);
                 }
                 internal::stop_test();
             });
@@ -260,113 +502,6 @@ namespace hegel::generators {
 
       private:
         std::shared_ptr<IGenerator<T>> inner_;
-    };
-
-    /**
-     * @brief A generator that uses a function to produce random values of type
-     * T.
-     *
-     * You shouldn't create this directly, but rather use the from_function()
-     * function.
-     *
-     * @tparam T The type of values this generator produces
-     */
-    template <typename T> class FunctionBackedGenerator : public IGenerator<T> {
-      public:
-        /// @brief Create from a function
-        /// @param fn function that will be called repeatedly to draw values
-        explicit FunctionBackedGenerator(std::function<T(TestCaseData*)> fn)
-            : gen_fn_(std::move(fn)) {}
-
-        /// @brief Create from a function
-        /// @param fn function that will be called repeatedly to draw values
-        /// @param schema schema for this generator; not used in do_draw(), but
-        /// may be used when composing this generator
-        FunctionBackedGenerator(std::function<T(TestCaseData*)> fn,
-                                hegel::internal::json::json schema)
-            : gen_fn_(std::move(fn)), schema_(std::move(schema)) {}
-
-        /**
-         * @brief Get the CBOR schema for this generator, if any.
-         * @return Optional containing the schema, or nullopt if not
-         * schema-based
-         */
-        std::optional<hegel::internal::json::json> schema() const override {
-            return schema_;
-        }
-
-        /**
-         * @brief Draw a random value.
-         * @param data The current test case data
-         * @return A randomly generated value of type T
-         */
-        T do_draw(TestCaseData* data) const override { return gen_fn_(data); }
-
-      private:
-        std::function<T(TestCaseData*)> gen_fn_;
-        std::optional<hegel::internal::json::json> schema_;
-    };
-
-    /**
-     * @brief A generator that generates data based on a schema.
-     *
-     * You shouldn't create this directly, but rather use the from_schema() or
-     * default_generator() functions.
-     *
-     * @tparam T The type to generate values for (must be reflect-cpp
-     * compatible)
-     * @see default_generator() Factory function for creating DefaultGenerators
-     */
-    template <typename T> class SchemaBackedGenerator : public IGenerator<T> {
-      public:
-        /// @brief Create, given the schema
-        SchemaBackedGenerator(hegel::internal::json::json schema)
-            : schema_(std::move(schema)) {}
-
-        /// Get the CBOR schema
-        std::optional<hegel::internal::json::json> schema() const override {
-            return schema_;
-        }
-
-        /**
-         * @brief Draw a random value of type T based on the schema.
-         * @param data The current test case data
-         * @return A randomly generated value
-         */
-        T do_draw(TestCaseData* data) const override {
-            hegel::internal::json::json response =
-                internal::communicate_with_core(schema_, data);
-
-            // Extract the result value
-            if (!response.contains("result")) {
-                throw std::runtime_error(
-                    "Server response missing 'result' field");
-            }
-            hegel::internal::json::json_raw_ref result = response["result"];
-
-            if constexpr (std::is_same_v<T, std::string>) {
-                return result.get_string();
-            } else if constexpr (std::is_same_v<std::remove_cvref_t<T>, bool>) {
-                return result.get_bool();
-            } else if constexpr (std::is_floating_point_v<T>) {
-                return static_cast<T>(result.get_double());
-            } else if constexpr (std::is_unsigned_v<T>) {
-                return static_cast<T>(result.get_uint64_t());
-            } else if constexpr (std::is_integral_v<T>) {
-                return static_cast<T>(result.get_int64_t());
-            } else {
-                auto parse_result = internal::read_nlohmann<T>(result);
-                if (!parse_result.has_value()) {
-                    throw std::runtime_error(
-                        "Failed to parse server response into "
-                        "requested type");
-                }
-                return parse_result.value();
-            }
-        }
-
-      private:
-        hegel::internal::json::json schema_;
     };
 
     // =============================================================================

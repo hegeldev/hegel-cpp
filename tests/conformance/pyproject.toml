@@ -3,6 +3,6 @@ name = "hegel-cpp-conformance"
 version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
-    "hegel-core==0.4.0",
+    "hegel-core==0.4.3",
     "pytest",
 ]

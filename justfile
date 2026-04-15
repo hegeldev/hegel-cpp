@@ -5,7 +5,7 @@ setup:
         mkdir -p "$HOME/.local/bin"
         ln -sf "$HEGEL_BINARY" "$HOME/.local/bin/hegel"
     else
-        uv tool install --from hegel-core hegel
+        uv tool install "hegel-core==0.4.3"
     fi
 
 build:
@@ -38,7 +38,7 @@ check:
 build-conformance: build
 
 conformance: build-conformance
-    uv run --with hegel-core \
+    uv run --with 'hegel-core==0.4.3' \
         --with pytest --with hypothesis \
         pytest tests/conformance/test_conformance.py --durations=20 --durations-min=1.0
 
@@ -61,7 +61,7 @@ coverage:
         -DFETCHCONTENT_SOURCE_DIR_REFLECTCPP="$(pwd)/build/_deps/reflectcpp-src" \
         -DFETCHCONTENT_SOURCE_DIR_GOOGLETEST="$(pwd)/build/_deps/googletest-src" \
         >> "$buildlog" 2>&1 || { cat "$buildlog"; exit 1; }
-    cmake --build build-coverage -j4 >> "$buildlog" 2>&1 || { cat "$buildlog"; exit 1; }
+    cmake --build build-coverage -j2 >> "$buildlog" 2>&1 || { cat "$buildlog"; exit 1; }
     ctest --test-dir build-coverage/tests --output-on-failure -j{{ num_cpus() }} \
         >> "$buildlog" 2>&1 || { cat "$buildlog"; exit 1; }
     uvx gcovr --root . --filter 'src/' build-coverage \
