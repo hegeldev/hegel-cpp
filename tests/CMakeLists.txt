@@ -63,6 +63,20 @@ target_link_libraries(test_derived
 )
 gtest_discover_tests(test_derived)
 
+add_executable(test_protocol test_protocol.cpp)
+target_link_libraries(test_protocol
+    PRIVATE
+        hegel
+        GTest::gtest
+        nlohmann_json::nlohmann_json
+)
+target_include_directories(test_protocol
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src
+        $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>
+)
+gtest_discover_tests(test_protocol)
+
 add_executable(test_coverage test_coverage.cpp)
 target_link_libraries(test_coverage
     PRIVATE
