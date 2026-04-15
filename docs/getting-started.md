@@ -415,9 +415,6 @@ by random sampling alone.
 
 ## Next steps
 
-- Browse the [examples/](../examples/) directory for complete, runnable
-  property-based tests covering data structures like bounded queues, LRU
-  caches, and run-length encoding.
 - Read the generated Doxygen documentation (`just docs`) for the full API
   reference.
 - See the [hegel-core](https://github.com/hegeldev/hegel-core)

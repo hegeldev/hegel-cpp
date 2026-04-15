@@ -28,12 +28,12 @@ namespace hegel::internal::json {
         json_raw_ref(const json_raw_ref& other);
         ~json_raw_ref();
 
-        std::string get_string() const noexcept;
-        bool get_bool() const noexcept;
-        uint32_t get_uint32_t() const noexcept;
-        uint64_t get_uint64_t() const noexcept;
-        int64_t get_int64_t() const noexcept;
-        double get_double() const noexcept;
+        std::string get_string() const;
+        bool get_bool() const;
+        uint32_t get_uint32_t() const;
+        uint64_t get_uint64_t() const;
+        int64_t get_int64_t() const;
+        double get_double() const;
 
         size_t size() const noexcept;
 

@@ -112,8 +112,17 @@ namespace hegel {
                     test_stream, event.message_id,
                     hegel::internal::json::json{{"result", nullptr}});
 
-                uint32_t data_stream = payload.value("stream_id", uint32_t{0});
-                bool is_final = payload.value("is_final", false);
+                auto& payload_raw = ImplUtil::raw(payload);
+                uint32_t data_stream = 0;
+                if (payload_raw.contains("stream_id") &&
+                    payload_raw["stream_id"].is_number()) {
+                    data_stream = payload_raw["stream_id"].get<uint32_t>();
+                }
+                bool is_final = false;
+                if (payload_raw.contains("is_final") &&
+                    payload_raw["is_final"].is_boolean()) {
+                    is_final = payload_raw["is_final"].get<bool>();
+                }
 
                 // Set up per-test-case state
                 impl::data::TestCaseData data{
@@ -152,8 +161,25 @@ namespace hegel {
                         {"command", "mark_complete"},
                         {"status", status},
                         {"origin", origin_value}};
-                    conn.request(data_stream, mark);
-                    conn.close_stream(data_stream);
+                    try {
+                        auto mark_response = conn.request(data_stream, mark);
+                        auto mark_raw = ImplUtil::raw(mark_response);
+                        if (mark_raw.contains("error")) {
+                            std::string error_type = mark_raw.value("type", "");
+                            if (error_type == "StopTest" ||
+                                error_type == "Overflow") {
+                                data.test_aborted = true;
+                            }
+                        }
+                    } catch (const internal::HegelReject&) {
+                        data.test_aborted = true;
+                    } catch (const std::exception&) {
+                        // mark_complete failed; treat as aborted
+                        data.test_aborted = true;
+                    }
+                    if (!data.test_aborted) {
+                        conn.close_stream(data_stream);
+                    }
                 }
 
                 if (is_final) {
@@ -170,9 +196,18 @@ namespace hegel {
 
                 if (payload.contains("results")) {
                     auto& results = ImplUtil::raw(payload["results"]);
-                    test_passed = results.value("passed", true);
-                    final_replays_remaining =
-                        results.value("interesting_test_cases", 0);
+                    if (results.is_object()) {
+                        if (results.contains("passed") &&
+                            results["passed"].is_boolean()) {
+                            test_passed = results["passed"].get<bool>();
+                        }
+                        if (results.contains("interesting_test_cases") &&
+                            results["interesting_test_cases"]
+                                .is_number_integer()) {
+                            final_replays_remaining =
+                                results["interesting_test_cases"].get<int>();
+                        }
+                    }
                 }
 
                 if (final_replays_remaining <= 0) {

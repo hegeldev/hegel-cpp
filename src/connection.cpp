@@ -211,7 +211,11 @@ namespace hegel::internal {
 
         // Handle errors
         if (response_raw.contains("error")) {
-            std::string error_type = response_raw.value("type", "");
+            std::string error_type;
+            if (response_raw.contains("type") &&
+                response_raw["type"].is_string()) {
+                error_type = response_raw["type"].get<std::string>();
+            }
             if (error_type == "StopTest" || error_type == "Overflow") {
                 data->test_aborted = true;
                 internal::stop_test();

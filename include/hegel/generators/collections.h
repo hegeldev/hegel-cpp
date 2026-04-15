@@ -5,6 +5,7 @@
  * @brief Collection generator functions: vectors, sets, dictionaries, tuples
  */
 
+#include <concepts>
 #include <map>
 #include <set>
 #include <tuple>
@@ -87,15 +88,42 @@ namespace hegel::generators {
         }
 
         size_t max_size = params.max_size.value_or(100);
+        bool unique = params.unique;
 
         auto length_gen = integers<size_t>(
             {.min_value = params.min_size, .max_value = max_size});
 
         return from_function<std::vector<T>>(
-            [elements, length_gen](TestCaseData* data) {
+            [elements, length_gen, unique](TestCaseData* data) {
                 size_t len = length_gen.do_draw(data);
                 std::vector<T> result;
                 result.reserve(len);
+
+                if constexpr (std::equality_comparable<T>) {
+                    if (unique) {
+                        size_t consecutive_dupes = 0;
+                        while (result.size() < len) {
+                            T value = elements.do_draw(data);
+                            bool is_dup = false;
+                            for (const auto& existing : result) {
+                                if (existing == value) {
+                                    is_dup = true;
+                                    break;
+                                }
+                            }
+                            if (!is_dup) {
+                                result.push_back(std::move(value));
+                                consecutive_dupes = 0;
+                            } else {
+                                ++consecutive_dupes;
+                                if (consecutive_dupes >= 3) {
+                                    internal::stop_test();
+                                }
+                            }
+                        }
+                        return result;
+                    }
+                }
 
                 for (size_t i = 0; i < len; ++i) {
                     result.push_back(elements.do_draw(data));
@@ -222,10 +250,20 @@ namespace hegel::generators {
                 size_t len = length_gen.do_draw(data);
                 std::map<K, V> result;
 
+                size_t consecutive_dupes = 0;
                 while (result.size() < len) {
                     K key = keys.do_draw(data);
                     V value = values.do_draw(data);
+                    size_t prev_size = result.size();
                     result[std::move(key)] = std::move(value);
+                    if (result.size() == prev_size) {
+                        ++consecutive_dupes;
+                        if (consecutive_dupes >= 3) {
+                            internal::stop_test();
+                        }
+                    } else {
+                        consecutive_dupes = 0;
+                    }
                 }
 
                 return result;

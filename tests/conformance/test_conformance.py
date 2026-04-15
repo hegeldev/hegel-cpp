@@ -9,6 +9,7 @@ from hegel.conformance import (
     FloatConformance,
     IntegerConformance,
     ListConformance,
+    OneOfConformance,
     SampledFromConformance,
     StopTestOnCollectionMoreConformance,
     StopTestOnGenerateConformance,
@@ -25,6 +26,8 @@ INT32_MAX = 2**31 - 1
 
 
 def test_conformance(subtests):
+    error_handling_binary = BUILD_DIR / "test_error_handling"
+
     run_conformance_tests(
         [
             BooleanConformance(BUILD_DIR / "test_booleans"),
@@ -45,15 +48,13 @@ def test_conformance(subtests):
                 min_value=INT32_MIN,
                 max_value=INT32_MAX,
             ),
+            OneOfConformance(BUILD_DIR / "test_one_of"),
+            StopTestOnGenerateConformance(error_handling_binary),
+            StopTestOnMarkCompleteConformance(error_handling_binary),
+            ErrorResponseConformance(error_handling_binary),
+            EmptyTestConformance(error_handling_binary),
+            StopTestOnCollectionMoreConformance(error_handling_binary),
+            StopTestOnNewCollectionConformance(error_handling_binary),
         ],
         subtests,
-        # temporarily skipping
-        skip_tests=[
-            StopTestOnGenerateConformance,
-            StopTestOnMarkCompleteConformance,
-            ErrorResponseConformance,
-            EmptyTestConformance,
-            StopTestOnCollectionMoreConformance,
-            StopTestOnNewCollectionConformance,
-        ]
     )

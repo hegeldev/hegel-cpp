@@ -125,24 +125,20 @@ namespace hegel::internal::json {
         : ref(new json_ref_holder(other.ref->data)) {}
     json_raw_ref::~json_raw_ref() = default;
 
-    std::string json_raw_ref::get_string() const noexcept {
+    std::string json_raw_ref::get_string() const {
         return ref->data.get<std::string>();
     }
-    bool json_raw_ref::get_bool() const noexcept {
-        return ref->data.get<bool>();
-    }
-    uint32_t json_raw_ref::get_uint32_t() const noexcept {
+    bool json_raw_ref::get_bool() const { return ref->data.get<bool>(); }
+    uint32_t json_raw_ref::get_uint32_t() const {
         return ref->data.get<uint32_t>();
     }
-    uint64_t json_raw_ref::get_uint64_t() const noexcept {
+    uint64_t json_raw_ref::get_uint64_t() const {
         return ref->data.get<uint64_t>();
     }
-    int64_t json_raw_ref::get_int64_t() const noexcept {
+    int64_t json_raw_ref::get_int64_t() const {
         return ref->data.get<int64_t>();
     }
-    double json_raw_ref::get_double() const noexcept {
-        return ref->data.get<double>();
-    }
+    double json_raw_ref::get_double() const { return ref->data.get<double>(); }
 
     size_t json_raw_ref::size() const noexcept { return ref->data.size(); }
 
