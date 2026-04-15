@@ -94,5 +94,5 @@ target_link_libraries(gtest_failure_test
 
 add_test(NAME gtest_failure_test COMMAND gtest_failure_test)
 set_tests_properties(gtest_failure_test PROPERTIES
-    PASS_REGULAR_EXPRESSION "actual:"
+    PASS_REGULAR_EXPRESSION "Generated:"
 )
