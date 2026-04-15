@@ -112,17 +112,32 @@ def check(base_ref: str) -> None:
     parse_release_file(release_file)
 
 
+def latest_tagged_version() -> str | None:
+    result = subprocess.run(
+        ["git", "describe", "--tags", "--abbrev=0", "--match", "v*"],
+        capture_output=True,
+        text=True,
+        cwd=ROOT,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip().removeprefix("v")
+
+
 def release() -> None:
     release_file = ROOT / "RELEASE.md"
     assert release_file.exists()
 
     release_type, content = parse_release_file(release_file)
 
-    cmake_file = ROOT / "CMakeLists.txt"
-    m = re.search(r"project\(hegel-cpp\s+VERSION\s+(\S+)", cmake_file.read_text())
-    new_version = bump_version(m.group(1), release_type)
+    current = latest_tagged_version()
+    if current is None:
+        # First release: pin to 0.1.0 regardless of release type.
+        new_version = "0.1.0"
+    else:
+        new_version = bump_version(current, release_type)
 
-    set_version(cmake_file, new_version)
+    set_version(ROOT / "CMakeLists.txt", new_version)
 
     add_changelog(ROOT / "CHANGELOG.md", version=new_version, content=content)
 
@@ -146,7 +161,7 @@ def release() -> None:
         cwd=ROOT,
     )
     git("tag", f"v{new_version}", cwd=ROOT)
-    git("push", "origin", "main", "--tags", cwd=ROOT)
+    git("push", "origin", f"v{new_version}", cwd=ROOT)
 
     subprocess.run(
         [
@@ -164,6 +179,51 @@ def release() -> None:
     )
 
 
+def push_or_pr() -> None:
+    m = re.search(
+        r"project\(hegel-cpp\s+VERSION\s+(\S+)",
+        (ROOT / "CMakeLists.txt").read_text(),
+    )
+    version = m.group(1)
+
+    result = subprocess.run(["git", "push", "origin", "main"], cwd=ROOT)
+    if result.returncode == 0:
+        return
+
+    print(f"Push to main failed, creating PR for release v{version}")
+
+    branch = f"release/v{version}"
+    git("checkout", "-b", branch, cwd=ROOT)
+    git("push", "origin", branch, cwd=ROOT)
+
+    # Ensure the "skip release" label exists so check-release doesn't run on this PR
+    subprocess.run(
+        [
+            "gh", "label", "create", "skip release",
+            "--force",
+            "--description", "Skip the release check on this PR",
+        ],
+        cwd=ROOT,
+    )
+
+    subprocess.run(
+        [
+            "gh", "pr", "create",
+            "--base", "main",
+            "--head", branch,
+            "--title", f"Release v{version}",
+            "--body",
+            f"The push to main after tagging v{version} failed because main had "
+            f"diverged. The tag and GitHub release succeeded.\n\n"
+            f"This PR merges the release commit (version bump, changelog, "
+            f"RELEASE.md removal) into main.",
+            "--label", "skip release",
+        ],
+        check=True,
+        cwd=ROOT,
+    )
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Release automation for hegel-cpp.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -171,9 +231,12 @@ if __name__ == "__main__":
     check_parser = subparsers.add_parser("check")
     check_parser.add_argument("base_ref", help="Git ref to diff against.")
     subparsers.add_parser("release")
+    subparsers.add_parser("push-or-pr")
 
     args = parser.parse_args()
     if args.command == "check":
         check(args.base_ref)
     elif args.command == "release":
         release()
+    elif args.command == "push-or-pr":
+        push_or_pr()
