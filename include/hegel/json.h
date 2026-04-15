@@ -49,6 +49,7 @@ namespace hegel::internal::json {
         json_raw_ref& operator=(const size_t& other);
         json_raw_ref& operator=(const double& other);
         json_raw_ref& operator=(const std::nullptr_t& other);
+        json_raw_ref& operator=(const json& other);
 #ifdef __APPLE__
         json_raw_ref& operator=(const uint64_t& other);
 #endif
@@ -83,6 +84,7 @@ namespace hegel::internal::json {
         json(const double init);
         json(const std::string& init);
         json(std::nullptr_t init = nullptr);
+        json(const json_raw_ref& init);
         ~json();
 
         json_raw_ref operator[](const std::string& key);

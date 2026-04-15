@@ -94,10 +94,21 @@ namespace hegel {
         } else {
             run_test_msg["seed"] = nullptr;
         }
+        if (options.suppress_health_check.size() > 0) {
+            hegel::internal::json::json suppressions =
+                hegel::internal::json::json::array();
+            for (const auto& hc : options.suppress_health_check) {
+                suppressions.push_back(
+                    std::string(options::health_check_to_string(hc)));
+            }
+            run_test_msg["suppress_health_check"] = suppressions;
+        } else {
+            run_test_msg["suppress_health_check"] = nullptr;
+        }
         conn.request(0, run_test_msg);
 
         // Event loop on test stream
-        bool test_passed = true;
+        hegel::internal::json::json results_json(nullptr);
         int final_replays_remaining = 0;
         bool done = false;
         while (!done) {
@@ -169,10 +180,9 @@ namespace hegel {
                                  hegel::internal::json::json{{"result", true}});
 
                 if (payload.contains("results")) {
-                    auto& results = ImplUtil::raw(payload["results"]);
-                    test_passed = results.value("passed", true);
+                    results_json = payload["results"];
                     final_replays_remaining =
-                        results.value("interesting_test_cases", 0);
+                        results_json.value("interesting_test_cases", 0u);
                 }
 
                 if (final_replays_remaining <= 0) {
@@ -186,6 +196,22 @@ namespace hegel {
 
         int status;
         waitpid(child_pid, &status, 0);
+
+        auto& results = ImplUtil::raw(results_json);
+        if (results.is_null()) {
+            throw std::runtime_error("test_done received without results");
+        }
+        if (results.contains("health_check_failure")) {
+            throw std::runtime_error(
+                "Hegel health check failure:\n" +
+                results["health_check_failure"].get<std::string>());
+        }
+        if (results.contains("flaky")) {
+            throw std::runtime_error("Flaky Hegel test:\n" +
+                                     results["flaky"].get<std::string>());
+        }
+        
+        bool test_passed = results.value("passed", true);
 
         if (!test_passed) {
             throw std::runtime_error("Hegel test failed");

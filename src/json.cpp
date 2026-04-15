@@ -63,6 +63,8 @@ namespace hegel::internal::json {
     json::json(const double init) : impl(new json_holder(init)) {}
     json::json(const std::string& init) : impl(new json_holder(init)) {}
     json::json(std::nullptr_t init) : impl(new json_holder(init)) {}
+    json::json(const json_raw_ref& init)
+        : impl(new json_holder(ImplUtil::raw(init))) {}
     json::~json() = default;
 
     json_raw_ref json::operator[](const std::string& key) {
@@ -156,6 +158,10 @@ namespace hegel::internal::json {
     }
     json_raw_ref& json_raw_ref::operator=(const double& other) {
         ref->data = other;
+        return *this;
+    }
+    json_raw_ref& json_raw_ref::operator=(const json& other) {
+        ref->data = ImplUtil::raw(other);
         return *this;
     }
 
