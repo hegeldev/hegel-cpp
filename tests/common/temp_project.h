@@ -4,20 +4,22 @@
  * @file temp_project.h
  * @brief Compile + run an arbitrary hegel C++ program at test time.
  *
- * Mirrors rust/tests/common/project.rs (TempRustProject). A single shared
- * cmake build directory is configured once per process and reused across
- * tests, so per-test cost is just recompiling main.cpp + linking against
- * the parent-built libhegel.a.
+ * Mirrors rust/tests/common/project.rs (TempRustProject). The `subject`
+ * executable is defined as a regular target in the parent cmake build tree
+ * (see tests/CMakeLists.txt), so it inherits the exact toolchain used to
+ * build libhegel.a — no second cmake configure, no flag forwarding, no ABI
+ * mismatch when the parent uses e.g. `-stdlib=libc++`. At test time this
+ * class overwrites the subject's source file and invokes `cmake --build
+ * --target subject` to rebuild, then runs the produced binary.
  *
- * Tests using TempCppProject must run sequentially within a single gtest
- * binary (gtest's default behavior). Multiple binaries running concurrently
- * via `ctest -j` are fine because each binary has its own shared build dir
- * (named by HEGEL_TEMP_PROJECT_BASE_DIR, set per binary at CMake time).
+ * Tests using TempCppProject must run sequentially (gtest's default within
+ * a single binary; ctest RESOURCE_LOCK across binaries) because they share
+ * the single `subject` target.
  */
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <mutex>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -29,23 +31,17 @@
 
 #include "common/subprocess.h"
 
-#ifndef HEGEL_TEMP_PROJECT_BASE_DIR
-#error "HEGEL_TEMP_PROJECT_BASE_DIR must be defined at build time"
+#ifndef HEGEL_TEMP_PROJECT_MAIN_CPP
+#error "HEGEL_TEMP_PROJECT_MAIN_CPP must be defined at build time"
 #endif
-#ifndef HEGEL_TEMP_PROJECT_TEMPLATE_DIR
-#error "HEGEL_TEMP_PROJECT_TEMPLATE_DIR must be defined at build time"
+#ifndef HEGEL_TEMP_PROJECT_SUBJECT_BIN
+#error "HEGEL_TEMP_PROJECT_SUBJECT_BIN must be defined at build time"
 #endif
-#ifndef HEGEL_TEMP_PROJECT_BUILD_INFO_FILE
-#error "HEGEL_TEMP_PROJECT_BUILD_INFO_FILE must be defined at build time"
+#ifndef HEGEL_TEMP_PROJECT_BUILD_DIR
+#error "HEGEL_TEMP_PROJECT_BUILD_DIR must be defined at build time"
 #endif
 #ifndef HEGEL_TEMP_PROJECT_CMAKE_EXE
 #error "HEGEL_TEMP_PROJECT_CMAKE_EXE must be defined at build time"
-#endif
-#ifndef HEGEL_TEMP_PROJECT_CXX_FLAGS
-#error "HEGEL_TEMP_PROJECT_CXX_FLAGS must be defined at build time"
-#endif
-#ifndef HEGEL_TEMP_PROJECT_EXE_LINKER_FLAGS
-#error "HEGEL_TEMP_PROJECT_EXE_LINKER_FLAGS must be defined at build time"
 #endif
 
 namespace hegel::tests::common {
@@ -77,7 +73,6 @@ namespace hegel::tests::common {
         }
 
         SubprocessResult run(const std::vector<std::string>& args = {}) {
-            ensure_configured();
             write_main();
             build();
             auto out = exec(args);
@@ -86,96 +81,32 @@ namespace hegel::tests::common {
         }
 
       private:
-        static const std::filesystem::path& base_dir() {
-            static const std::filesystem::path p{HEGEL_TEMP_PROJECT_BASE_DIR};
+        static const std::filesystem::path& main_cpp_path() {
+            static const std::filesystem::path p{HEGEL_TEMP_PROJECT_MAIN_CPP};
             return p;
         }
-        static std::filesystem::path src_dir() { return base_dir() / "src"; }
-        static std::filesystem::path build_dir() {
-            return base_dir() / "build";
-        }
-        static const std::filesystem::path& template_dir() {
+        static const std::filesystem::path& subject_bin() {
             static const std::filesystem::path p{
-                HEGEL_TEMP_PROJECT_TEMPLATE_DIR};
+                HEGEL_TEMP_PROJECT_SUBJECT_BIN};
             return p;
         }
-        static const std::filesystem::path& build_info_file() {
-            static const std::filesystem::path p{
-                HEGEL_TEMP_PROJECT_BUILD_INFO_FILE};
-            return p;
+        static const std::string& build_dir() {
+            static const std::string s{HEGEL_TEMP_PROJECT_BUILD_DIR};
+            return s;
         }
         static const std::string& cmake_exe() {
             static const std::string s{HEGEL_TEMP_PROJECT_CMAKE_EXE};
             return s;
         }
-        static const std::string& cxx_flags() {
-            static const std::string s{HEGEL_TEMP_PROJECT_CXX_FLAGS};
-            return s;
-        }
-        static const std::string& exe_linker_flags() {
-            static const std::string s{HEGEL_TEMP_PROJECT_EXE_LINKER_FLAGS};
-            return s;
-        }
-
-        // Configure the shared build dir on first call within this process.
-        // The build dir is intentionally NOT wiped between processes: cmake's
-        // reconfigure is idempotent and tracks its own input files (template
-        // CMakeLists.txt + build_info_file are include()d, so changes trigger
-        // regeneration). This lets per-process cost drop from ~2s (cold
-        // configure) to ~0.5s (warm reconfigure check + incremental build)
-        // when ctest runs each TEST() as a separate process via
-        // gtest_discover_tests.
-        static void ensure_configured() {
-            static std::once_flag flag;
-            std::call_once(flag, [] {
-                std::filesystem::create_directories(src_dir());
-                std::filesystem::create_directories(build_dir());
-
-                std::filesystem::copy_file(
-                    template_dir() / "CMakeLists.txt",
-                    src_dir() / "CMakeLists.txt",
-                    std::filesystem::copy_options::overwrite_existing);
-                if (!std::filesystem::exists(src_dir() / "main.cpp")) {
-                    std::ofstream f(src_dir() / "main.cpp", std::ios::trunc);
-                    f << "int main() { return 0; }\n";
-                }
-
-                std::vector<std::string> args = {"-S",
-                                                 src_dir().string(),
-                                                 "-B",
-                                                 build_dir().string(),
-                                                 "-DHEGEL_BUILD_INFO_FILE=" +
-                                                     build_info_file().string(),
-                                                 "-DCMAKE_BUILD_TYPE=Release"};
-                // Match the parent build's CXX/linker flags so the subject
-                // uses the same stdlib etc. (e.g. -stdlib=libc++). Only
-                // forwarded when non-empty to keep the cmake command line
-                // clean in the common case.
-                if (!cxx_flags().empty()) {
-                    args.push_back("-DCMAKE_CXX_FLAGS=" + cxx_flags());
-                }
-                if (!exe_linker_flags().empty()) {
-                    args.push_back("-DCMAKE_EXE_LINKER_FLAGS=" +
-                                   exe_linker_flags());
-                }
-                auto r = run_subject(cmake_exe(), args);
-                if (r.exit_code != 0) {
-                    throw std::runtime_error(
-                        "TempCppProject: cmake configure failed (exit " +
-                        std::to_string(r.exit_code) + ")\nstdout:\n" +
-                        r.stdout_data + "\nstderr:\n" + r.stderr_data);
-                }
-            });
-        }
 
         // Skip the write if main.cpp's content is byte-identical to what we'd
-        // write. This preserves mtime so cmake --build short-circuits the
+        // write. This preserves mtime so `cmake --build` short-circuits the
         // recompile (which dominates per-test cost — hegel.h pulls in
         // reflect-cpp templates and takes ~1.8s to compile from scratch).
-        // Tests that reuse the same FAILING_TEST_CODE thus pay the compile
-        // cost exactly once across the whole gtest binary run.
+        // Tests that reuse the same test source thus pay the compile cost
+        // exactly once across the whole gtest binary run.
         void write_main() const {
-            auto path = src_dir() / "main.cpp";
+            const auto& path = main_cpp_path();
             if (std::filesystem::exists(path)) {
                 std::ifstream existing(path, std::ios::binary);
                 std::stringstream buf;
@@ -194,11 +125,27 @@ namespace hegel::tests::common {
                 throw std::runtime_error("TempCppProject: failed to write " +
                                          path.string());
             }
+            f.close();
+            // Make only compares mtimes at 1-second precision. When a full
+            // write+build+run cycle completes within the same wall-clock
+            // second, the freshly written main.cpp can have the same mtime
+            // as the existing subject binary, and `cmake --build` (via make)
+            // decides no rebuild is needed — so the next test would run a
+            // stale subject. Bump main.cpp's mtime to strictly > the subject
+            // binary's mtime at whole-second resolution.
+            if (std::filesystem::exists(subject_bin())) {
+                namespace fs = std::filesystem;
+                auto subj = fs::last_write_time(subject_bin());
+                auto bumped = subj + std::chrono::seconds(1);
+                if (fs::last_write_time(path) <= bumped) {
+                    fs::last_write_time(path, bumped);
+                }
+            }
         }
 
         static void build() {
-            auto r = run_subject(cmake_exe(), {"--build", build_dir().string(),
-                                               "--target", "subject"});
+            auto r = run_subject(
+                cmake_exe(), {"--build", build_dir(), "--target", "subject"});
             if (r.exit_code != 0) {
                 throw std::runtime_error(
                     "TempCppProject: cmake build failed (exit " +
@@ -208,8 +155,8 @@ namespace hegel::tests::common {
         }
 
         SubprocessResult exec(const std::vector<std::string>& args) const {
-            return run_subject((build_dir() / "subject").string(), args,
-                               env_overrides_, env_removes_);
+            return run_subject(subject_bin().string(), args, env_overrides_,
+                               env_removes_);
         }
 
         void check_expectation(const SubprocessResult& out) const {
