@@ -1,6 +1,7 @@
 #include <connection.h>
 #include <hegel/internal.h>
 #include <hegel/json.h>
+#include <hegel/test_case.h>
 #include <iostream>
 #include <protocol.h>
 #include <test_case.h>
@@ -168,7 +169,8 @@ namespace hegel::impl {
 namespace hegel::internal {
     hegel::internal::json::json
     communicate_with_core(const hegel::internal::json::json& schema,
-                          impl::test_case::TestCaseData* data) {
+                          const hegel::TestCase& tc) {
+        auto* data = tc.data();
         auto* conn = data->connection;
         uint32_t data_stream = data->data_stream;
 
@@ -193,9 +195,18 @@ namespace hegel::internal {
         // Handle errors
         if (response_raw.contains("error")) {
             std::string error_type = response_raw.value("type", "");
-            if (error_type == "StopTest" || error_type == "Overflow") {
-                data->test_aborted = true;
-                internal::stop_test();
+            // Backend told us to abandon this iteration. Unwinds via
+            // HegelStopTest, which the runner handles by skipping
+            // mark_complete.
+            if (error_type == "StopTest" || error_type == "Overflow" ||
+                error_type == "FlakyStrategyDefinition" ||
+                error_type == "FlakyReplay") {
+                throw HegelStopTest();
+            }
+            // Backend rejected this draw (e.g. filter predicate on the server
+            // side). Treated like a user-side assume(false).
+            if (error_type == "UnsatisfiedAssumption") {
+                throw HegelReject();
             }
             std::string error_msg =
                 response_raw["error"].is_string()

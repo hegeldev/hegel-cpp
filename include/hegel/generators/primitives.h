@@ -48,10 +48,10 @@ namespace hegel::generators {
                       std::is_same_v<T, std::string>) {
             hegel::internal::json::json schema = {{"type", "constant"},
                                                   {"value", value}};
-            return from_function<T>([value](TestCaseData*) { return value; },
+            return from_function<T>([value](const TestCase&) { return value; },
                                     std::move(schema));
         } else {
-            return from_function<T>([value](TestCaseData*) { return value; });
+            return from_function<T>([value](const TestCase&) { return value; });
         }
     }
 

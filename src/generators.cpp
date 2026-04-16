@@ -28,7 +28,8 @@ namespace hegel::generators {
     Generator<std::monostate> nulls() {
         hegel::internal::json::json schema = {{"type", "null"}};
         return from_function<std::monostate>(
-            [](TestCaseData*) { return std::monostate{}; }, std::move(schema));
+            [](const TestCase&) { return std::monostate{}; },
+            std::move(schema));
     }
 
     Generator<bool> booleans() {
@@ -128,9 +129,9 @@ namespace hegel::generators {
             schema["max_size"] = *params.max_size;
 
         return from_function<std::vector<uint8_t>>(
-            [schema](TestCaseData* data) -> std::vector<uint8_t> {
+            [schema](const TestCase& tc) -> std::vector<uint8_t> {
                 hegel::internal::json::json response =
-                    internal::communicate_with_core(schema, data);
+                    internal::communicate_with_core(schema, tc);
                 if (!response.contains("result")) {
                     throw std::runtime_error(
                         "Server response missing 'result' field");
@@ -203,11 +204,11 @@ namespace hegel::generators {
             hegel::internal::json::json{{"type", "datetime"}});
     }
 
-    HegelRandom::HegelRandom(TestCaseData* data)
-        : data_(data), engine_(std::nullopt) {}
+    HegelRandom::HegelRandom(const TestCase& tc)
+        : tc_(&tc), engine_(std::nullopt) {}
 
     HegelRandom::HegelRandom(uint64_t seed)
-        : data_(nullptr), engine_(std::mt19937(seed)) {}
+        : tc_(nullptr), engine_(std::mt19937(seed)) {}
 
     HegelRandom::result_type HegelRandom::operator()() {
         if (engine_) {
@@ -220,7 +221,7 @@ namespace hegel::generators {
             {"max_value", std::numeric_limits<uint32_t>::max()}};
 
         hegel::internal::json::json response =
-            internal::communicate_with_core(schema, data_);
+            internal::communicate_with_core(schema, *tc_);
         if (!response.contains("result")) {
             throw std::runtime_error("Server response missing 'result' field");
         }
@@ -231,15 +232,13 @@ namespace hegel::generators {
         if (params.use_true_random) {
             auto seed_gen = integers<uint64_t>();
             return from_function<HegelRandom>(
-                [seed_gen](TestCaseData* data) -> HegelRandom {
-                    auto seed = seed_gen.do_draw(data);
+                [seed_gen](const TestCase& tc) -> HegelRandom {
+                    auto seed = seed_gen.do_draw(tc);
                     return HegelRandom(seed);
                 });
         }
         return from_function<HegelRandom>(
-            [](TestCaseData* data) -> HegelRandom {
-                return HegelRandom(data);
-            });
+            [](const TestCase& tc) -> HegelRandom { return HegelRandom(tc); });
     }
 
 } // namespace hegel::generators

@@ -68,7 +68,7 @@ namespace hegel {
         _exit(1);
     }
 
-    static void hegel_parent(const std::function<void()>& test_fn,
+    static void hegel_parent(const std::function<void(TestCase&)>& test_fn,
                              pid_t child_pid, // NOLINT(misc-include-cleaner)
                              int read_fd, int write_fd,
                              const settings::HegelSettings& settings) {
@@ -135,16 +135,18 @@ namespace hegel {
                     .connection = &conn,
                     .data_stream = data_stream,
                     .is_last_run = is_final,
-                    .test_aborted = false,
                     .verbosity = settings.verbosity,
                 };
-                impl::test_case::set(&data);
+                TestCase tc(&data);
 
                 // Run test
                 std::string status = "VALID";
                 std::string origin;
+                bool stopped = false;
                 try {
-                    test_fn();
+                    test_fn(tc);
+                } catch (const internal::HegelStopTest&) {
+                    stopped = true;
                 } catch (const internal::HegelReject&) {
                     status = "INVALID";
                 } catch (const std::exception& e) {
@@ -160,11 +162,9 @@ namespace hegel {
                     }
                 }
 
-                // Clear per-test-case state
-                impl::test_case::clear();
-
-                // Send mark_complete and close data stream (unless aborted)
-                if (!data.test_aborted) {
+                // Send mark_complete and close data stream (unless the
+                // backend already told us to stop this iteration)
+                if (!stopped) {
                     hegel::internal::json::json origin_value =
                         origin.empty() ? hegel::internal::json::json(nullptr)
                                        : hegel::internal::json::json(origin);
@@ -212,7 +212,7 @@ namespace hegel {
         }
     }
 
-    void hegel(const std::function<void()>& test_fn,
+    void hegel(const std::function<void(TestCase&)>& test_fn,
                const settings::HegelSettings& settings) {
         // Create pipes for parent<->child stdio communication
         // parent_to_child: parent writes to [1], child reads from [0]

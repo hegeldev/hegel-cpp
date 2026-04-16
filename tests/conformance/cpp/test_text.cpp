@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
-        [=]() {
+        [=](hegel::TestCase& tc) {
             auto gen = gs::text({.min_size = min_size,
                                  .max_size = max_size,
                                  .codec = codec,
@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
                                  .exclude_categories = exclude_categories,
                                  .include_characters = include_characters,
                                  .exclude_characters = exclude_characters});
-            auto value = hegel::draw(gen);
+            auto value = tc.draw(gen);
             auto cps = extract_codepoints(value);
             nlohmann::json cp_array = nlohmann::json::array();
             for (auto cp : cps) {

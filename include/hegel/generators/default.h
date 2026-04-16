@@ -88,15 +88,15 @@ namespace hegel::generators {
                 "container, or reflectable struct");
 
             static Generator<T> generator() {
-                return from_function<T>([](TestCaseData* data) -> T {
+                return from_function<T>([](const TestCase& tc) -> T {
                     T result{};
                     auto view = rfl::to_view(result);
-                    view.apply([data](const auto& field) {
+                    view.apply([&tc](const auto& field) {
                         using PtrType =
                             typename std::remove_cvref_t<decltype(field)>::Type;
                         using FieldType = std::remove_pointer_t<PtrType>;
                         *field.value() =
-                            default_generator<FieldType>().do_draw(data);
+                            default_generator<FieldType>().do_draw(tc);
                     });
                     return result;
                 });
@@ -250,13 +250,13 @@ namespace hegel::generators {
             Generator<T> base = *this;
             auto fields_tuple = std::make_tuple(std::move(fields)...);
             return DerivedGenerator<T>(from_function<T>(
-                [base, fields_tuple](TestCaseData* data) mutable -> T {
-                    T result = base.do_draw(data);
+                [base, fields_tuple](const TestCase& tc) mutable -> T {
+                    T result = base.do_draw(tc);
                     std::apply(
-                        [&result, data](auto&... fs) {
+                        [&result, &tc](auto&... fs) {
                             ((result.*(std::remove_reference_t<
                                           decltype(fs)>::member_ptr) =
-                                  fs.generator.do_draw(data)),
+                                  fs.generator.do_draw(tc)),
                              ...);
                         },
                         fields_tuple);
