@@ -148,11 +148,13 @@ add_library(hegel
   STATIC
     src/hegel.cpp
     src/generators.cpp
-    src/data.cpp
+    src/test_case.cpp
     src/internal.cpp
     src/protocol.cpp
     src/connection.cpp
+    src/crc32.cpp
     src/json.cpp
+    src/utils.cpp
 )
 target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -239,10 +241,12 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
       DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
   )
 
-  # Install docs
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs
-      TYPE DOC
-  )
+  # Install docs (only when they were actually built)
+  if(HEGEL_BUILD_DOCS)
+    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs
+        TYPE DOC
+    )
+  endif()
 
 endif()
 

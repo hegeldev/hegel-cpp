@@ -2,7 +2,7 @@
 
 /**
  * @file random.h
- * @brief Random engine integration with the C++ <random> library
+ * @brief Random engine integration with the C++ `<random>` library
  *
  * Provides HegelRandom, a class satisfying UniformRandomBitGenerator,
  * so it can be used with any std::random distribution.
@@ -41,22 +41,23 @@ namespace hegel::generators {
      * can be used with any `<random>` distribution.
      *
      * @code{.cpp}
-     *  auto rng = hegel::draw(randoms());
+     *  auto rng = hegel::draw(gs::randoms());
      *  std::uniform_real_distribution<double> dist(0.0, 10.0);
      *  double uniform_value = dist(rng);
      *
      *  // Using true random
-     *  auto rng = hegel::draw(randoms({ .use_true_random = true }));
+     *  auto rng = hegel::draw(gs::randoms({ .use_true_random = true }));
      *  std::lognormal_distribution<double> dist(0.0, 10.0);
      *  double uniform_value = dist(rng);
      * @endcode
      */
     class HegelRandom {
       public:
+        /// @cond INTERNAL
         using result_type = uint32_t;
 
         // Construct in artificial mode
-        explicit HegelRandom(impl::data::TestCaseData* data);
+        explicit HegelRandom(impl::test_case::TestCaseData* data);
 
         // Construct in true-random mode
         explicit HegelRandom(uint64_t seed);
@@ -71,9 +72,10 @@ namespace hegel::generators {
 
         /// @brief Generate a random uint32_t value
         result_type operator()();
+        /// @endcond
 
       private:
-        impl::data::TestCaseData* data_ = nullptr;
+        impl::test_case::TestCaseData* data_ = nullptr;
         std::optional<std::mt19937> engine_;
     };
 
@@ -87,8 +89,8 @@ namespace hegel::generators {
      * UniformRandomBitGenerator, enabling use with any `<random>` distribution.
      *
      * @code{.cpp}
-     * using namespace hegel::generators;
-     * auto rng = hegel::draw(randoms());
+     * namespace gs = hegel::generators;
+     * auto rng = hegel::draw(gs::randoms());
      *
      * std::lognormal_distribution<double> dist(0.0, 1.0);
      * double value = dist(rng);

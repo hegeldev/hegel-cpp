@@ -1,9 +1,9 @@
 #include <connection.h>
-#include <data.h>
 #include <hegel/internal.h>
 #include <hegel/json.h>
 #include <iostream>
 #include <protocol.h>
+#include <test_case.h>
 
 #include "json_impl.h"
 
@@ -16,10 +16,10 @@
 
 using hegel::internal::json::ImplUtil;
 
-// =============================================================================
-// Connection and Stream Multiplexing
-// =============================================================================
 namespace hegel::impl {
+    static constexpr const char* MIN_PROTOCOL_VERSION = "0.10";
+    static constexpr const char* MAX_PROTOCOL_VERSION = "0.10";
+    static constexpr const char* HANDSHAKE_STRING = "hegel_handshake_start";
 
     Connection::Connection(int read_fd, int write_fd)
         : read_fd_(read_fd), write_fd_(write_fd) {}
@@ -37,9 +37,6 @@ namespace hegel::impl {
         }
     }
 
-    // =============================================================================
-    // Stream Management
-    // =============================================================================
     uint32_t Connection::create_stream() {
         uint32_t id = (next_stream_counter_ << 1) | 1;
         next_stream_counter_++;
@@ -50,13 +47,6 @@ namespace hegel::impl {
     uint32_t Connection::alloc_message_id(uint32_t stream) {
         return next_message_id_[stream]++;
     }
-
-    // =============================================================================
-    // Handshake
-    // =============================================================================
-    static constexpr const char* MIN_PROTOCOL_VERSION = "0.10";
-    static constexpr const char* MAX_PROTOCOL_VERSION = "0.10";
-    static constexpr const char* HANDSHAKE_STRING = "hegel_handshake_start";
 
     // Compare two "major.minor" version strings numerically.
     // Returns -1 if a < b, 0 if a == b, 1 if a > b.
@@ -93,7 +83,7 @@ namespace hegel::impl {
         uint32_t msg_id = alloc_message_id(0);
         protocol::write_packet(write_fd_, 0, msg_id, false, payload);
 
-        // Wait for reply on stream 0
+        // Wait for reply on the control stream
         auto packet = wait_for(0, true);
         std::string response(packet.payload.begin(), packet.payload.end());
 
@@ -115,9 +105,6 @@ namespace hegel::impl {
         }
     }
 
-    // =============================================================================
-    // Request / Reply
-    // =============================================================================
     hegel::internal::json::json
     Connection::request(uint32_t stream,
                         const hegel::internal::json::json& msg) {
@@ -155,9 +142,6 @@ namespace hegel::impl {
                                false, payload);
     }
 
-    // =============================================================================
-    // Packet Routing
-    // =============================================================================
     protocol::Packet Connection::wait_for(uint32_t stream, bool want_reply) {
         // Check pending buffer first
         auto& queue = pending_[stream];
@@ -181,13 +165,10 @@ namespace hegel::impl {
 
 } // namespace hegel::impl
 
-// =============================================================================
-// Core Communication
-// =============================================================================
 namespace hegel::internal {
     hegel::internal::json::json
     communicate_with_core(const hegel::internal::json::json& schema,
-                          impl::data::TestCaseData* data) {
+                          impl::test_case::TestCaseData* data) {
         auto* conn = data->connection;
         uint32_t data_stream = data->data_stream;
 

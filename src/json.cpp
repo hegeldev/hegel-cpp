@@ -160,6 +160,14 @@ namespace hegel::internal::json {
         ref->data = other;
         return *this;
     }
+    json_raw_ref& json_raw_ref::operator=(bool other) {
+        ref->data = other;
+        return *this;
+    }
+    json_raw_ref& json_raw_ref::operator=(const std::string& other) {
+        ref->data = other;
+        return *this;
+    }
     json_raw_ref& json_raw_ref::operator=(const json& other) {
         ref->data = ImplUtil::raw(other);
         return *this;
