@@ -52,19 +52,20 @@ Binary packet protocol with CBOR payloads over Unix socket:
 ### Key Components
 
 Public headers in `include/hegel/`:
-- **`hegel.h`** - Main include, declares `hegel::hegel()` entry point and `hegel::draw()`
+- **`hegel.h`** - Main include, declares `hegel::hegel()` entry point
+- **`test_case.h`** - TestCase class with `draw()`, `assume()`, `note()` methods passed to the test callback
 - **`core.h`** - `IGenerator<T>`, `Generator<T>`, `SchemaBackedGenerator<T>`, `FunctionBackedGenerator<T>` with `map()`, `flat_map()`, `filter()` combinators
 - **`settings.h`** - `HegelSettings`, `Database`, `Verbosity` enum
-- **`internal.h`** - `communicate_with_socket()`, `assume()`, `note()`, `stop_test()`
+- **`internal.h`** - `communicate_with_core()` and the `HegelReject` exception (internal only; users interact via `TestCase` methods)
 - **`json.h` / `nlohmann_reader.h`** - JSON interop helpers (avoid including `<nlohmann/json.hpp>` from public headers; `test_no_nlohmann_include.cpp` enforces this)
 - **`generators/`** - Strategy factory functions in `hegel::generators` namespace, split by category: `primitives.h`, `numeric.h`, `strings.h`, `collections.h`, `combinators.h`, `formats.h`, `builds.h`, `default.h` (type-directed derivation via reflect-cpp), `random.h`
 
 Private implementation in `src/`:
 - **`protocol.{h,cpp}`** - Binary packet protocol, `Connection`, `Stream` classes
 - **`connection.{h,cpp}`** - Subprocess spawn + Unix socket lifecycle, low-level socket I/O
-- **`test_case.{h,cpp}`** - Per-test-case state (`TestCaseData`) accessed via thread-local pointer
+- **`test_case.{h,cpp}`** - Private `TestCaseData` struct (holds per-iteration runtime state) and the `TestCase` class method implementations
 - **`json_impl.h`** - Internal nlohmann-backed JSON implementation (not exposed publicly)
-- **`generators.cpp` / `hegel.cpp` / `internal.cpp` / `json.cpp`** - implementations for the corresponding public headers
+- **`generators.cpp` / `hegel.cpp` / `json.cpp`** - implementations for the corresponding public headers
 
 ### Generator Pattern
 
@@ -82,33 +83,29 @@ auto squared = gen.map([](int x) { return x * x; });
 
 ## Code Style
 
-Michael (mgibson) has carefully curated this codebase. Match his conventions exactly:
-
 - **Formatting**: LLVM base style, 4-space indentation, left-aligned pointers (`int*`). Run `just format` before committing.
 - **Headers**: Use `.h` extension (not `.hpp`)
 - **Namespaces**: `hegel` for public API, `hegel::generators` for generators and strategies, `hegel::settings` for run configuration (`HegelSettings`, `Database`, `Verbosity`, ...), `hegel::internal` for internals referenced in public headers, `hegel::impl::*` for purely private implementation
 - **Includes**: Public headers use relative includes (`#include "settings.h"`), source files use angle brackets for both public (`<hegel/internal.h>`) and private (`<socket.h>`) headers
 - **File organization**: Each focused `.cpp` has a corresponding `.h` in `src/`. Private headers live in `src/`, not `include/`
 - **Public API surface**: Minimal. Only what users need goes in `include/hegel/`. Internal details hidden via `@cond INTERNAL` / `@endcond` in Doxygen
-- **Section dividers**: Use `// =====...=====` comment blocks
 - **Parameter structs**: Designated initializers (C++20): `integers<int>({.min_value = 0})`
 - **Self-contained**: Prefer small standalone implementations over adding heavy dependencies
-- **No over-engineering**: Keep changes minimal and focused. Don't add abstractions beyond what's needed
 
-### Error Handling: `assume()` vs exceptions
+### Error Handling: `TestCase::assume()` vs exceptions
 
-`hegel::internal::assume(condition)` is **only** for filtering generated test data that doesn't meet preconditions. It signals to the framework that the current test case should be silently discarded (via `HegelReject`), not counted as a failure. It must never be used to handle errors in the library implementation itself.
+`tc.assume(condition)` (a method on the `TestCase&` passed to a test callback) is **only** for filtering generated test data that doesn't meet preconditions. It signals to the framework that the current test case should be silently discarded (via `HegelReject`), not counted as a failure. It must never be used to handle errors in the library implementation itself.
 
 **Correct use** - filtering generated values in tests:
 ```cpp
-auto x = integers<int>().generate();
-assume(x != std::numeric_limits<int32_t>::min());  // Skip edge case
+auto x = tc.draw(integers<int>());
+tc.assume(x != std::numeric_limits<int32_t>::min());  // Skip edge case
 ```
 
 **Wrong use** - masking server/protocol errors:
 ```cpp
 // BAD: silently swallows a server error as if it were bad test data
-internal::assume(response.contains("result"));
+tc.assume(response.contains("result"));
 
 // GOOD: surface the error so it can be diagnosed and fixed
 if (!response.contains("result")) {
@@ -119,4 +116,4 @@ if (!response.contains("result")) {
 Rules of thumb:
 - Server returned an error or malformed response? Throw `std::runtime_error`.
 - Caller passed invalid arguments (e.g. empty vector)? Throw `std::invalid_argument`.
-- Generated test data doesn't meet a precondition? Use `assume()`.
+- Generated test data doesn't meet a precondition? Use `tc.assume()`.

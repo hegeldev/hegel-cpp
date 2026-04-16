@@ -149,7 +149,6 @@ add_library(hegel
     src/hegel.cpp
     src/generators.cpp
     src/test_case.cpp
-    src/internal.cpp
     src/protocol.cpp
     src/connection.cpp
     src/crc32.cpp

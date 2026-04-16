@@ -1,11 +1,22 @@
+#include <hegel/internal.h>
+#include <hegel/test_case.h>
 #include <test_case.h>
 
-namespace hegel::impl::test_case {
+#include <iostream>
+#include <string_view>
 
-    static thread_local TestCaseData* current_ = nullptr;
+namespace hegel {
 
-    void set(TestCaseData* data) { current_ = data; }
-    void clear() { current_ = nullptr; }
-    TestCaseData* get() { return current_; }
+    void TestCase::assume(bool condition) const {
+        if (!condition) {
+            throw internal::HegelReject();
+        }
+    }
 
-} // namespace hegel::impl::test_case
+    void TestCase::note(std::string_view message) const {
+        if (data_->is_last_run) {
+            std::cerr << message << std::endl;
+        }
+    }
+
+} // namespace hegel

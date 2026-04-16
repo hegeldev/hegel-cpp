@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
-        [=]() {
+        [=](hegel::TestCase& tc) {
             auto elem_gen = gs::integers<int>(
                 {.min_value = min_value, .max_value = max_value});
             auto gen = gs::vectors(
@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
                                     : elem_gen,
                 {.min_size = min_size, .max_size = max_size, .unique = unique});
 
-            auto vec = hegel::draw(gen);
+            auto vec = tc.draw(gen);
             conformance::write_metrics({{"elements", vec}});
         },
         {.test_cases = test_cases});

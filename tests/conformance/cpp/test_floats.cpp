@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
-        [=]() {
+        [=](hegel::TestCase& tc) {
             auto gen = gs::floats<double>({
                 .min_value = min_value,
                 .max_value = max_value,
@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
                 .allow_nan = allow_nan,
                 .allow_infinity = allow_infinity,
             });
-            auto value = hegel::draw(gen);
+            auto value = tc.draw(gen);
             conformance::write_metrics({
                 {"value", value},
                 {"is_nan", std::isnan(value)},

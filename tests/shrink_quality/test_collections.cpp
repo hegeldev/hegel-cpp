@@ -50,9 +50,9 @@ namespace {
         auto v_gen = gs::vectors(gs::integers<int64_t>());
         auto i_gen = gs::integers<int64_t>();
         return gs::from_function<VecAndInt>(
-            [v_gen, i_gen](gs::TestCaseData* data) {
-                auto v = v_gen.do_draw(data);
-                int64_t i = i_gen.do_draw(data);
+            [v_gen, i_gen](const hegel::TestCase& tc) {
+                auto v = v_gen.do_draw(tc);
+                int64_t i = i_gen.do_draw(tc);
                 return VecAndInt{std::move(v), i};
             });
     }
