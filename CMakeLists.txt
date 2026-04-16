@@ -241,10 +241,12 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
       DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
   )
 
-  # Install docs
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs
-      TYPE DOC
-  )
+  # Install docs (only when they were actually built)
+  if(HEGEL_BUILD_DOCS)
+    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs
+        TYPE DOC
+    )
+  endif()
 
 endif()
 

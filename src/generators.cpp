@@ -36,6 +36,13 @@ namespace hegel::generators {
         return from_schema<bool>(std::move(schema));
     }
 
+    /// Returns true if any individual character filtering param is set.
+    static bool has_char_params(const TextParams& params) {
+        return params.codec || params.min_codepoint || params.max_codepoint ||
+               params.categories || params.exclude_categories ||
+               params.include_characters || params.exclude_characters;
+    }
+
     /// Apply character filtering fields to a nlohmann::json schema.
     /// Used by both text() and characters().
     static void apply_char_fields(
@@ -70,10 +77,7 @@ namespace hegel::generators {
             throw std::invalid_argument("Cannot have max_size < min_size");
         }
 
-        if (params.alphabet &&
-            (params.codec || params.min_codepoint || params.max_codepoint ||
-             params.categories || params.exclude_categories ||
-             params.include_characters || params.exclude_characters)) {
+        if (params.alphabet && has_char_params(params)) {
             throw std::invalid_argument(
                 "Cannot combine alphabet with individual character "
                 "filtering options");
