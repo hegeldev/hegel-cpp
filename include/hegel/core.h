@@ -22,8 +22,10 @@
  */
 namespace hegel::generators {
 
+    /// @cond INTERNAL
     // Convenience alias used throughout this header
     using TestCaseData = impl::data::TestCaseData;
+    /// @endcond
 
     /**
      * @brief The base interface that defines Generators.

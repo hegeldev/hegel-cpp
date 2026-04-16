@@ -1,5 +1,11 @@
 #pragma once
 
+/**
+ * @file data.h
+ * @brief Internal test state
+ * @cond INTERNAL
+ */
+
 #include <cstdint>
 #include <hegel/options.h>
 
@@ -25,3 +31,5 @@ namespace hegel::impl::data {
     TestCaseData* get();
 
 } // namespace hegel::impl::data
+
+/// @endcond

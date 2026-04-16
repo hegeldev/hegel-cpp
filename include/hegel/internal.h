@@ -18,15 +18,21 @@
 
 #include "json.h"
 
+/// @cond INTERNAL
 namespace hegel::impl::data {
     struct TestCaseData;
 }
+/// @endcond
 
+/**
+ * @brief Internal utilities exposed in public headers.
+ */
 namespace hegel::internal {
+    /// @cond INTERNAL
     hegel::internal::json::json
     communicate_with_core(const hegel::internal::json::json& schema,
                           impl::data::TestCaseData* data);
-
+    /// @endcond
     /**
      * @brief Print a note message for debugging.
      *
@@ -54,7 +60,8 @@ namespace hegel::internal {
      */
     void assume(bool condition);
 
-    /* Exception thrown when a test case is rejected
+    /**
+     * @brief Exception thrown when a test case is rejected
      * and should be discarded rather than counted as a failure.
      */
     class HegelReject : public std::exception {
@@ -62,6 +69,7 @@ namespace hegel::internal {
         const char* what() const noexcept override { return "assume failed"; }
     };
 
+    /// @cond INTERNAL
     /**
      * @brief Stop the current test case immediately.
      *
@@ -73,5 +81,6 @@ namespace hegel::internal {
 
     /// @brief Get the current test case data, or nullptr if not in a test.
     impl::data::TestCaseData* get_test_case_data();
+    /// @endcond
 
 } // namespace hegel::internal
