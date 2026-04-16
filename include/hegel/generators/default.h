@@ -165,7 +165,7 @@ namespace hegel::generators {
         struct DefaultGenerator<T, std::enable_if_t<is_optional<T>::value>> {
             static Generator<T> generator() {
                 using Inner = typename T::value_type;
-                return optional_(default_generator<Inner>());
+                return optional(default_generator<Inner>());
             }
         };
 
@@ -189,8 +189,8 @@ namespace hegel::generators {
 
         template <typename Variant, size_t... Is>
         auto make_default_variant_gen(std::index_sequence<Is...>) {
-            return variant_(default_generator<
-                            std::variant_alternative_t<Is, Variant>>()...);
+            return variant(default_generator<
+                           std::variant_alternative_t<Is, Variant>>()...);
         }
 
         template <typename T>

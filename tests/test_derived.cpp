@@ -224,7 +224,7 @@ TEST(DefaultGeneratorProperty, StructWithAllDefaultGenerators) {
 
 TEST(DefaultGeneratorProperty, OptionalOfStruct) {
     hegel::hegel([](hegel::TestCase& tc) {
-        auto gen = gs::optional_(gs::default_generator<Point>());
+        auto gen = gs::optional(gs::default_generator<Point>());
         auto maybe_point = tc.draw(gen);
         if (maybe_point.has_value()) {
             (void)maybe_point->x;

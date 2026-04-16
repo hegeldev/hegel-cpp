@@ -2,8 +2,8 @@
 
 /**
  * @file combinators.h
- * @brief Combinator generator functions: sampled_from, one_of, variant_,
- * optional_
+ * @brief Combinator generator functions: sampled_from, one_of, variant,
+ * optional
  */
 
 #include <variant>
@@ -183,16 +183,16 @@ namespace hegel::generators {
      * Each generator produces one possible variant alternative.
      *
      * @code{.cpp}
-     * auto value = variant_(integers<int>(), text(), booleans());
+     * auto value = variant(integers<int>(), text(), booleans());
      * // Returns std::variant<int, std::string, bool>
      * @endcode
      *
      * @tparam Ts Variant alternative types
      * @param gens Generators for each alternative
-     * @return Generator producing variants
+     * @return Generator producing variant
      */
     template <typename... Ts>
-    Generator<std::variant<Ts...>> variant_(Generator<Ts>... gens) {
+    Generator<std::variant<Ts...>> variant(Generator<Ts>... gens) {
         using ResultVariant = std::variant<Ts...>;
         constexpr size_t N = sizeof...(Ts);
 
@@ -215,7 +215,7 @@ namespace hegel::generators {
      * std::nullopt.
      *
      * @code{.cpp}
-     * auto maybe_int = optional_(integers<int>());
+     * auto maybe_int = optional(integers<int>());
      * // Returns std::optional<int>, may be nullopt
      * @endcode
      *
@@ -224,7 +224,7 @@ namespace hegel::generators {
      * @return Generator producing optional values
      */
     template <typename T>
-    Generator<std::optional<T>> optional_(Generator<T> gen) {
+    Generator<std::optional<T>> optional(Generator<T> gen) {
         auto bool_gen = booleans();
 
         return from_function<std::optional<T>>(

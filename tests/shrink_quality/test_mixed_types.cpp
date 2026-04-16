@@ -27,7 +27,7 @@ using IntOrTextOrBool = std::variant<int64_t, std::string, bool>;
 TEST(ShrinkMixed, OneOfMixed) {
     for (int rep = 0; rep < 10; ++rep) {
         auto v = minimal<IntOrTextOrBool>(
-            gs::variant_(gs::integers<int64_t>(), gs::text(), gs::booleans()),
+            gs::variant(gs::integers<int64_t>(), gs::text(), gs::booleans()),
             [](const IntOrTextOrBool&) { return true; });
         bool ok =
             (std::holds_alternative<int64_t>(v) && std::get<int64_t>(v) == 0) ||
@@ -41,7 +41,7 @@ TEST(ShrinkMixed, OneOfMixed) {
 using IntOrText = std::variant<int64_t, std::string>;
 
 TEST(ShrinkMixed, MixedList) {
-    auto element_gen = gs::variant_(gs::integers<int64_t>(), gs::text());
+    auto element_gen = gs::variant(gs::integers<int64_t>(), gs::text());
     auto v = minimal<std::vector<IntOrText>>(
         gs::vectors(element_gen),
         [](const std::vector<IntOrText>& x) { return x.size() >= 10; });

@@ -289,10 +289,10 @@ hegel::hegel([](hegel::TestCase& tc) {
     }));
 
     // Optional values (some or none)
-    auto opt = tc.draw(gs::optional_(gs::text())); // std::optional<std::string>
+    auto opt = tc.draw(gs::optional(gs::text())); // std::optional<std::string>
 
     // Variant types
-    auto var = tc.draw(gs::variant_(gs::integers<int>(), gs::text(), gs::booleans()));
+    auto var = tc.draw(gs::variant(gs::integers<int>(), gs::text(), gs::booleans()));
 });
 ```
 
