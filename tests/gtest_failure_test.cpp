@@ -1,21 +1,30 @@
 // gtest_failure_test.cpp - Tests that hegel properly reports failures with
-// counterexamples when using the HEGEL_TEST macro.
+// counterexamples
 //
 // This test intentionally fails to verify that:
-// 1. GTest integration properly detects failures via throw_on_failure
-// 2. The counterexample is shown in the output (Generated: ...)
+// 1. GTest integration properly reports failures
+// 2. The counterexample is shown in the output
 //
-// This test is registered with PASS_REGULAR_EXPRESSION in CMake, so it
-// "passes" when the output matches the expected pattern.
+// This test is registered with WILL_FAIL in CMake, so it "passes" when it
+// fails.
 
-#include <hegel/gtest.h>
+#include <gtest/gtest.h>
 
-HEGEL_TEST(FailureReporting, ShowsCounterexample) {
-    int x = hegel::draw(
-        hegel::generators::integers<int>({.min_value = 0, .max_value = 100}));
-    // This assertion will fail when x > 50, which should happen quickly.
-    // The failure message should include the actual value as a counterexample.
-    ASSERT_LE(x, 50) << "Value should be <= 50";
+#include <hegel/hegel.h>
+
+namespace gs = hegel::generators;
+
+TEST(FailureReporting, ShowsCounterexample) {
+    hegel::hegel(
+        [](hegel::TestCase& tc) {
+            int x =
+                tc.draw(gs::integers<int>({.min_value = 0, .max_value = 100}));
+            // This assertion will fail when x > 50, which should happen quickly
+            // The failure message should include the actual value as a
+            // counterexample
+            ASSERT_LE(x, 50) << "Value should be <= 50";
+        },
+        {.test_cases = 100});
 }
 
 int main(int argc, char** argv) {

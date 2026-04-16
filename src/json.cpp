@@ -125,20 +125,24 @@ namespace hegel::internal::json {
         : ref(new json_ref_holder(other.ref->data)) {}
     json_raw_ref::~json_raw_ref() = default;
 
-    std::string json_raw_ref::get_string() const {
+    std::string json_raw_ref::get_string() const noexcept {
         return ref->data.get<std::string>();
     }
-    bool json_raw_ref::get_bool() const { return ref->data.get<bool>(); }
-    uint32_t json_raw_ref::get_uint32_t() const {
+    bool json_raw_ref::get_bool() const noexcept {
+        return ref->data.get<bool>();
+    }
+    uint32_t json_raw_ref::get_uint32_t() const noexcept {
         return ref->data.get<uint32_t>();
     }
-    uint64_t json_raw_ref::get_uint64_t() const {
+    uint64_t json_raw_ref::get_uint64_t() const noexcept {
         return ref->data.get<uint64_t>();
     }
-    int64_t json_raw_ref::get_int64_t() const {
+    int64_t json_raw_ref::get_int64_t() const noexcept {
         return ref->data.get<int64_t>();
     }
-    double json_raw_ref::get_double() const { return ref->data.get<double>(); }
+    double json_raw_ref::get_double() const noexcept {
+        return ref->data.get<double>();
+    }
 
     size_t json_raw_ref::size() const noexcept { return ref->data.size(); }
 
@@ -152,6 +156,18 @@ namespace hegel::internal::json {
     }
     json_raw_ref& json_raw_ref::operator=(const double& other) {
         ref->data = other;
+        return *this;
+    }
+    json_raw_ref& json_raw_ref::operator=(bool other) {
+        ref->data = other;
+        return *this;
+    }
+    json_raw_ref& json_raw_ref::operator=(const std::string& other) {
+        ref->data = other;
+        return *this;
+    }
+    json_raw_ref& json_raw_ref::operator=(const json& other) {
+        ref->data = ImplUtil::raw(other);
         return *this;
     }
 
@@ -194,7 +210,7 @@ namespace hegel::internal::json {
             result.push_back(json_raw_ref(new json_ref_holder(elt)));
         }
         return result;
-    } // GCOVR_EXCL_LINE
+    }
 
     std::vector<std::pair<std::string, json_raw_ref>>
     json_raw_ref::items() const {
@@ -204,7 +220,7 @@ namespace hegel::internal::json {
                 std::make_pair(key, json_raw_ref(new json_ref_holder(val))));
         }
         return result;
-    } // GCOVR_EXCL_LINE
+    }
 
     std::optional<json_raw_ref>
     json_raw_ref::find(const std::string& key) const {

@@ -14,10 +14,16 @@ namespace hegel::generators {
     /// @name Primitive Strategies
     /// @{
 
-    /// Generate null values (std::monostate)
+    /**
+     * @brief Generate null values (std::monostate).
+     * @return Generator that always produces std::monostate{}.
+     */
     Generator<std::monostate> nulls();
 
-    /// Generate random boolean values
+    /**
+     * @brief Generate random boolean values.
+     * @return Generator producing `true` or `false`.
+     */
     Generator<bool> booleans();
 
     /**
@@ -42,14 +48,18 @@ namespace hegel::generators {
                       std::is_same_v<T, std::string>) {
             hegel::internal::json::json schema = {{"type", "constant"},
                                                   {"value", value}};
-            return from_function<T>([value](TestCaseData*) { return value; },
+            return from_function<T>([value](const TestCase&) { return value; },
                                     std::move(schema));
         } else {
-            return from_function<T>([value](TestCaseData*) { return value; });
+            return from_function<T>([value](const TestCase&) { return value; });
         }
     }
 
-    /// @overload just(const char*) - convenience overload for string literals
+    /**
+     * @brief Generate a constant string value (string literal convenience).
+     * @param value The C-string to convert to std::string.
+     * @return Generator that always produces std::string(value).
+     */
     inline Generator<std::string> just(const char* value) {
         return just(std::string(value));
     }

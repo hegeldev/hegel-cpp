@@ -6,10 +6,9 @@
 int main(int, char*[]) {
     try {
         hegel::hegel(
-            []() {
+            [](hegel::TestCase& tc) {
                 try {
-                    auto value =
-                        hegel::draw(hegel::generators::integers<int>());
+                    auto value = tc.draw(hegel::generators::integers<int>());
                     (void)value;
                 } catch (...) {
                     // The protocol test mode may cause unexpected responses.

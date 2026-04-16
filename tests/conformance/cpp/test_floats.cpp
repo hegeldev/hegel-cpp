@@ -1,7 +1,6 @@
 #include <cmath>
 #include <hegel/json.h>
 #include <iostream>
-#include <limits>
 #include <optional>
 
 #include "hegel/hegel.h"
@@ -9,6 +8,7 @@
 
 #include "../../../src/json_impl.h"
 using hegel::internal::json::ImplUtil;
+namespace gs = hegel::generators;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -38,27 +38,8 @@ int main(int argc, char* argv[]) {
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
-        [=]() {
-            // When both bounds are excluded, check that a valid float exists
-            // strictly between them. Adjacent IEEE-754 doubles have no float
-            // between them; asking the server to generate such a value would
-            // raise InvalidArgument on the Python side and crash the server.
-            // In that case, write a dummy NaN metric and skip the draw.
-            if (min_value.has_value() && max_value.has_value() && exclude_min &&
-                exclude_max) {
-                double lo = *min_value;
-                double hi = *max_value;
-                double next =
-                    std::nextafter(lo, std::numeric_limits<double>::infinity());
-                if (next >= hi) {
-                    conformance::write_metrics({{"value", 0.0},
-                                                {"is_nan", true},
-                                                {"is_infinite", false}});
-                    return;
-                }
-            }
-
-            auto gen = hegel::generators::floats<double>({
+        [=](hegel::TestCase& tc) {
+            auto gen = gs::floats<double>({
                 .min_value = min_value,
                 .max_value = max_value,
                 .exclude_min = exclude_min,
@@ -66,7 +47,7 @@ int main(int argc, char* argv[]) {
                 .allow_nan = allow_nan,
                 .allow_infinity = allow_infinity,
             });
-            auto value = hegel::draw(gen);
+            auto value = tc.draw(gen);
             conformance::write_metrics({
                 {"value", value},
                 {"is_nan", std::isnan(value)},

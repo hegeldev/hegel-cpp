@@ -9,6 +9,7 @@
 
 #include "../../../src/json_impl.h"
 using hegel::internal::json::ImplUtil;
+namespace gs = hegel::generators;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -25,10 +26,9 @@ int main(int argc, char* argv[]) {
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
-        [=]() {
-            auto gen = hegel::generators::binary(
-                {.min_size = min_size, .max_size = max_size});
-            std::vector<uint8_t> value = hegel::draw(gen);
+        [=](hegel::TestCase& tc) {
+            auto gen = gs::binary({.min_size = min_size, .max_size = max_size});
+            std::vector<uint8_t> value = tc.draw(gen);
             conformance::write_metrics({{"length", value.size()}});
         },
         {.test_cases = test_cases});

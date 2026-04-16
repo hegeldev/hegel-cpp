@@ -2,8 +2,8 @@
 
 /**
  * @file combinators.h
- * @brief Combinator generator functions: sampled_from, one_of, variant_,
- * optional_
+ * @brief Combinator generator functions: sampled_from, one_of, variant,
+ * optional
  */
 
 #include <variant>
@@ -51,20 +51,29 @@ namespace hegel::generators {
             auto index_gen = integers<size_t>(
                 {.min_value = 0, .max_value = elements.size() - 1});
 
-            return from_function<T>([elements, index_gen](TestCaseData* data) {
-                size_t idx = index_gen.do_draw(data);
+            return from_function<T>([elements, index_gen](const TestCase& tc) {
+                size_t idx = index_gen.do_draw(tc);
                 return elements[idx];
             });
         }
     }
 
-    /// @overload sampled_from(std::initializer_list<T>)
+    /**
+     * @brief Sample uniformly from a fixed set of values (initializer list).
+     * @tparam T Element type
+     * @param elements Values to sample from (must not be empty)
+     * @return Generator that picks uniformly from elements
+     */
     template <typename T>
     Generator<T> sampled_from(std::initializer_list<T> elements) {
         return sampled_from(std::vector<T>(elements));
     }
 
-    /// @overload
+    /**
+     * @brief Sample uniformly from a fixed set of C-string literals.
+     * @param elements String literals to sample from (must not be empty)
+     * @return Generator of std::string picking uniformly from elements
+     */
     inline Generator<std::string>
     sampled_from(std::initializer_list<const char*> elements) {
         std::vector<std::string> strings;
@@ -79,48 +88,10 @@ namespace hegel::generators {
     namespace detail {
 
         template <typename T>
-        auto make_tagged_one_of(std::vector<Generator<T>> gens)
-            -> Generator<T> {
-            using json = hegel::internal::json::json;
-            using json_raw_ref = hegel::internal::json::json_raw_ref;
-
-            std::vector<std::function<T(json_raw_ref)>> appliers;
-            json tagged_schemas = json::array();
-
-            for (size_t i = 0; i < gens.size(); ++i) {
-                appliers.push_back(*gens[i].get_applier());
-
-                json elements = json::array();
-                elements.push_back(
-                    json({{"type", "constant"}, {"value", (int64_t)i}}));
-                elements.push_back(*gens[i].schema());
-                json tuple_schema = {{"type", "tuple"}, {"elements", elements}};
-                tagged_schemas.push_back(std::move(tuple_schema));
-            }
-
-            json one_of_schema = {{"type", "one_of"},
-                                  {"generators", tagged_schemas}};
-
-            return from_function<T>(
-                [appliers, one_of_schema](TestCaseData* data) -> T {
-                    json response =
-                        internal::communicate_with_core(one_of_schema, data);
-                    if (!response.contains("result")) {
-                        throw std::runtime_error(
-                            "Server response missing 'result' field");
-                    }
-                    json_raw_ref result = response["result"];
-                    auto idx = static_cast<size_t>(result[0].get_int64_t());
-                    return appliers[idx](result[1]);
-                },
-                one_of_schema);
-        }
-
-        template <typename T>
         auto make_one_of_schema(const std::vector<Generator<T>>& gens)
             -> std::optional<hegel::internal::json::json> {
             for (const auto& gen : gens) {
-                if (!gen.schema() || gen.has_client_transform())
+                if (!gen.schema())
                     return std::nullopt;
             }
 
@@ -143,9 +114,6 @@ namespace hegel::generators {
      *
      * Randomly selects one generator and uses it to produce a value.
      *
-     * Uses a single server round-trip whenever all generators are
-     * schema-backed (with or without a client-side transform via map()).
-     *
      * @code{.cpp}
      * auto range = one_of({
      *     integers<int>({.min_value = 0, .max_value = 10}),
@@ -163,36 +131,27 @@ namespace hegel::generators {
                 "one_of requires a non-empty vector of generators");
         }
 
-        // Path 1: all basic (schema, no client transform) → simple one_of
         auto maybe_schema = detail::make_one_of_schema(gens);
+
         if (maybe_schema) {
             return from_schema<T>(std::move(*maybe_schema));
         }
 
-        // Path 2: all have schema + applier, some with client transform →
-        // tagged-tuple schema for a single server round-trip
-        bool all_have_appliers = true;
-        for (const auto& gen : gens) {
-            if (!gen.schema() || !gen.get_applier()) {
-                all_have_appliers = false;
-                break;
-            }
-        }
-        if (all_have_appliers) {
-            return detail::make_tagged_one_of(std::move(gens));
-        }
-
-        // Path 3: at least one generator lacks a schema → function-based
         auto index_gen =
             integers<size_t>({.min_value = 0, .max_value = gens.size() - 1});
 
-        return from_function<T>([gens, index_gen](TestCaseData* data) {
-            size_t idx = index_gen.do_draw(data);
-            return gens[idx].do_draw(data);
+        return from_function<T>([gens, index_gen](const TestCase& tc) {
+            size_t idx = index_gen.do_draw(tc);
+            return gens[idx].do_draw(tc);
         });
     }
 
-    /// @overload one_of(std::initializer_list<Generator<T>>)
+    /**
+     * @brief Choose uniformly from a list of generators (initializer list).
+     * @tparam T Value type produced by each generator
+     * @param gens Generators to choose from (must not be empty)
+     * @return Generator that picks uniformly from gens and forwards do_draw
+     */
     template <typename T>
     Generator<T> one_of(std::initializer_list<Generator<T>> gens) {
         return one_of(std::vector<Generator<T>>(gens));
@@ -203,13 +162,13 @@ namespace hegel::generators {
 
         template <typename Variant, typename GenTuple, size_t I = 0>
         Variant draw_variant_impl(const GenTuple& gens, size_t idx,
-                                  TestCaseData* data) {
+                                  const TestCase& tc) {
             if constexpr (I < std::tuple_size_v<GenTuple>) {
                 if (idx == I) {
-                    return std::get<I>(gens).do_draw(data);
+                    return std::get<I>(gens).do_draw(tc);
                 }
                 return draw_variant_impl<Variant, GenTuple, I + 1>(gens, idx,
-                                                                   data);
+                                                                   tc);
             } else {
                 return Variant{};
             }
@@ -224,29 +183,29 @@ namespace hegel::generators {
      * Each generator produces one possible variant alternative.
      *
      * @code{.cpp}
-     * auto value = variant_(integers<int>(), text(), booleans());
+     * auto value = variant(integers<int>(), text(), booleans());
      * // Returns std::variant<int, std::string, bool>
      * @endcode
      *
      * @tparam Ts Variant alternative types
      * @param gens Generators for each alternative
-     * @return Generator producing variants
+     * @return Generator producing variant
      */
     template <typename... Ts>
-    Generator<std::variant<Ts...>> variant_(Generator<Ts>... gens) {
+    Generator<std::variant<Ts...>> variant(Generator<Ts>... gens) {
         using ResultVariant = std::variant<Ts...>;
         constexpr size_t N = sizeof...(Ts);
 
         auto gen_tuple = std::make_tuple(std::move(gens)...);
         auto index_gen = integers<size_t>({.min_value = 0, .max_value = N - 1});
 
-        return from_function<ResultVariant>([gen_tuple,
-                                             index_gen](TestCaseData* data) {
-            size_t idx = index_gen.do_draw(data);
-            return detail::draw_variant_impl<ResultVariant,
-                                             decltype(gen_tuple)>(gen_tuple,
-                                                                  idx, data);
-        });
+        return from_function<ResultVariant>(
+            [gen_tuple, index_gen](const TestCase& tc) {
+                size_t idx = index_gen.do_draw(tc);
+                return detail::draw_variant_impl<ResultVariant,
+                                                 decltype(gen_tuple)>(gen_tuple,
+                                                                      idx, tc);
+            });
     }
 
     /**
@@ -256,7 +215,7 @@ namespace hegel::generators {
      * std::nullopt.
      *
      * @code{.cpp}
-     * auto maybe_int = optional_(integers<int>());
+     * auto maybe_int = optional(integers<int>());
      * // Returns std::optional<int>, may be nullopt
      * @endcode
      *
@@ -265,16 +224,16 @@ namespace hegel::generators {
      * @return Generator producing optional values
      */
     template <typename T>
-    Generator<std::optional<T>> optional_(Generator<T> gen) {
+    Generator<std::optional<T>> optional(Generator<T> gen) {
         auto bool_gen = booleans();
 
         return from_function<std::optional<T>>(
-            [gen, bool_gen](TestCaseData* data) -> std::optional<T> {
-                bool is_none = bool_gen.do_draw(data);
+            [gen, bool_gen](const TestCase& tc) -> std::optional<T> {
+                bool is_none = bool_gen.do_draw(tc);
                 if (is_none) {
                     return std::nullopt;
                 }
-                return gen.do_draw(data);
+                return gen.do_draw(tc);
             });
     }
 

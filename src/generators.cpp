@@ -23,26 +23,19 @@
 
 using hegel::internal::json::ImplUtil;
 
-// =============================================================================
-// Primitive strategy implementations
-// =============================================================================
-
 namespace hegel::generators {
 
     Generator<std::monostate> nulls() {
         hegel::internal::json::json schema = {{"type", "null"}};
         return from_function<std::monostate>(
-            [](TestCaseData*) { return std::monostate{}; }, std::move(schema));
+            [](const TestCase&) { return std::monostate{}; },
+            std::move(schema));
     }
 
     Generator<bool> booleans() {
         hegel::internal::json::json schema = {{"type", "boolean"}};
         return from_schema<bool>(std::move(schema));
     }
-
-    // =============================================================================
-    // String strategy implementations
-    // =============================================================================
 
     /// Returns true if any individual character filtering param is set.
     static bool has_char_params(const TextParams& params) {
@@ -136,13 +129,13 @@ namespace hegel::generators {
             schema["max_size"] = *params.max_size;
 
         return from_function<std::vector<uint8_t>>(
-            [schema](TestCaseData* data) -> std::vector<uint8_t> {
+            [schema](const TestCase& tc) -> std::vector<uint8_t> {
                 hegel::internal::json::json response =
-                    internal::communicate_with_core(schema, data);
-                if (!response.contains("result")) { // GCOVR_EXCL_START
+                    internal::communicate_with_core(schema, tc);
+                if (!response.contains("result")) {
                     throw std::runtime_error(
                         "Server response missing 'result' field");
-                } // GCOVR_EXCL_STOP
+                }
                 return ImplUtil::raw(response["result"]).get_binary();
             },
             schema);
@@ -154,10 +147,6 @@ namespace hegel::generators {
             {"type", "regex"}, {"pattern", pattern}, {"fullmatch", fullmatch}};
         return from_schema<std::string>(std::move(schema));
     }
-
-    // =============================================================================
-    // Format string strategy implementations
-    // =============================================================================
 
     Generator<std::string> emails() {
         return from_schema<std::string>(
@@ -197,7 +186,7 @@ namespace hegel::generators {
                      hegel::internal::json::json{{"type", "ipv6"}}});
             return from_schema<std::string>(hegel::internal::json::json{
                 {"type", "one_of"}, {"generators", one_of}});
-        } // GCOVR_EXCL_LINE
+        }
     }
 
     Generator<std::string> dates() {
@@ -215,15 +204,11 @@ namespace hegel::generators {
             hegel::internal::json::json{{"type", "datetime"}});
     }
 
-    // =============================================================================
-    // Random strategy implementations
-    // =============================================================================
-
-    HegelRandom::HegelRandom(TestCaseData* data)
-        : data_(data), engine_(std::nullopt) {}
+    HegelRandom::HegelRandom(const TestCase& tc)
+        : tc_(&tc), engine_(std::nullopt) {}
 
     HegelRandom::HegelRandom(uint64_t seed)
-        : data_(nullptr), engine_(std::mt19937(seed)) {}
+        : tc_(nullptr), engine_(std::mt19937(seed)) {}
 
     HegelRandom::result_type HegelRandom::operator()() {
         if (engine_) {
@@ -232,15 +217,14 @@ namespace hegel::generators {
 
         hegel::internal::json::json schema = {
             {"type", "integer"},
-            {"min_value",
-             std::numeric_limits<uint32_t>::min()}, // GCOVR_EXCL_LINE
+            {"min_value", std::numeric_limits<uint32_t>::min()},
             {"max_value", std::numeric_limits<uint32_t>::max()}};
 
         hegel::internal::json::json response =
-            internal::communicate_with_core(schema, data_);
-        if (!response.contains("result")) { // GCOVR_EXCL_START
+            internal::communicate_with_core(schema, *tc_);
+        if (!response.contains("result")) {
             throw std::runtime_error("Server response missing 'result' field");
-        } // GCOVR_EXCL_STOP
+        }
         return ImplUtil::raw(response["result"]).get<uint32_t>();
     }
 
@@ -248,15 +232,13 @@ namespace hegel::generators {
         if (params.use_true_random) {
             auto seed_gen = integers<uint64_t>();
             return from_function<HegelRandom>(
-                [seed_gen](TestCaseData* data) -> HegelRandom {
-                    auto seed = seed_gen.do_draw(data);
+                [seed_gen](const TestCase& tc) -> HegelRandom {
+                    auto seed = seed_gen.do_draw(tc);
                     return HegelRandom(seed);
                 });
         }
         return from_function<HegelRandom>(
-            [](TestCaseData* data) -> HegelRandom { // GCOVR_EXCL_LINE
-                return HegelRandom(data);
-            });
+            [](const TestCase& tc) -> HegelRandom { return HegelRandom(tc); });
     }
 
 } // namespace hegel::generators

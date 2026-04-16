@@ -1,10 +1,10 @@
 #include <connection.h>
-#include <data.h>
-#include <data_source.h>
 #include <hegel/internal.h>
 #include <hegel/json.h>
+#include <hegel/test_case.h>
 #include <iostream>
 #include <protocol.h>
+#include <test_case.h>
 
 #include "json_impl.h"
 
@@ -17,10 +17,10 @@
 
 using hegel::internal::json::ImplUtil;
 
-// =============================================================================
-// Connection and Stream Multiplexing
-// =============================================================================
 namespace hegel::impl {
+    static constexpr const char* MIN_PROTOCOL_VERSION = "0.10";
+    static constexpr const char* MAX_PROTOCOL_VERSION = "0.10";
+    static constexpr const char* HANDSHAKE_STRING = "hegel_handshake_start";
 
     Connection::Connection(int read_fd, int write_fd)
         : read_fd_(read_fd), write_fd_(write_fd) {}
@@ -38,9 +38,6 @@ namespace hegel::impl {
         }
     }
 
-    // =============================================================================
-    // Stream Management
-    // =============================================================================
     uint32_t Connection::create_stream() {
         uint32_t id = (next_stream_counter_ << 1) | 1;
         next_stream_counter_++;
@@ -52,13 +49,6 @@ namespace hegel::impl {
         return next_message_id_[stream]++;
     }
 
-    // =============================================================================
-    // Handshake
-    // =============================================================================
-    static constexpr const char* MIN_PROTOCOL_VERSION = "0.10";
-    static constexpr const char* MAX_PROTOCOL_VERSION = "0.10";
-    static constexpr const char* HANDSHAKE_STRING = "hegel_handshake_start";
-
     // Compare two "major.minor" version strings numerically.
     // Returns -1 if a < b, 0 if a == b, 1 if a > b.
     static int compare_versions(const std::string& a, const std::string& b) {
@@ -66,16 +56,14 @@ namespace hegel::impl {
             auto dot = s.find('.');
             if (dot == std::string::npos ||
                 s.find('.', dot + 1) != std::string::npos) {
-                throw std::invalid_argument(
-                    "invalid version string '" + s +     // GCOVR_EXCL_LINE
-                    "': expected 'major.minor' format"); // GCOVR_EXCL_LINE
+                throw std::invalid_argument("invalid version string '" + s +
+                                            "': expected 'major.minor' format");
             }
             auto major_str = s.substr(0, dot);
             auto minor_str = s.substr(dot + 1);
             if (major_str.empty() || minor_str.empty()) {
-                throw std::invalid_argument(
-                    "invalid version string '" + s +     // GCOVR_EXCL_LINE
-                    "': expected 'major.minor' format"); // GCOVR_EXCL_LINE
+                throw std::invalid_argument("invalid version string '" + s +
+                                            "': expected 'major.minor' format");
             }
             int major = std::stoi(major_str);
             int minor = std::stoi(minor_str);
@@ -96,7 +84,7 @@ namespace hegel::impl {
         uint32_t msg_id = alloc_message_id(0);
         protocol::write_packet(write_fd_, 0, msg_id, false, payload);
 
-        // Wait for reply on stream 0
+        // Wait for reply on the control stream
         auto packet = wait_for(0, true);
         std::string response(packet.payload.begin(), packet.payload.end());
 
@@ -118,9 +106,6 @@ namespace hegel::impl {
         }
     }
 
-    // =============================================================================
-    // Request / Reply
-    // =============================================================================
     hegel::internal::json::json
     Connection::request(uint32_t stream,
                         const hegel::internal::json::json& msg) {
@@ -158,9 +143,6 @@ namespace hegel::impl {
                                false, payload);
     }
 
-    // =============================================================================
-    // Packet Routing
-    // =============================================================================
     protocol::Packet Connection::wait_for(uint32_t stream, bool want_reply) {
         // Check pending buffer first
         auto& queue = pending_[stream];
@@ -184,40 +166,25 @@ namespace hegel::impl {
 
 } // namespace hegel::impl
 
-// =============================================================================
-// Core Communication
-// =============================================================================
 namespace hegel::internal {
-
-    static void handle_error_response(const nlohmann::json& response_raw,
-                                      impl::data::TestCaseData* data) {
-        if (!response_raw.contains("error")) {
-            return;
-        }
-        std::string error_type;
-        if (response_raw.contains("type") && response_raw["type"].is_string()) {
-            error_type = response_raw["type"].get<std::string>();
-        }
-        if (error_type == "StopTest" || error_type == "Overflow") {
-            data->test_aborted = true;
-            internal::stop_test();
-        }
-        std::string error_msg = response_raw["error"].is_string()
-                                    ? response_raw["error"].get<std::string>()
-                                    : "unknown error";
-        throw std::runtime_error(error_msg);
-    }
-
     hegel::internal::json::json
     communicate_with_core(const hegel::internal::json::json& schema,
-                          impl::data::TestCaseData* data) {
+                          const hegel::TestCase& tc) {
+        auto* data = tc.data();
+        auto* conn = data->connection;
+        uint32_t data_stream = data->data_stream;
+
+        // Build generate request as CBOR
+        hegel::internal::json::json request = {{"command", "generate"},
+                                               {"schema", schema}};
+
         if (impl::protocol::protocol_debug_enabled()) {
-            hegel::internal::json::json dbg_req = {{"command", "generate"},
-                                                   {"schema", schema}};
-            std::cerr << "REQUEST: " << dbg_req.dump() << "\n";
+            std::cerr << "REQUEST: " << request.dump() << "\n";
         }
 
-        hegel::internal::json::json response = data->source->generate(schema);
+        // Send request and get response
+        hegel::internal::json::json response =
+            conn->request(data_stream, request);
 
         auto response_raw = ImplUtil::raw(response);
 
@@ -225,7 +192,28 @@ namespace hegel::internal {
             std::cerr << "RESPONSE: " << response_raw.dump() << "\n";
         }
 
-        handle_error_response(response_raw, data);
+        // Handle errors
+        if (response_raw.contains("error")) {
+            std::string error_type = response_raw.value("type", "");
+            // Backend told us to abandon this iteration. Unwinds via
+            // HegelStopTest, which the runner handles by skipping
+            // mark_complete.
+            if (error_type == "StopTest" || error_type == "Overflow" ||
+                error_type == "FlakyStrategyDefinition" ||
+                error_type == "FlakyReplay") {
+                throw HegelStopTest();
+            }
+            // Backend rejected this draw (e.g. filter predicate on the server
+            // side). Treated like a user-side assume(false).
+            if (error_type == "UnsatisfiedAssumption") {
+                throw HegelReject();
+            }
+            std::string error_msg =
+                response_raw["error"].is_string()
+                    ? response_raw["error"].get<std::string>()
+                    : "unknown error";
+            throw std::runtime_error(error_msg);
+        }
 
         // Auto-log generated value during final replay (counterexample)
         if (data->is_last_run) {
@@ -236,14 +224,6 @@ namespace hegel::internal {
         }
 
         return response;
-    }
-
-    void start_span(uint64_t label, impl::data::TestCaseData* data) {
-        data->source->start_span(label);
-    }
-
-    void stop_span(bool discard, impl::data::TestCaseData* data) {
-        data->source->stop_span(discard);
     }
 
 } // namespace hegel::internal

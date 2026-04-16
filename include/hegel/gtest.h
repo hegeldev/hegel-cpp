@@ -14,7 +14,7 @@
  * #include <hegel/gtest.h>
  *
  * HEGEL_TEST(MyTest, IntegersArePositive) {
- *     auto x = hegel::draw(hegel::generators::integers<int>(
+ *     auto x = tc.draw(hegel::generators::integers<int>(
  *         {.min_value = 0, .max_value = 100}));
  *     ASSERT_GE(x, 0);
  * }
@@ -32,21 +32,21 @@
  * property test. GTest assertions (ASSERT_*, EXPECT_*) work correctly:
  * failures are detected by Hegel and trigger shrinking.
  *
+ * Inside the body, `tc` is an in-scope `hegel::TestCase&` which you use
+ * to draw values (`tc.draw(...)`), filter inputs (`tc.assume(...)`),
+ * and record notes (`tc.note(...)`).
+ *
  * @param suite The test suite name
  * @param name The test name
- *
- * The test body can use hegel::draw(), hegel::note(), hegel::assume(),
- * and any GTest assertion macros. An optional HegelOptions can be
- * passed by defining HEGEL_OPTIONS before the test body.
  */
 #define HEGEL_TEST(suite, name)                                                \
-    static void hegel_test_body_##suite##_##name();                            \
+    static void hegel_test_body_##suite##_##name(hegel::TestCase& tc);         \
     TEST(suite, name) {                                                        \
         try {                                                                  \
             hegel::hegel(                                                      \
-                []() {                                                         \
+                [](hegel::TestCase& tc) {                                      \
                     GTEST_FLAG_SET(throw_on_failure, true);                    \
-                    hegel_test_body_##suite##_##name();                        \
+                    hegel_test_body_##suite##_##name(tc);                      \
                     GTEST_FLAG_SET(throw_on_failure, false);                   \
                 },                                                             \
                 {.test_cases = 100});                                          \
@@ -55,4 +55,4 @@
             FAIL() << e.what();                                                \
         }                                                                      \
     }                                                                          \
-    static void hegel_test_body_##suite##_##name()
+    static void hegel_test_body_##suite##_##name(hegel::TestCase& tc)

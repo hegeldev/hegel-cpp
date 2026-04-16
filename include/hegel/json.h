@@ -1,5 +1,12 @@
 #pragma once
 
+/**
+ * @file json.h
+ * @brief Internal JSON wrapper types (hegel::internal::json). Hidden from
+ * public docs; see hegel/json.h source for details.
+ * @cond INTERNAL
+ */
+
 #include <cstddef>
 #include <initializer_list>
 #include <memory>
@@ -28,12 +35,12 @@ namespace hegel::internal::json {
         json_raw_ref(const json_raw_ref& other);
         ~json_raw_ref();
 
-        std::string get_string() const;
-        bool get_bool() const;
-        uint32_t get_uint32_t() const;
-        uint64_t get_uint64_t() const;
-        int64_t get_int64_t() const;
-        double get_double() const;
+        std::string get_string() const noexcept;
+        bool get_bool() const noexcept;
+        uint32_t get_uint32_t() const noexcept;
+        uint64_t get_uint64_t() const noexcept;
+        int64_t get_int64_t() const noexcept;
+        double get_double() const noexcept;
 
         size_t size() const noexcept;
 
@@ -49,6 +56,9 @@ namespace hegel::internal::json {
         json_raw_ref& operator=(const size_t& other);
         json_raw_ref& operator=(const double& other);
         json_raw_ref& operator=(const std::nullptr_t& other);
+        json_raw_ref& operator=(bool other);
+        json_raw_ref& operator=(const std::string& other);
+        json_raw_ref& operator=(const json& other);
 #ifdef __APPLE__
         json_raw_ref& operator=(const uint64_t& other);
 #endif
@@ -140,3 +150,4 @@ namespace hegel::internal::json {
         json const* value_ref = nullptr;
     };
 } // namespace hegel::internal::json
+/// @endcond

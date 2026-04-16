@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(hegel-cpp VERSION 0.1.0 LANGUAGES CXX)
+project(hegel-cpp VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -148,12 +148,12 @@ add_library(hegel
   STATIC
     src/hegel.cpp
     src/generators.cpp
-    src/data.cpp
-    src/internal.cpp
+    src/test_case.cpp
     src/protocol.cpp
     src/connection.cpp
-    src/data_source.cpp
+    src/crc32.cpp
     src/json.cpp
+    src/utils.cpp
 )
 target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -240,10 +240,12 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
       DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
   )
 
-  # Install docs
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs
-      TYPE DOC
-  )
+  # Install docs (only when they were actually built)
+  if(HEGEL_BUILD_DOCS)
+    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs
+        TYPE DOC
+    )
+  endif()
 
 endif()
 

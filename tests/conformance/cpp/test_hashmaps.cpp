@@ -9,6 +9,7 @@
 
 #include "../../../src/json_impl.h"
 using hegel::internal::json::ImplUtil;
+namespace gs = hegel::generators;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -24,33 +25,21 @@ int main(int argc, char* argv[]) {
     int max_key = args["max_key"].get<int>();
     int min_value = args["min_value"].get<int>();
     int max_value = args["max_value"].get<int>();
-    std::string mode = args.value("mode", "basic");
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
-        [=]() {
+        [=](hegel::TestCase& tc) {
             nlohmann::json metrics;
 
             if (key_type == "integer") {
-                auto key_gen = hegel::generators::integers<int>(
-                    {.min_value = min_key, .max_value = max_key});
-                auto val_gen = hegel::generators::integers<int>(
-                    {.min_value = min_value, .max_value = max_value});
-
-                // In non_basic mode, wrap generators to make them
-                // function-backed
-                auto final_key_gen = mode == "non_basic"
-                                         ? key_gen.map([](int x) { return x; })
-                                         : key_gen;
-                auto final_val_gen = mode == "non_basic"
-                                         ? val_gen.map([](int x) { return x; })
-                                         : val_gen;
-
-                auto gen = hegel::generators::dictionaries(
-                    final_key_gen, final_val_gen,
+                auto gen = gs::dictionaries(
+                    gs::integers<int>(
+                        {.min_value = min_key, .max_value = max_key}),
+                    gs::integers<int>(
+                        {.min_value = min_value, .max_value = max_value}),
                     {.min_size = min_size, .max_size = max_size});
 
-                auto dict = hegel::draw(gen);
+                auto dict = tc.draw(gen);
 
                 metrics["size"] = dict.size();
                 if (!dict.empty()) {
@@ -72,24 +61,13 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 // string keys
-                auto val_gen = hegel::generators::integers<int>(
-                    {.min_value = min_value, .max_value = max_value});
-
-                auto final_val_gen = mode == "non_basic"
-                                         ? val_gen.map([](int x) { return x; })
-                                         : val_gen;
-
-                auto text_gen = hegel::generators::text();
-                auto final_text_gen =
-                    mode == "non_basic"
-                        ? text_gen.map([](std::string s) { return s; })
-                        : text_gen;
-
-                auto gen = hegel::generators::dictionaries(
-                    final_text_gen, final_val_gen,
+                auto gen = gs::dictionaries(
+                    gs::text(),
+                    gs::integers<int>(
+                        {.min_value = min_value, .max_value = max_value}),
                     {.min_size = min_size, .max_size = max_size});
 
-                auto dict = hegel::draw(gen);
+                auto dict = tc.draw(gen);
 
                 metrics["size"] = dict.size();
                 if (!dict.empty()) {

@@ -12,71 +12,43 @@
  * and exist only in the src/ directory.
  */
 
-#include <optional>
-#include <stdexcept>
-#include <string>
+#include <exception>
 
 #include "json.h"
 
-namespace hegel::impl::data {
-    struct TestCaseData;
+namespace hegel {
+    class TestCase;
 }
 
 /// @cond INTERNAL
 namespace hegel::internal {
     hegel::internal::json::json
     communicate_with_core(const hegel::internal::json::json& schema,
-                          impl::data::TestCaseData* data);
+                          const hegel::TestCase& tc);
 
-    void start_span(uint64_t label, impl::data::TestCaseData* data);
-    void stop_span(bool discard, impl::data::TestCaseData* data);
-
-    /* Print a note message for debugging.
-     *
-     * Only prints on the last run (final replay for counterexample output)
-     * to avoid cluttering output during the many test iterations.
-     */
-    void note(const std::string& message);
-
-    /**
-     * @brief Assume a condition is true; reject if false.
-     *
-     * Use this when generated data doesn't meet test preconditions.
-     * This signals to Hegel that the input is invalid and should be
-     * discarded, not counted as a test failure.
-     *
-     * @code{.cpp}
-     * auto person = hegel::draw(person_gen);
-     * hegel::assume(person.age >= 18);  // Only test adults
-     * // ... rest of test
-     * @endcode
-     *
-     * @param condition The condition to check
-     */
-    void assume(bool condition);
-
-    /* Exception thrown when a test case is rejected
-     * and should be discarded rather than counted as a failure.
+    /* Exception thrown when a test case is rejected and should be
+     * discarded (e.g. by `TestCase::assume(false)`, an exhausted
+     * `filter()`, or an `UnsatisfiedAssumption` from the server).
+     * The runner records the case as INVALID and continues.
      */
     class HegelReject : public std::exception {
       public:
-        const char* what() const noexcept override { return "assume failed"; }
+        const char* what() const noexcept override {
+            return "test case rejected";
+        }
     };
 
-    /**
-     * @brief Stop the current test case immediately.
-     *
-     * Throws HegelReject which is caught by hegel().
-     *
-     * @note This function never returns.
+    /* Exception thrown when the backend tells us to abandon the current
+     * test iteration entirely (StopTest, Overflow, FlakyStrategyDefinition,
+     * FlakyReplay). The runner unwinds the test body and skips
+     * `mark_complete` — the server already knows the iteration is over.
      */
-    [[noreturn]] void stop_test();
-
-    /// @brief Get the current test case data, or nullptr if not in a test.
-    impl::data::TestCaseData* get_test_case_data();
-
-    /// @brief Return true if the current test case was aborted by the server.
-    [[nodiscard]] bool is_test_aborted() noexcept;
+    class HegelStopTest : public std::exception {
+      public:
+        const char* what() const noexcept override {
+            return "test case stopped by backend";
+        }
+    };
 
 } // namespace hegel::internal
 /// @endcond

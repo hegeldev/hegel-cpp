@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <hegel/json.h>
 #include <iostream>
 #include <optional>
@@ -7,6 +8,7 @@
 
 #include "../../../src/json_impl.h"
 using hegel::internal::json::ImplUtil;
+namespace gs = hegel::generators;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -28,31 +30,25 @@ int main(int argc, char* argv[]) {
         args["max_value"].is_null()
             ? std::nullopt
             : std::optional<int>(args["max_value"].get<int>());
-    bool unique = args.value("unique", false);
-    std::string mode = args.value("mode", "basic");
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
-        [=]() {
-            auto element_gen = hegel::generators::integers<int>(
-                {.min_value = min_value, .max_value = max_value});
+        [=](hegel::TestCase& tc) {
+            auto gen =
+                gs::vectors(gs::integers<int>({.min_value = min_value,
+                                               .max_value = max_value}),
+                            {.min_size = min_size, .max_size = max_size});
 
-            // In non_basic mode, wrap element generator in a map to make it
-            // function-backed (non-schema)
-            hegel::generators::Generator<int> gen =
-                mode == "non_basic" ? element_gen.map([](int x) { return x; })
-                                    : element_gen;
+            auto vec = tc.draw(gen);
 
-            auto vec = hegel::draw(
-                hegel::generators::vectors(gen, {.min_size = min_size,
-                                                 .max_size = max_size,
-                                                 .unique = unique}));
-
-            nlohmann::json elements_arr = nlohmann::json::array();
-            for (auto v : vec) {
-                elements_arr.push_back(v);
+            nlohmann::json metrics = {{"size", vec.size()}};
+            if (!vec.empty()) {
+                metrics["min_element"] =
+                    *std::min_element(vec.begin(), vec.end());
+                metrics["max_element"] =
+                    *std::max_element(vec.begin(), vec.end());
             }
-            conformance::write_metrics({{"elements", elements_arr}});
+            conformance::write_metrics(metrics);
         },
         {.test_cases = test_cases});
 

@@ -28,6 +28,6 @@ namespace hegel::internal::json {
             json result(nullptr);
             result.impl.reset(new json_holder(from));
             return result;
-        } // GCOVR_EXCL_LINE
+        }
     };
 } // namespace hegel::internal::json

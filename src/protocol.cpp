@@ -1,13 +1,14 @@
 #include <protocol.h>
 
+#include <crc32.h>
+
 #include <algorithm>
-#include <array>
 #include <cctype>
 #include <cerrno>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <hegel/options.h>
+#include <hegel/settings.h>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -18,14 +19,7 @@
 #include <sys/types.h> // IWYU pragma: keep
 #include <unistd.h>
 
-// =============================================================================
-// Binary Packet Protocol
-// =============================================================================
 namespace hegel::impl::protocol {
-
-    // =============================================================================
-    // Protocol Debug
-    // =============================================================================
     static thread_local bool protocol_debug_ = false;
 
     void set_protocol_debug(bool enabled) { protocol_debug_ = enabled; }
@@ -40,57 +34,22 @@ namespace hegel::impl::protocol {
         return v == "1" || v == "true";
     }
 
-    void init_protocol_debug(options::Verbosity verbosity) {
-        set_protocol_debug(verbosity == options::Verbosity::Debug ||
+    void init_protocol_debug(settings::Verbosity verbosity) {
+        set_protocol_debug(verbosity == settings::Verbosity::Debug ||
                            is_protocol_debug_env());
     }
 
-    // =============================================================================
-    // CRC32 (table-driven, polynomial 0xEDB88320)
-    // =============================================================================
-    static constexpr uint32_t make_crc_entry(uint32_t c) {
-        for (int k = 0; k < 8; ++k) {
-            if (c & 1)
-                c = 0xEDB88320 ^ (c >> 1);
-            else
-                c >>= 1;
-        }
-        return c;
-    }
-
-    static constexpr auto make_crc_table() {
-        std::array<uint32_t, 256> table{};
-        for (uint32_t i = 0; i < 256; ++i) {
-            table[i] = make_crc_entry(i);
-        }
-        return table;
-    }
-
-    static constexpr auto CRC_TABLE = make_crc_table();
-
-    uint32_t crc32(const uint8_t* data, size_t len) {
-        uint32_t crc = 0xFFFFFFFF;
-        for (size_t i = 0; i < len; ++i) {
-            crc = CRC_TABLE[(crc ^ data[i]) & 0xFF] ^ (crc >> 8);
-        }
-        return crc ^ 0xFFFFFFFF;
-    }
-
-    // =============================================================================
-    // Low-level I/O
-    // =============================================================================
     static void write_all(int fd, const uint8_t* data, size_t len) {
         size_t total = 0;
         while (total < len) {
             ssize_t n = ::write(fd, data + total, len - total);
             if (n < 0) {
-                if (errno == EINTR) // GCOVR_EXCL_START
+                if (errno == EINTR)
                     continue;
                 throw std::runtime_error("Write failed");
-            } // GCOVR_EXCL_STOP
+            }
             if (n == 0) {
-                throw std::runtime_error(
-                    "Write failed (zero bytes written)"); // GCOVR_EXCL_LINE
+                throw std::runtime_error("Write failed (zero bytes written)");
             }
             total += static_cast<size_t>(n);
         }
@@ -101,10 +60,10 @@ namespace hegel::impl::protocol {
         while (total < len) {
             ssize_t n = read(fd, data + total, len - total);
             if (n < 0) {
-                if (errno == EINTR) // GCOVR_EXCL_START
+                if (errno == EINTR)
                     continue;
                 throw std::runtime_error("Read failed");
-            } // GCOVR_EXCL_STOP
+            }
             if (n == 0) {
                 throw std::runtime_error("Read failed (connection closed)");
             }
@@ -112,9 +71,6 @@ namespace hegel::impl::protocol {
         }
     }
 
-    // =============================================================================
-    // Packet I/O
-    // =============================================================================
     void write_packet(int fd, uint32_t stream, uint32_t message_id,
                       bool is_reply, const std::vector<uint8_t>& payload) {
         uint32_t raw_msg_id = message_id | (is_reply ? REPLY_BIT : 0);
