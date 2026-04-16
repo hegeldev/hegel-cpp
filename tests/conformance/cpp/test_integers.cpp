@@ -7,6 +7,7 @@
 
 #include "../../../src/json_impl.h"
 using hegel::internal::json::ImplUtil;
+namespace gs = hegel::generators;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -27,7 +28,7 @@ int main(int argc, char* argv[]) {
 
     hegel::hegel(
         [=]() {
-            auto gen = hegel::generators::integers<int>(
+            auto gen = gs::integers<int>(
                 {.min_value = min_value, .max_value = max_value});
             auto value = hegel::draw(gen);
             conformance::write_metrics({{"value", value}});

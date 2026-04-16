@@ -9,6 +9,7 @@
 
 #include "../../../src/json_impl.h"
 using hegel::internal::json::ImplUtil;
+namespace gs = hegel::generators;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -31,10 +32,10 @@ int main(int argc, char* argv[]) {
             nlohmann::json metrics;
 
             if (key_type == "integer") {
-                auto gen = hegel::generators::dictionaries(
-                    hegel::generators::integers<int>(
+                auto gen = gs::dictionaries(
+                    gs::integers<int>(
                         {.min_value = min_key, .max_value = max_key}),
-                    hegel::generators::integers<int>(
+                    gs::integers<int>(
                         {.min_value = min_value, .max_value = max_value}),
                     {.min_size = min_size, .max_size = max_size});
 
@@ -60,9 +61,9 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 // string keys
-                auto gen = hegel::generators::dictionaries(
-                    hegel::generators::text(),
-                    hegel::generators::integers<int>(
+                auto gen = gs::dictionaries(
+                    gs::text(),
+                    gs::integers<int>(
                         {.min_value = min_value, .max_value = max_value}),
                     {.min_size = min_size, .max_size = max_size});
 

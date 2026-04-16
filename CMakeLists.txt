@@ -148,11 +148,13 @@ add_library(hegel
   STATIC
     src/hegel.cpp
     src/generators.cpp
-    src/data.cpp
+    src/test_case.cpp
     src/internal.cpp
     src/protocol.cpp
     src/connection.cpp
+    src/crc32.cpp
     src/json.cpp
+    src/utils.cpp
 )
 target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

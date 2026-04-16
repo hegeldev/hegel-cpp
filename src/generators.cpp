@@ -23,10 +23,6 @@
 
 using hegel::internal::json::ImplUtil;
 
-// =============================================================================
-// Primitive strategy implementations
-// =============================================================================
-
 namespace hegel::generators {
 
     Generator<std::monostate> nulls() {
@@ -38,17 +34,6 @@ namespace hegel::generators {
     Generator<bool> booleans() {
         hegel::internal::json::json schema = {{"type", "boolean"}};
         return from_schema<bool>(std::move(schema));
-    }
-
-    // =============================================================================
-    // String strategy implementations
-    // =============================================================================
-
-    /// Returns true if any individual character filtering param is set.
-    static bool has_char_params(const TextParams& params) {
-        return params.codec || params.min_codepoint || params.max_codepoint ||
-               params.categories || params.exclude_categories ||
-               params.include_characters || params.exclude_characters;
     }
 
     /// Apply character filtering fields to a nlohmann::json schema.
@@ -85,7 +70,10 @@ namespace hegel::generators {
             throw std::invalid_argument("Cannot have max_size < min_size");
         }
 
-        if (params.alphabet && has_char_params(params)) {
+        if (params.alphabet &&
+            (params.codec || params.min_codepoint || params.max_codepoint ||
+             params.categories || params.exclude_categories ||
+             params.include_characters || params.exclude_characters)) {
             throw std::invalid_argument(
                 "Cannot combine alphabet with individual character "
                 "filtering options");
@@ -155,10 +143,6 @@ namespace hegel::generators {
         return from_schema<std::string>(std::move(schema));
     }
 
-    // =============================================================================
-    // Format string strategy implementations
-    // =============================================================================
-
     Generator<std::string> emails() {
         return from_schema<std::string>(
             hegel::internal::json::json{{"type", "email"}});
@@ -214,10 +198,6 @@ namespace hegel::generators {
         return from_schema<std::string>(
             hegel::internal::json::json{{"type", "datetime"}});
     }
-
-    // =============================================================================
-    // Random strategy implementations
-    // =============================================================================
 
     HegelRandom::HegelRandom(TestCaseData* data)
         : data_(data), engine_(std::nullopt) {}

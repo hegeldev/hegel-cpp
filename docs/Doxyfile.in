@@ -10,13 +10,24 @@ OUTPUT_DIRECTORY       = @DOXYGEN_OUTPUT_DIR@
 INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/include
 FILE_PATTERNS          = *.h
 RECURSIVE              = YES
-EXTRACT_ALL            = YES
+# Only extract symbols with doc comments. Counterintuitively, this is the
+# *stricter* setting: EXTRACT_ALL=YES would surface every symbol in the HTML
+# (with blanks for undocumented ones) and, as a side effect, suppress
+# WARN_IF_UNDOCUMENTED. Setting it to NO both trims the output and lets that
+# warning fire, so combined with WARN_AS_ERROR below every public symbol must
+# carry a doc comment or the build fails.
+EXTRACT_ALL            = NO
 
 # Output
 GENERATE_HTML          = YES
 GENERATE_LATEX         = NO
 HTML_OUTPUT            = html
 SHOW_FILES             = NO
+
+# Warnings
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
+WARN_NO_PARAMDOC       = YES
+WARN_IF_UNDOC_ENUM_VAL = YES
 
 # Doxygen Awesome theme
 GENERATE_TREEVIEW      = YES

@@ -1,54 +1,46 @@
-setup:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ -n "${HEGEL_BINARY:-}" ]; then
-        mkdir -p "$HOME/.local/bin"
-        ln -sf "$HEGEL_BINARY" "$HOME/.local/bin/hegel"
-    else
-        uv tool install --from hegel-core hegel
-    fi
+set ignore-comments := true
+
+jobs := num_cpus()
 
 build:
-    cmake -B build -DCMAKE_BUILD_TYPE=Release
-    cmake --build build -j{{ num_cpus() }}
+    cmake -B build ${CMAKE_FLAGS:-}
+    cmake --build build -j{{ jobs }}
 
-test:
-    cmake -B build
-    cmake --build build -j{{ num_cpus() }}
-    ctest --test-dir build/tests --output-on-failure -j{{ num_cpus() }}
+check-tests: build
+    ctest --test-dir build/tests --output-on-failure -j{{ jobs }}
 
-tidy:
-    cmake -B build
-    cmake --build build -j{{ num_cpus() }}
-    find src -name '*.cpp' | xargs -P{{ num_cpus() }} -I{} clang-tidy -p build {}
+format:
+    find . \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) ! -path "./build/*" \
+        | xargs uvx clang-format -i
 
-check-tidy:
-    cmake -B build
-    cmake --build build -j{{ num_cpus() }}
-    find src -name '*.cpp' | xargs -P{{ num_cpus() }} -I{} clang-tidy -p build -warnings-as-errors='*' {}
+check-format:
+    find . \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) ! -path "./build/*" \
+        | xargs uvx clang-format --dry-run -Werror
 
-lint: format-check check-tidy
+check-tidy: build
+    find src -name '*.cpp' \
+        | xargs -P{{ jobs }} -I{} clang-tidy -p build -warnings-as-errors='*' {}
 
-check:
-    cmake -B build
-    cmake --build build -j{{ num_cpus() }}
-    ctest --test-dir build/tests --output-on-failure -j{{ num_cpus() }}
-    just format-check
+check-docs:
+    cmake -B build -DHEGEL_BUILD_DOCS=ON ${CMAKE_FLAGS:-}
+    cmake --build build --target docs
 
-build-conformance: build
+docs:
+    cmake -B build -DHEGEL_BUILD_DOCS=ON ${CMAKE_FLAGS:-}
+    cmake --build build --target docs
+    open build/docs/html/index.html
 
-conformance: build-conformance
+check-conformance: build
     uv run --with hegel-core \
         --with pytest --with hypothesis \
         pytest tests/conformance/test_conformance.py --durations=20 --durations-min=1.0
 
-docs:
-    cmake -B build -DHEGEL_BUILD_DOCS=ON
-    cmake --build build --target docs
-    open build/docs/html/index.html
+check-lint: check-format check-tidy
 
-format:
-    find . \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) ! -path "./build/*" | xargs uvx clang-format -i
-
-format-check:
-    find . \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) ! -path "./build/*" | xargs uvx clang-format --dry-run -Werror
+# these aliases are provided as ux improvements for local developers. CI should use the longer
+# forms.
+test: check-tests
+tidy: check-tidy
+lint: check-lint
+conformance: check-conformance
+check: check-lint check-tests check-docs check-conformance
