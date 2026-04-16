@@ -2,9 +2,11 @@
 
 #include <cstdlib>
 #include <filesystem>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <sys/stat.h>
+#include <system_error>
 
 namespace fs = std::filesystem;
 

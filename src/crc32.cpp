@@ -1,6 +1,8 @@
 #include <crc32.h>
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 
 namespace hegel::impl {
 

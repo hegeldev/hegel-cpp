@@ -204,7 +204,18 @@ jobs:
           tools: just
 
       - name: Install doxygen
-        run: sudo apt-get update && sudo apt-get install -y doxygen
+        # Ubuntu's packaged doxygen is 1.9.8, which has a parallel-dot race
+        # that spuriously reports "problems opening map file" and trips
+        # WARN_AS_ERROR. Fixed in 1.10+; we pin the upstream Linux binary.
+        env:
+          DOXYGEN_VERSION: 1.15.0
+          DOXYGEN_SHA256: 0ec2e5b2c3cd82b7106d19cb42d8466450730b8cb7a9e85af712be38bf4523a1
+        run: |
+          sudo apt-get update && sudo apt-get install -y graphviz
+          curl -fsSL "https://www.doxygen.nl/files/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz" -o /tmp/doxygen.tar.gz
+          echo "${DOXYGEN_SHA256}  /tmp/doxygen.tar.gz" | sha256sum -c -
+          sudo tar -xzf /tmp/doxygen.tar.gz -C /opt
+          sudo ln -sf "/opt/doxygen-${DOXYGEN_VERSION}/bin/doxygen" /usr/local/bin/doxygen
 
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
