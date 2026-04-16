@@ -140,10 +140,13 @@ namespace hegel::tests::common {
                     f << "int main() { return 0; }\n";
                 }
 
-                std::vector<std::string> args = {
-                    "-S", src_dir().string(), "-B", build_dir().string(),
-                    "-DHEGEL_BUILD_INFO_FILE=" + build_info_file().string(),
-                    "-DCMAKE_BUILD_TYPE=Release"};
+                std::vector<std::string> args = {"-S",
+                                                 src_dir().string(),
+                                                 "-B",
+                                                 build_dir().string(),
+                                                 "-DHEGEL_BUILD_INFO_FILE=" +
+                                                     build_info_file().string(),
+                                                 "-DCMAKE_BUILD_TYPE=Release"};
                 // Match the parent build's CXX/linker flags so the subject
                 // uses the same stdlib etc. (e.g. -stdlib=libc++). Only
                 // forwarded when non-empty to keep the cmake command line
