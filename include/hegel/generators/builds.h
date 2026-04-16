@@ -40,10 +40,9 @@ namespace hegel::generators {
     template <typename T, typename... Gens> Generator<T> builds(Gens... gens) {
         auto gen_tuple = std::make_tuple(std::move(gens)...);
 
-        return from_function<T>([gen_tuple](TestCaseData* data) {
-            return std::apply(
-                [data](auto&... g) { return T(g.do_draw(data)...); },
-                gen_tuple);
+        return from_function<T>([gen_tuple](const TestCase& tc) {
+            return std::apply([&tc](auto&... g) { return T(g.do_draw(tc)...); },
+                              gen_tuple);
         });
     }
 
@@ -102,13 +101,13 @@ namespace hegel::generators {
     Generator<T> builds_agg(Fields... fields) {
         auto gen_tuple = std::make_tuple(std::move(fields)...);
 
-        return from_function<T>([gen_tuple](TestCaseData* data) mutable {
+        return from_function<T>([gen_tuple](const TestCase& tc) mutable {
             T result{};
             std::apply(
-                [&result, data](auto&... fs) {
+                [&result, &tc](auto&... fs) {
                     ((result.*
                           (std::remove_reference_t<decltype(fs)>::member_ptr) =
-                          fs.generator.do_draw(data)),
+                          fs.generator.do_draw(tc)),
                      ...);
                 },
                 gen_tuple);

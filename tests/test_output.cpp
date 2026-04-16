@@ -19,8 +19,8 @@ namespace gs = hegel::generators;
 
 int main() {
     hegel::hegel(
-        [] {
-            int32_t x = hegel::draw(gs::integers<int32_t>());
+        [](hegel::TestCase& tc) {
+            int32_t x = tc.draw(gs::integers<int32_t>());
             throw std::runtime_error("intentional failure: " +
                                      std::to_string(x));
         },
@@ -46,8 +46,8 @@ namespace gs = hegel::generators;
 
 int main() {
     hegel::hegel(
-        [] {
-            int32_t x = hegel::draw(gs::integers<int32_t>());
+        [](hegel::TestCase& tc) {
+            int32_t x = tc.draw(gs::integers<int32_t>());
             if (x >= 10) {
                 throw std::runtime_error("failure with x=" +
                                          std::to_string(x));
@@ -74,8 +74,8 @@ namespace gs = hegel::generators;
 
 int main() {
     hegel::hegel(
-        [] {
-            int32_t x = hegel::draw(gs::integers<int32_t>());
+        [](hegel::TestCase& tc) {
+            int32_t x = tc.draw(gs::integers<int32_t>());
             if (x >= 5) {
                 throw 42;
             }
@@ -102,8 +102,8 @@ namespace gs = hegel::generators;
 
 int main() {
     hegel::hegel(
-        [] {
-            int32_t x = hegel::draw(gs::integers<int32_t>());
+        [](hegel::TestCase& tc) {
+            int32_t x = tc.draw(gs::integers<int32_t>());
             if (x >= 5) {
                 throw MyError{};
             }

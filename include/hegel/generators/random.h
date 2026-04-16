@@ -44,12 +44,12 @@ namespace hegel::generators {
      * can be used with any `<random>` distribution.
      *
      * @code{.cpp}
-     *  auto rng = hegel::draw(gs::randoms());
+     *  auto rng = tc.draw(gs::randoms());
      *  std::uniform_real_distribution<double> dist(0.0, 10.0);
      *  double uniform_value = dist(rng);
      *
      *  // Using true random
-     *  auto rng = hegel::draw(gs::randoms({ .use_true_random = true }));
+     *  auto rng = tc.draw(gs::randoms({ .use_true_random = true }));
      *  std::lognormal_distribution<double> dist(0.0, 10.0);
      *  double uniform_value = dist(rng);
      * @endcode
@@ -64,10 +64,12 @@ namespace hegel::generators {
          *
          * Each call to `operator()` draws entropy from Hegel via the
          * given test-case data, so the resulting values can be shrunken.
+         * The referenced TestCase must outlive this HegelRandom (typically both 
+         * live for the duration of one test callback invocation).
          *
          * @param data The active test case's data stream (non-owning).
          */
-        explicit HegelRandom(impl::test_case::TestCaseData* data);
+        explicit HegelRandom(const TestCase& tc);
 
         /**
          * @brief Construct in true-random mode using a seeded local PRNG.
@@ -92,7 +94,7 @@ namespace hegel::generators {
         /// @endcond
 
       private:
-        impl::test_case::TestCaseData* data_ = nullptr;
+        const TestCase* tc_ = nullptr;
         std::optional<std::mt19937> engine_;
     };
 
@@ -120,7 +122,7 @@ namespace hegel::generators {
      *
      * @code{.cpp}
      * namespace gs = hegel::generators;
-     * auto rng = hegel::draw(gs::randoms());
+     * auto rng = tc.draw(gs::randoms());
      *
      * std::lognormal_distribution<double> dist(0.0, 1.0);
      * double value = dist(rng);

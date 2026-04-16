@@ -92,13 +92,13 @@ namespace hegel::generators {
             {.min_value = params.min_size, .max_value = max_size});
 
         return from_function<std::vector<T>>(
-            [elements, length_gen](TestCaseData* data) {
-                size_t len = length_gen.do_draw(data);
+            [elements, length_gen](const TestCase& tc) {
+                size_t len = length_gen.do_draw(tc);
                 std::vector<T> result;
                 result.reserve(len);
 
                 for (size_t i = 0; i < len; ++i) {
-                    result.push_back(elements.do_draw(data));
+                    result.push_back(elements.do_draw(tc));
                 }
 
                 return result;
@@ -136,8 +136,8 @@ namespace hegel::generators {
 
             auto vec_gen = from_schema<std::vector<T>>(std::move(schema));
 
-            return from_function<std::set<T>>([vec_gen](TestCaseData* data) {
-                auto vec = vec_gen.do_draw(data);
+            return from_function<std::set<T>>([vec_gen](const TestCase& tc) {
+                auto vec = vec_gen.do_draw(tc);
                 return std::set<T>(vec.begin(), vec.end());
             });
         }
@@ -147,13 +147,13 @@ namespace hegel::generators {
             {.min_value = params.min_size, .max_value = max_size});
 
         return from_function<std::set<T>>([elements,
-                                           length_gen](TestCaseData* data) {
-            size_t target_len = length_gen.do_draw(data);
+                                           length_gen](const TestCase& tc) {
+            size_t target_len = length_gen.do_draw(tc);
             std::set<T> result;
 
             size_t attempts = 0;
             while (result.size() < target_len && attempts < target_len * 10) {
-                result.insert(elements.do_draw(data));
+                result.insert(elements.do_draw(tc));
                 ++attempts;
             }
 
@@ -205,8 +205,8 @@ namespace hegel::generators {
             auto vec_gen =
                 from_schema<std::vector<std::pair<K, V>>>(std::move(schema));
 
-            return from_function<std::map<K, V>>([vec_gen](TestCaseData* data) {
-                auto pairs = vec_gen.do_draw(data);
+            return from_function<std::map<K, V>>([vec_gen](const TestCase& tc) {
+                auto pairs = vec_gen.do_draw(tc);
                 return std::map<K, V>(pairs.begin(), pairs.end());
             });
         }
@@ -216,13 +216,13 @@ namespace hegel::generators {
             {.min_value = params.min_size, .max_value = max_size});
 
         return from_function<std::map<K, V>>(
-            [keys, values, length_gen](TestCaseData* data) {
-                size_t len = length_gen.do_draw(data);
+            [keys, values, length_gen](const TestCase& tc) {
+                size_t len = length_gen.do_draw(tc);
                 std::map<K, V> result;
 
                 while (result.size() < len) {
-                    K key = keys.do_draw(data);
-                    V value = values.do_draw(data);
+                    K key = keys.do_draw(tc);
+                    V value = values.do_draw(tc);
                     result[std::move(key)] = std::move(value);
                 }
 
@@ -252,8 +252,8 @@ namespace hegel::generators {
 
         template <typename Tuple, typename GenTuple, size_t... Is>
         Tuple draw_tuple_impl(const GenTuple& gens, std::index_sequence<Is...>,
-                              TestCaseData* data) {
-            return Tuple{std::get<Is>(gens).do_draw(data)...};
+                              const TestCase& tc) {
+            return Tuple{std::get<Is>(gens).do_draw(tc)...};
         }
 
     } // namespace detail
@@ -285,9 +285,9 @@ namespace hegel::generators {
 
         auto gen_tuple = std::make_tuple(std::move(gens)...);
 
-        return from_function<ResultTuple>([gen_tuple](TestCaseData* data) {
+        return from_function<ResultTuple>([gen_tuple](const TestCase& tc) {
             return detail::draw_tuple_impl<ResultTuple>(
-                gen_tuple, std::index_sequence_for<Ts...>{}, data);
+                gen_tuple, std::index_sequence_for<Ts...>{}, tc);
         });
     }
 

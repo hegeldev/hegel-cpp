@@ -112,16 +112,14 @@ def check(base_ref: str) -> None:
     parse_release_file(release_file)
 
 
-def latest_tagged_version() -> str | None:
-    result = subprocess.run(
-        ["git", "describe", "--tags", "--abbrev=0", "--match", "v*"],
-        capture_output=True,
-        text=True,
-        cwd=ROOT,
+def current_version() -> str:
+    m = re.search(
+        r"project\(hegel-cpp\s+VERSION\s+(\S+)",
+        (ROOT / "CMakeLists.txt").read_text(),
     )
-    if result.returncode != 0:
-        return None
-    return result.stdout.strip().removeprefix("v")
+    if m is None:
+        raise ValueError("Could not find project version in CMakeLists.txt")
+    return m.group(1)
 
 
 def release() -> None:
@@ -129,13 +127,7 @@ def release() -> None:
     assert release_file.exists()
 
     release_type, content = parse_release_file(release_file)
-
-    current = latest_tagged_version()
-    if current is None:
-        # First release: pin to 0.1.0 regardless of release type.
-        new_version = "0.1.0"
-    else:
-        new_version = bump_version(current, release_type)
+    new_version = bump_version(current_version(), release_type)
 
     set_version(ROOT / "CMakeLists.txt", new_version)
 
@@ -180,11 +172,7 @@ def release() -> None:
 
 
 def push_or_pr() -> None:
-    m = re.search(
-        r"project\(hegel-cpp\s+VERSION\s+(\S+)",
-        (ROOT / "CMakeLists.txt").read_text(),
-    )
-    version = m.group(1)
+    version = current_version()
 
     result = subprocess.run(["git", "push", "origin", "main"], cwd=ROOT)
     if result.returncode == 0:

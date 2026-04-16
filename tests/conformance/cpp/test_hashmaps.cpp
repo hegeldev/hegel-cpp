@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
-        [=]() {
+        [=](hegel::TestCase& tc) {
             nlohmann::json metrics;
 
             if (key_type == "integer") {
@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
                         {.min_value = min_value, .max_value = max_value}),
                     {.min_size = min_size, .max_size = max_size});
 
-                auto dict = hegel::draw(gen);
+                auto dict = tc.draw(gen);
 
                 metrics["size"] = dict.size();
                 if (!dict.empty()) {
@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
                         {.min_value = min_value, .max_value = max_value}),
                     {.min_size = min_size, .max_size = max_size});
 
-                auto dict = hegel::draw(gen);
+                auto dict = tc.draw(gen);
 
                 metrics["size"] = dict.size();
                 if (!dict.empty()) {
