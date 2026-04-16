@@ -51,13 +51,20 @@ Binary packet protocol with CBOR payloads over Unix socket:
 
 ### Key Components
 
-- **`hegel.h`** - Main include, declares `hegel::hegel()` entry point
-- **`options.h`** - HegelOptions, Verbosity enum
-- **`generators.h`** - `IGenerator<T>`, `Generator<T>`, `SchemaBackedGenerator<T>`, `FunctionBackedGenerator<T>` with `map()`, `flat_map()`, `filter()` combinators
-- **`strategies.h`** - Strategy factory functions in `hegel::generators` namespace
+Public headers in `include/hegel/`:
+- **`hegel.h`** - Main include, declares `hegel::hegel()` entry point and `hegel::draw()`
+- **`core.h`** - `IGenerator<T>`, `Generator<T>`, `SchemaBackedGenerator<T>`, `FunctionBackedGenerator<T>` with `map()`, `flat_map()`, `filter()` combinators
+- **`settings.h`** - `HegelSettings`, `Database`, `Verbosity` enum
 - **`internal.h`** - `communicate_with_socket()`, `assume()`, `note()`, `stop_test()`
-- **`src/protocol.h`** - Binary packet protocol, Connection, Stream classes
-- **`src/socket.h`** - Low-level socket I/O
+- **`json.h` / `nlohmann_reader.h`** - JSON interop helpers (avoid including `<nlohmann/json.hpp>` from public headers; `test_no_nlohmann_include.cpp` enforces this)
+- **`generators/`** - Strategy factory functions in `hegel::generators` namespace, split by category: `primitives.h`, `numeric.h`, `strings.h`, `collections.h`, `combinators.h`, `formats.h`, `builds.h`, `default.h` (type-directed derivation via reflect-cpp), `random.h`
+
+Private implementation in `src/`:
+- **`protocol.{h,cpp}`** - Binary packet protocol, `Connection`, `Stream` classes
+- **`connection.{h,cpp}`** - Subprocess spawn + Unix socket lifecycle, low-level socket I/O
+- **`test_case.{h,cpp}`** - Per-test-case state (`TestCaseData`) accessed via thread-local pointer
+- **`json_impl.h`** - Internal nlohmann-backed JSON implementation (not exposed publicly)
+- **`generators.cpp` / `hegel.cpp` / `internal.cpp` / `json.cpp`** - implementations for the corresponding public headers
 
 ### Generator Pattern
 
@@ -79,8 +86,8 @@ Michael (mgibson) has carefully curated this codebase. Match his conventions exa
 
 - **Formatting**: LLVM base style, 4-space indentation, left-aligned pointers (`int*`). Run `just format` before committing.
 - **Headers**: Use `.h` extension (not `.hpp`)
-- **Namespaces**: `hegel` for public API, `hegel::generators` for generators and strategies, `hegel::internal` for internals referenced in public headers, `hegel::impl::*` for purely private implementation
-- **Includes**: Public headers use relative includes (`#include "options.h"`), source files use angle brackets for both public (`<hegel/internal.h>`) and private (`<socket.h>`) headers
+- **Namespaces**: `hegel` for public API, `hegel::generators` for generators and strategies, `hegel::settings` for run configuration (`HegelSettings`, `Database`, `Verbosity`, ...), `hegel::internal` for internals referenced in public headers, `hegel::impl::*` for purely private implementation
+- **Includes**: Public headers use relative includes (`#include "settings.h"`), source files use angle brackets for both public (`<hegel/internal.h>`) and private (`<socket.h>`) headers
 - **File organization**: Each focused `.cpp` has a corresponding `.h` in `src/`. Private headers live in `src/`, not `include/`
 - **Public API surface**: Minimal. Only what users need goes in `include/hegel/`. Internal details hidden via `@cond INTERNAL` / `@endcond` in Doxygen
 - **Section dividers**: Use `// =====...=====` comment blocks

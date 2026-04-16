@@ -1,12 +1,14 @@
-#include <data.h>
 #include <hegel/internal.h>
+#include <test_case.h>
 
 #include <iostream>
 #include <stdexcept>
 #include <string>
 
 namespace hegel::internal {
-    impl::data::TestCaseData* get_test_case_data() { return impl::data::get(); }
+    impl::test_case::TestCaseData* get_test_case_data() {
+        return impl::test_case::get();
+    }
 
     void note(const std::string& message) {
         auto* data = get_test_case_data();

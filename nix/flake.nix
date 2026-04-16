@@ -78,7 +78,6 @@
           nativeBuildInputs = [
             pkgs.cmake
             pkgs.ninja
-            pkgs.doxygen
           ];
 
           buildInputs = [
@@ -86,13 +85,13 @@
           ];
 
           cmakeFlags = (mkFetchContentFlags pkgs) ++ [
-            (lib.cmakeFeature "HEGEL_BUILD_DOCS" "ON")
             (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
           ];
 
           doCheck = true;
           checkPhase = ''
             runHook preCheck
+            export HEGEL_SERVER_COMMAND=${hegel.packages.${system}.default}/bin/hegel
             ctest --output-on-failure --verbose
             runHook postCheck
           '';

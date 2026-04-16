@@ -9,6 +9,7 @@
 
 #include "../../../src/json_impl.h"
 using hegel::internal::json::ImplUtil;
+namespace gs = hegel::generators;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -32,11 +33,11 @@ int main(int argc, char* argv[]) {
             nlohmann::json metrics;
 
             if (key_type == "integer") {
-                auto key_gen = hegel::generators::integers<int>(
+                auto key_gen = gs::integers<int>(
                     {.min_value = min_key, .max_value = max_key});
-                auto val_gen = hegel::generators::integers<int>(
+                auto val_gen = gs::integers<int>(
                     {.min_value = min_value, .max_value = max_value});
-                auto gen = hegel::generators::dictionaries(
+                auto gen = gs::dictionaries(
                     mode == "non_basic" ? conformance::make_non_basic(key_gen)
                                         : key_gen,
                     mode == "non_basic" ? conformance::make_non_basic(val_gen)
@@ -65,10 +66,10 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 // string keys
-                auto text_gen = hegel::generators::text();
-                auto val_gen = hegel::generators::integers<int>(
+                auto text_gen = gs::text();
+                auto val_gen = gs::integers<int>(
                     {.min_value = min_value, .max_value = max_value});
-                auto gen = hegel::generators::dictionaries(
+                auto gen = gs::dictionaries(
                     mode == "non_basic" ? conformance::make_non_basic(text_gen)
                                         : text_gen,
                     mode == "non_basic" ? conformance::make_non_basic(val_gen)

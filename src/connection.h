@@ -8,9 +8,6 @@
 #include <unordered_map>
 #include <vector>
 
-// =============================================================================
-// Connection and Stream Multiplexing
-// =============================================================================
 namespace hegel::impl {
 
     struct IncomingRequest {

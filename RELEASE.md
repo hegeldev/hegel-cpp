@@ -1,4 +1,6 @@
-RELEASE_TYPE: patch
+RELEASE_TYPE: minor
+
+Multiple refactors and renames, as we prepare for a more standard release.
 
 Fix the compositional fallback path of `vectors` and `dictionaries` to
 correctly honor uniqueness when element/key generators lack a schema.

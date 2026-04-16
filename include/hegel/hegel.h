@@ -18,25 +18,24 @@
  * };
  *
  * hegel::hegel([]() {
- *     using namespace hegel::generators;
+ *     namespace gs = hegel::generators;
  *
  *     // Type-based generation (schema derived via reflect-cpp)
- *     Person p = hegel::draw(default_generator<Person>());
+ *     Person p = hegel::draw(gs::default_generator<Person>());
  *
  *     // Generator-based generation
- *     int value = hegel::draw(integers<int>({.min_value = 0, .max_value =
+ *     int value = hegel::draw(gs::integers<int>({.min_value = 0, .max_value =
  * 100}));
  * });
  * @endcode
  *
  * @section deps Dependencies
  * - reflect-cpp (https://github.com/getml/reflect-cpp) - C++20 reflection
- * - nlohmann library - CBOR serialization
- * - POSIX process APIs (fork, pipe, execvp)
+ * - nlohmann library
  */
 
-// HegelOptions and supporting classes
-#include "options.h"
+// HegelSettings and supporting classes
+#include "settings.h"
 
 // Core generator types
 #include "core.h"
@@ -74,8 +73,8 @@ namespace hegel {
      *
      * @code{.cpp}
      * hegel::hegel([]() {
-     *     using namespace hegel::generators;
-     *     auto x = hegel::draw(integers<int>({.min_value = 0, .max_value =
+     *     namespace gs = hegel::generators;
+     *     auto x = hegel::draw(gs::integers<int>({.min_value = 0, .max_value =
      * 100}));
      * });
      * @endcode
@@ -109,10 +108,10 @@ namespace hegel {
      *
      * int main() {
      *     hegel::hegel([]() {
-     *         using namespace hegel::generators;
-     *         auto x = hegel::draw(integers<int>({.min_value = 0, .max_value =
-     * 100})); auto y = hegel::draw(integers<int>({.min_value = 0, .max_value =
-     * 100}));
+     *         namespace gs = hegel::generators;
+     *         auto x = hegel::draw(gs::integers<int>({.min_value = 0,
+     * .max_value = 100})); auto y = hegel::draw(gs::integers<int>({.min_value =
+     * 0, .max_value = 100}));
      *
      *         // Property: x + y >= x (true for non-negative integers)
      *         if (x + y < x) {
@@ -126,10 +125,10 @@ namespace hegel {
      *
      * @tparam F Test function type (callable with no arguments)
      * @param test_fn The test function to run repeatedly
-     * @param options Configuration options (test count, debug mode, hegel path)
+     * @param settings Configuration settings (test count, debug mode, etc.)
      * @throws std::runtime_error if any test case fails
-     * @see HegelOptions for configuration options
+     * @see HegelSettings for configuration settings
      */
     void hegel(const std::function<void()>& test_fn,
-               const options::HegelOptions& options = {});
+               const settings::HegelSettings& settings = {});
 } // namespace hegel

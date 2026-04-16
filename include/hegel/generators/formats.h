@@ -36,7 +36,10 @@ namespace hegel::generators {
     /// @name Format String Strategies
     /// @{
 
-    /// Generate valid email addresses
+    /**
+     * @brief Generate valid email addresses.
+     * @return Generator producing email address strings.
+     */
     Generator<std::string> emails();
 
     /**
@@ -46,7 +49,10 @@ namespace hegel::generators {
      */
     Generator<std::string> domains(DomainsParams params = {});
 
-    /// Generate valid URLs
+    /**
+     * @brief Generate valid URLs.
+     * @return Generator producing URL strings.
+     */
     Generator<std::string> urls();
 
     /**
@@ -56,13 +62,22 @@ namespace hegel::generators {
      */
     Generator<std::string> ip_addresses(IpAddressesParams params = {});
 
-    /// Generate dates in ISO 8601 format (YYYY-MM-DD)
+    /**
+     * @brief Generate dates in ISO 8601 format (YYYY-MM-DD).
+     * @return Generator producing date strings.
+     */
     Generator<std::string> dates();
 
-    /// Generate times in ISO 8601 format (HH:MM:SS)
+    /**
+     * @brief Generate times in ISO 8601 format (HH:MM:SS).
+     * @return Generator producing time strings.
+     */
     Generator<std::string> times();
 
-    /// Generate datetimes in ISO 8601 format
+    /**
+     * @brief Generate datetimes in ISO 8601 format.
+     * @return Generator producing datetime strings.
+     */
     Generator<std::string> datetimes();
 
     /// @}

@@ -5,21 +5,22 @@
 #include <hegel/hegel.h>
 #include <hegel/internal.h>
 #include <hegel/json.h>
-#include <hegel/options.h>
+#include <hegel/settings.h>
 
 #include "json_impl.h"
 
 #include <connection.h>
-#include <data.h>
 #include <functional>
 #include <protocol.h>
 #include <stdexcept>
+#include <test_case.h>
 
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cxxabi.h>
 #include <exception>
 #include <string>
 #include <vector>
@@ -40,19 +41,18 @@ namespace hegel {
     // Child Process
     // =============================================================================
     static void hegel_child(int child_read_fd, int child_write_fd,
-                            const options::HegelOptions& options) {
+                            const settings::HegelSettings& settings) {
         // Wire pipes to stdin/stdout for --stdio mode
         dup2(child_read_fd, STDIN_FILENO);
         dup2(child_write_fd, STDOUT_FILENO);
         ::close(child_read_fd);
         ::close(child_write_fd);
 
-        std::string hegel_path =
-            options.hegel_path.value_or(HEGEL_DEFAULT_PATH);
+        std::string hegel_path = HEGEL_DEFAULT_PATH;
 
         std::vector<std::string> args = {
             hegel_path, "--stdio", "--verbosity",
-            options::verbosity_to_string(options.verbosity)};
+            settings::verbosity_to_string(settings.verbosity)};
 
         std::vector<char*> argv;
         argv.reserve(args.size() + 1);
@@ -68,31 +68,46 @@ namespace hegel {
         _exit(1);
     }
 
-    // =============================================================================
-    // Parent Process (Client)
-    // =============================================================================
     static void hegel_parent(const std::function<void()>& test_fn,
                              pid_t child_pid, // NOLINT(misc-include-cleaner)
                              int read_fd, int write_fd,
-                             const options::HegelOptions& options) {
+                             const settings::HegelSettings& settings) {
         impl::Connection conn(read_fd, write_fd);
 
-        // Version negotiation
         conn.handshake();
 
-        impl::protocol::init_protocol_debug(options.verbosity);
+        impl::protocol::init_protocol_debug(settings.verbosity);
 
         // Create test stream and start test
         uint32_t test_stream = conn.create_stream();
-        uint64_t test_cases = options.test_cases.value_or(100);
+        uint64_t test_cases = settings.test_cases.value_or(100);
 
         hegel::internal::json::json run_test_msg = {{"command", "run_test"},
                                                     {"test_cases", test_cases},
                                                     {"stream_id", test_stream}};
-        if (options.seed.has_value()) {
-            run_test_msg["seed"] = options.seed.value();
+        if (settings.seed.has_value()) {
+            run_test_msg["seed"] = settings.seed.value();
         } else {
             run_test_msg["seed"] = nullptr;
+        }
+        run_test_msg["derandomize"] = settings.derandomize;
+        switch (settings.database.kind()) {
+        case hegel::settings::Database::Kind::Unset:
+            break;
+        case hegel::settings::Database::Kind::Disabled:
+            run_test_msg["database"] = nullptr;
+            break;
+        case hegel::settings::Database::Kind::Path:
+            run_test_msg["database"] = settings.database.path();
+            break;
+        }
+        if (!settings.suppress_health_check.empty()) {
+            auto arr = hegel::internal::json::json::array();
+            for (auto c : settings.suppress_health_check) {
+                arr.push_back(
+                    std::string(hegel::settings::health_check_to_string(c)));
+            }
+            run_test_msg["suppress_health_check"] = arr;
         }
         conn.request(0, run_test_msg);
 
@@ -116,14 +131,14 @@ namespace hegel {
                 bool is_final = payload.value("is_final", false);
 
                 // Set up per-test-case state
-                impl::data::TestCaseData data{
+                impl::test_case::TestCaseData data{
                     .connection = &conn,
                     .data_stream = data_stream,
                     .is_last_run = is_final,
                     .test_aborted = false,
-                    .verbosity = options.verbosity,
+                    .verbosity = settings.verbosity,
                 };
-                impl::data::set(&data);
+                impl::test_case::set(&data);
 
                 // Run test
                 std::string status = "VALID";
@@ -134,14 +149,19 @@ namespace hegel {
                     status = "INVALID";
                 } catch (const std::exception& e) {
                     status = "INTERESTING";
-                    origin = e.what();
+                    origin = typeid(e).name();
                 } catch (...) {
                     status = "INTERESTING";
-                    origin = "Unknown exception";
+                    if (const std::type_info* tinfo =
+                            abi::__cxa_current_exception_type()) {
+                        origin = tinfo->name();
+                    } else {
+                        origin = "unknown_exception";
+                    }
                 }
 
                 // Clear per-test-case state
-                impl::data::clear();
+                impl::test_case::clear();
 
                 // Send mark_complete and close data stream (unless aborted)
                 if (!data.test_aborted) {
@@ -192,11 +212,8 @@ namespace hegel {
         }
     }
 
-    // =============================================================================
-    // Entry Point
-    // =============================================================================
     void hegel(const std::function<void()>& test_fn,
-               const options::HegelOptions& options) {
+               const settings::HegelSettings& settings) {
         // Create pipes for parent<->child stdio communication
         // parent_to_child: parent writes to [1], child reads from [0]
         // child_to_parent: child writes to [1], parent reads from [0]
@@ -215,13 +232,13 @@ namespace hegel {
             // Child: close unused pipe ends
             ::close(parent_to_child[1]);
             ::close(child_to_parent[0]);
-            hegel_child(parent_to_child[0], child_to_parent[1], options);
+            hegel_child(parent_to_child[0], child_to_parent[1], settings);
         } else {
             // Parent: close unused pipe ends
             ::close(parent_to_child[0]);
             ::close(child_to_parent[1]);
             hegel_parent(test_fn, pid, child_to_parent[0], parent_to_child[1],
-                         options);
+                         settings);
         }
     }
 } // namespace hegel
