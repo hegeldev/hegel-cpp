@@ -2,8 +2,8 @@
 
 /**
  * @file combinators.h
- * @brief Combinator generator functions: sampled_from, one_of, variant_,
- * optional_
+ * @brief Combinator generator functions: sampled_from, one_of, variant,
+ * optional
  */
 
 #include <variant>
@@ -51,8 +51,8 @@ namespace hegel::generators {
             auto index_gen = integers<size_t>(
                 {.min_value = 0, .max_value = elements.size() - 1});
 
-            return from_function<T>([elements, index_gen](TestCaseData* data) {
-                size_t idx = index_gen.do_draw(data);
+            return from_function<T>([elements, index_gen](const TestCase& tc) {
+                size_t idx = index_gen.do_draw(tc);
                 return elements[idx];
             });
         }
@@ -140,9 +140,9 @@ namespace hegel::generators {
         auto index_gen =
             integers<size_t>({.min_value = 0, .max_value = gens.size() - 1});
 
-        return from_function<T>([gens, index_gen](TestCaseData* data) {
-            size_t idx = index_gen.do_draw(data);
-            return gens[idx].do_draw(data);
+        return from_function<T>([gens, index_gen](const TestCase& tc) {
+            size_t idx = index_gen.do_draw(tc);
+            return gens[idx].do_draw(tc);
         });
     }
 
@@ -162,13 +162,13 @@ namespace hegel::generators {
 
         template <typename Variant, typename GenTuple, size_t I = 0>
         Variant draw_variant_impl(const GenTuple& gens, size_t idx,
-                                  TestCaseData* data) {
+                                  const TestCase& tc) {
             if constexpr (I < std::tuple_size_v<GenTuple>) {
                 if (idx == I) {
-                    return std::get<I>(gens).do_draw(data);
+                    return std::get<I>(gens).do_draw(tc);
                 }
                 return draw_variant_impl<Variant, GenTuple, I + 1>(gens, idx,
-                                                                   data);
+                                                                   tc);
             } else {
                 return Variant{};
             }
@@ -183,29 +183,29 @@ namespace hegel::generators {
      * Each generator produces one possible variant alternative.
      *
      * @code{.cpp}
-     * auto value = variant_(integers<int>(), text(), booleans());
+     * auto value = variant(integers<int>(), text(), booleans());
      * // Returns std::variant<int, std::string, bool>
      * @endcode
      *
      * @tparam Ts Variant alternative types
      * @param gens Generators for each alternative
-     * @return Generator producing variants
+     * @return Generator producing variant
      */
     template <typename... Ts>
-    Generator<std::variant<Ts...>> variant_(Generator<Ts>... gens) {
+    Generator<std::variant<Ts...>> variant(Generator<Ts>... gens) {
         using ResultVariant = std::variant<Ts...>;
         constexpr size_t N = sizeof...(Ts);
 
         auto gen_tuple = std::make_tuple(std::move(gens)...);
         auto index_gen = integers<size_t>({.min_value = 0, .max_value = N - 1});
 
-        return from_function<ResultVariant>([gen_tuple,
-                                             index_gen](TestCaseData* data) {
-            size_t idx = index_gen.do_draw(data);
-            return detail::draw_variant_impl<ResultVariant,
-                                             decltype(gen_tuple)>(gen_tuple,
-                                                                  idx, data);
-        });
+        return from_function<ResultVariant>(
+            [gen_tuple, index_gen](const TestCase& tc) {
+                size_t idx = index_gen.do_draw(tc);
+                return detail::draw_variant_impl<ResultVariant,
+                                                 decltype(gen_tuple)>(gen_tuple,
+                                                                      idx, tc);
+            });
     }
 
     /**
@@ -215,7 +215,7 @@ namespace hegel::generators {
      * std::nullopt.
      *
      * @code{.cpp}
-     * auto maybe_int = optional_(integers<int>());
+     * auto maybe_int = optional(integers<int>());
      * // Returns std::optional<int>, may be nullopt
      * @endcode
      *
@@ -224,16 +224,16 @@ namespace hegel::generators {
      * @return Generator producing optional values
      */
     template <typename T>
-    Generator<std::optional<T>> optional_(Generator<T> gen) {
+    Generator<std::optional<T>> optional(Generator<T> gen) {
         auto bool_gen = booleans();
 
         return from_function<std::optional<T>>(
-            [gen, bool_gen](TestCaseData* data) -> std::optional<T> {
-                bool is_none = bool_gen.do_draw(data);
+            [gen, bool_gen](const TestCase& tc) -> std::optional<T> {
+                bool is_none = bool_gen.do_draw(tc);
                 if (is_none) {
                     return std::nullopt;
                 }
-                return gen.do_draw(data);
+                return gen.do_draw(tc);
             });
     }
 

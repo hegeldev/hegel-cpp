@@ -15,8 +15,8 @@ using hegel::settings::HegelSettings;
 
 TEST(Settings, DefaultRuns100TestCases) {
     int count = 0;
-    hegel::hegel([&count] {
-        hegel::draw(gs::integers<int>());
+    hegel::hegel([&count](hegel::TestCase& tc) {
+        tc.draw(gs::integers<int>());
         count++;
     });
     EXPECT_EQ(count, 100);
@@ -25,8 +25,8 @@ TEST(Settings, DefaultRuns100TestCases) {
 TEST(Settings, CustomTestCases) {
     int count = 0;
     hegel::hegel(
-        [&count] {
-            hegel::draw(gs::integers<int>());
+        [&count](hegel::TestCase& tc) {
+            tc.draw(gs::integers<int>());
             count++;
         },
         HegelSettings{.test_cases = 17});
@@ -37,7 +37,9 @@ TEST(Settings, SeedDeterminism) {
     auto run = []() {
         std::vector<int32_t> seen;
         hegel::hegel(
-            [&seen] { seen.push_back(hegel::draw(gs::integers<int32_t>())); },
+            [&seen](hegel::TestCase& tc) {
+                seen.push_back(tc.draw(gs::integers<int32_t>()));
+            },
             HegelSettings{.test_cases = 25, .seed = 42});
         return seen;
     };
@@ -50,7 +52,9 @@ TEST(Settings, DerandomizeProducesRepeatableRuns) {
     auto run = []() {
         std::vector<int32_t> seen;
         hegel::hegel(
-            [&seen] { seen.push_back(hegel::draw(gs::integers<int32_t>())); },
+            [&seen](hegel::TestCase& tc) {
+                seen.push_back(tc.draw(gs::integers<int32_t>()));
+            },
             HegelSettings{.test_cases = 25,
                           .derandomize = true,
                           .database = Database::disabled()});
@@ -66,20 +70,20 @@ TEST(Settings, SuppressFilterTooMuch) {
     // here because ~10% of draws are rejected. We suppress it and expect
     // the test to pass cleanly.
     hegel::hegel(
-        [] {
-            int n = hegel::draw(
-                gs::integers<int>({.min_value = 0, .max_value = 100}));
-            hegel::assume(n < 90);
+        [](hegel::TestCase& tc) {
+            int n =
+                tc.draw(gs::integers<int>({.min_value = 0, .max_value = 100}));
+            tc.assume(n < 90);
         },
         HegelSettings{.suppress_health_check = {HealthCheck::FilterTooMuch}});
 }
 
 TEST(Settings, SuppressMultiple) {
     hegel::hegel(
-        [] {
-            int n = hegel::draw(
-                gs::integers<int>({.min_value = 0, .max_value = 100}));
-            hegel::assume(n < 90);
+        [](hegel::TestCase& tc) {
+            int n =
+                tc.draw(gs::integers<int>({.min_value = 0, .max_value = 100}));
+            tc.assume(n < 90);
         },
         HegelSettings{.suppress_health_check = {HealthCheck::FilterTooMuch,
                                                 HealthCheck::TooSlow}});
@@ -87,10 +91,10 @@ TEST(Settings, SuppressMultiple) {
 
 TEST(Settings, SuppressAllWithAllHealthChecks) {
     hegel::hegel(
-        [] {
-            int n = hegel::draw(
-                gs::integers<int>({.min_value = 0, .max_value = 100}));
-            hegel::assume(n < 90);
+        [](hegel::TestCase& tc) {
+            int n =
+                tc.draw(gs::integers<int>({.min_value = 0, .max_value = 100}));
+            tc.assume(n < 90);
         },
         HegelSettings{.suppress_health_check =
                           hegel::settings::all_health_checks()});
@@ -98,11 +102,11 @@ TEST(Settings, SuppressAllWithAllHealthChecks) {
 
 TEST(Settings, SuppressDataTooLarge) {
     hegel::hegel(
-        [] {
-            bool do_big = hegel::draw(gs::booleans());
+        [](hegel::TestCase& tc) {
+            bool do_big = tc.draw(gs::booleans());
             if (do_big) {
                 for (int i = 0; i < 100; ++i) {
-                    (void)hegel::draw(gs::integers<int32_t>());
+                    (void)tc.draw(gs::integers<int32_t>());
                 }
             }
         },
@@ -114,10 +118,10 @@ TEST(Settings, SuppressDataTooLarge) {
 
 TEST(Settings, SuppressLargeBaseExample) {
     hegel::hegel(
-        [] {
+        [](hegel::TestCase& tc) {
             for (int i = 0; i < 10; ++i) {
-                (void)hegel::draw(gs::vectors(
-                    gs::integers<int32_t>(), {.min_size = 50, .max_size = 50}));
+                (void)tc.draw(gs::vectors(gs::integers<int32_t>(),
+                                          {.min_size = 50, .max_size = 50}));
             }
         },
         HegelSettings{
@@ -133,8 +137,8 @@ TEST(FlakyReporting, FlakyReplay) {
     global_counter = 1;
     try {
         hegel::hegel(
-            [] {
-                auto x = hegel::draw(gs::integers<int>());
+            [&](hegel::TestCase& tc) {
+                auto x = tc.draw(gs::integers<int>());
                 if (global_counter == 1) {
                     global_counter--;
                     throw std::runtime_error("first test case fails");
@@ -156,10 +160,9 @@ TEST(FlakyReporting, FlakyGeneration) {
     global_counter = 0;
     try {
         hegel::hegel(
-            [] {
-                hegel::draw(
-                    gs::integers<int>({.min_value = global_counter,
-                                       .max_value = global_counter + 1}));
+            [&](hegel::TestCase& tc) {
+                tc.draw(gs::integers<int>({.min_value = global_counter,
+                                           .max_value = global_counter + 1}));
                 global_counter++;
             },
             {.test_cases = 10,
@@ -201,8 +204,8 @@ TEST(Settings, DatabaseReplaysFailure) {
         values.clear();
         try {
             hegel::hegel(
-                [&] {
-                    int64_t n = hegel::draw(gs::integers<int64_t>());
+                [&](hegel::TestCase& tc) {
+                    int64_t n = tc.draw(gs::integers<int64_t>());
                     values.push_back(n);
                     if (!(n < 1'000'000)) {
                         throw std::runtime_error("n >= 1_000_000");

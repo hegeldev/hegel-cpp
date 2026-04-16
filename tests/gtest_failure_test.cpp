@@ -16,9 +16,9 @@ namespace gs = hegel::generators;
 
 TEST(FailureReporting, ShowsCounterexample) {
     hegel::hegel(
-        [] {
-            int x = hegel::draw(
-                gs::integers<int>({.min_value = 0, .max_value = 100}));
+        [](hegel::TestCase& tc) {
+            int x =
+                tc.draw(gs::integers<int>({.min_value = 0, .max_value = 100}));
             // This assertion will fail when x > 50, which should happen quickly
             // The failure message should include the actual value as a
             // counterexample

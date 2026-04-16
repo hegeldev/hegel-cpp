@@ -53,8 +53,8 @@ namespace hegel::tests::common {
                              std::function<bool(const T&)> predicate,
                              uint64_t test_cases = 100) {
         hegel::hegel(
-            [&] {
-                T value = hegel::draw(gen);
+            [&](hegel::TestCase& tc) {
+                T value = tc.draw(gen);
                 if (!predicate(value)) {
                     throw std::runtime_error(
                         "Found value that does not match predicate");
@@ -101,8 +101,8 @@ namespace hegel::tests::common {
 
         try {
             hegel::hegel(
-                [&] {
-                    T value = hegel::draw(gen);
+                [&](hegel::TestCase& tc) {
+                    T value = tc.draw(gen);
                     if (condition(value)) {
                         std::lock_guard<std::mutex> g(*mu);
                         *found = value;
@@ -146,8 +146,8 @@ namespace hegel::tests::common {
 
         try {
             hegel::hegel(
-                [&] {
-                    T value = hegel::draw(gen);
+                [&](hegel::TestCase& tc) {
+                    T value = tc.draw(gen);
                     if (condition(value)) {
                         std::lock_guard<std::mutex> g(*mu);
                         *found = value;

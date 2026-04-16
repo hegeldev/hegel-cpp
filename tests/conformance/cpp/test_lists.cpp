@@ -33,13 +33,13 @@ int main(int argc, char* argv[]) {
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
-        [=]() {
+        [=](hegel::TestCase& tc) {
             auto gen =
                 gs::vectors(gs::integers<int>({.min_value = min_value,
                                                .max_value = max_value}),
                             {.min_size = min_size, .max_size = max_size});
 
-            auto vec = hegel::draw(gen);
+            auto vec = tc.draw(gen);
 
             nlohmann::json metrics = {{"size", vec.size()}};
             if (!vec.empty()) {
