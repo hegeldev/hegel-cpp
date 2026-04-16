@@ -235,7 +235,7 @@ jobs:
 
   release:
     name: release
-    if: github.event_name == 'push' && github.repository == 'antithesishq/hegel-cpp'
+    if: github.event_name == 'push' && github.repository == 'hegeldev/hegel-cpp'
     needs: [lint, build-and-test, conformance, docs]
     runs-on: ubuntu-latest
     permissions:
@@ -259,12 +259,14 @@ jobs:
         with:
           app-id: ${{ vars.HEGEL_RELEASE_APP_ID }}
           private-key: ${{ secrets.HEGEL_RELEASE_APP_PRIVATE_KEY }}
+          repositories: hegel-cpp
 
       - name: Re-checkout with app token # zizmor: ignore[artipacked]
         if: steps.check.outputs.skip != 'true'
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           token: ${{ steps.app-token.outputs.token }}
+          fetch-tags: true
 
       - name: Release
         if: steps.check.outputs.skip != 'true'
@@ -272,3 +274,9 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           HEGEL_RELEASE_APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
         run: python .github/scripts/release.py release
+
+      - name: Push to main or open PR
+        if: steps.check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: python .github/scripts/release.py push-or-pr
