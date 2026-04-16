@@ -41,6 +41,12 @@
 #ifndef HEGEL_TEMP_PROJECT_CMAKE_EXE
 #error "HEGEL_TEMP_PROJECT_CMAKE_EXE must be defined at build time"
 #endif
+#ifndef HEGEL_TEMP_PROJECT_CXX_FLAGS
+#error "HEGEL_TEMP_PROJECT_CXX_FLAGS must be defined at build time"
+#endif
+#ifndef HEGEL_TEMP_PROJECT_EXE_LINKER_FLAGS
+#error "HEGEL_TEMP_PROJECT_EXE_LINKER_FLAGS must be defined at build time"
+#endif
 
 namespace hegel::tests::common {
 
@@ -102,6 +108,14 @@ namespace hegel::tests::common {
             static const std::string s{HEGEL_TEMP_PROJECT_CMAKE_EXE};
             return s;
         }
+        static const std::string& cxx_flags() {
+            static const std::string s{HEGEL_TEMP_PROJECT_CXX_FLAGS};
+            return s;
+        }
+        static const std::string& exe_linker_flags() {
+            static const std::string s{HEGEL_TEMP_PROJECT_EXE_LINKER_FLAGS};
+            return s;
+        }
 
         // Configure the shared build dir on first call within this process.
         // The build dir is intentionally NOT wiped between processes: cmake's
@@ -126,11 +140,22 @@ namespace hegel::tests::common {
                     f << "int main() { return 0; }\n";
                 }
 
-                auto r = run_subject(
-                    cmake_exe(),
-                    {"-S", src_dir().string(), "-B", build_dir().string(),
-                     "-DHEGEL_BUILD_INFO_FILE=" + build_info_file().string(),
-                     "-DCMAKE_BUILD_TYPE=Release"});
+                std::vector<std::string> args = {
+                    "-S", src_dir().string(), "-B", build_dir().string(),
+                    "-DHEGEL_BUILD_INFO_FILE=" + build_info_file().string(),
+                    "-DCMAKE_BUILD_TYPE=Release"};
+                // Match the parent build's CXX/linker flags so the subject
+                // uses the same stdlib etc. (e.g. -stdlib=libc++). Only
+                // forwarded when non-empty to keep the cmake command line
+                // clean in the common case.
+                if (!cxx_flags().empty()) {
+                    args.push_back("-DCMAKE_CXX_FLAGS=" + cxx_flags());
+                }
+                if (!exe_linker_flags().empty()) {
+                    args.push_back("-DCMAKE_EXE_LINKER_FLAGS=" +
+                                   exe_linker_flags());
+                }
+                auto r = run_subject(cmake_exe(), args);
                 if (r.exit_code != 0) {
                     throw std::runtime_error(
                         "TempCppProject: cmake configure failed (exit " +

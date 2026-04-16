@@ -96,12 +96,19 @@ set(HEGEL_TEST_LIBRARIES \"$<TARGET_FILE:hegel>\")
 add_executable(test_output test_output.cpp)
 target_link_libraries(test_output
     PRIVATE hegel_tests_common GTest::gtest_main)
+# The subject binary built by TempCppProject must use the same toolchain
+# configuration as the parent build; otherwise `libhegel.a` (compiled with
+# e.g. `-stdlib=libc++`) and `main.cpp` (compiled with the default stdlib)
+# disagree on the C++ ABI and linking fails. Forward the parent's
+# CXX/linker flags so the subject's cmake configure receives them via -D.
 target_compile_definitions(test_output
     PRIVATE
         HEGEL_TEMP_PROJECT_BASE_DIR="${CMAKE_CURRENT_BINARY_DIR}/temp_project_test_output"
         HEGEL_TEMP_PROJECT_TEMPLATE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/temp_project_template"
         HEGEL_TEMP_PROJECT_BUILD_INFO_FILE="${CMAKE_CURRENT_BINARY_DIR}/hegel_test_build_info.cmake"
         HEGEL_TEMP_PROJECT_CMAKE_EXE="${CMAKE_COMMAND}"
+        HEGEL_TEMP_PROJECT_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
+        HEGEL_TEMP_PROJECT_EXE_LINKER_FLAGS="${CMAKE_EXE_LINKER_FLAGS}"
 )
 # Ensure libhegel.a (linked by the temp project at test time) is built first.
 add_dependencies(test_output hegel)
