@@ -41,12 +41,12 @@ namespace hegel::generators {
      * can be used with any `<random>` distribution.
      *
      * @code{.cpp}
-     *  auto rng = hegel::draw(gs::randoms());
+     *  auto rng = tc.draw(gs::randoms());
      *  std::uniform_real_distribution<double> dist(0.0, 10.0);
      *  double uniform_value = dist(rng);
      *
      *  // Using true random
-     *  auto rng = hegel::draw(gs::randoms({ .use_true_random = true }));
+     *  auto rng = tc.draw(gs::randoms({ .use_true_random = true }));
      *  std::lognormal_distribution<double> dist(0.0, 10.0);
      *  double uniform_value = dist(rng);
      * @endcode
@@ -56,8 +56,10 @@ namespace hegel::generators {
         /// @cond INTERNAL
         using result_type = uint32_t;
 
-        // Construct in artificial mode
-        explicit HegelRandom(impl::test_case::TestCaseData* data);
+        // Construct in artificial mode. The referenced TestCase must outlive
+        // this HegelRandom (typically both live for the duration of one test
+        // callback invocation).
+        explicit HegelRandom(const TestCase& tc);
 
         // Construct in true-random mode
         explicit HegelRandom(uint64_t seed);
@@ -75,7 +77,7 @@ namespace hegel::generators {
         /// @endcond
 
       private:
-        impl::test_case::TestCaseData* data_ = nullptr;
+        const TestCase* tc_ = nullptr;
         std::optional<std::mt19937> engine_;
     };
 
@@ -90,7 +92,7 @@ namespace hegel::generators {
      *
      * @code{.cpp}
      * namespace gs = hegel::generators;
-     * auto rng = hegel::draw(gs::randoms());
+     * auto rng = tc.draw(gs::randoms());
      *
      * std::lognormal_distribution<double> dist(0.0, 1.0);
      * double value = dist(rng);

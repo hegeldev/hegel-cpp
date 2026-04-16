@@ -12,6 +12,7 @@
 
 #include "internal.h"
 #include "nlohmann_reader.h"
+#include "test_case.h"
 
 /**
  * @brief Namespace containing abstractions for data generation.
@@ -21,11 +22,6 @@
  * in hegel::strategies.
  */
 namespace hegel::generators {
-
-    /// @cond INTERNAL
-    // Convenience alias used throughout this header
-    using TestCaseData = impl::test_case::TestCaseData;
-    /// @endcond
 
     /**
      * @brief The base interface that defines Generators.
@@ -45,7 +41,7 @@ namespace hegel::generators {
         virtual ~IGenerator() = default;
 
         /// @cond INTERNAL
-        virtual T do_draw(TestCaseData* data) const = 0;
+        virtual T do_draw(const TestCase& tc) const = 0;
         // Get the CBOR schema for this generator, if any.
         //
         // All IGenerators *may* have a schema, even if the schema isn't
@@ -68,21 +64,23 @@ namespace hegel::generators {
      * @code{.cpp}
      * namespace gs = hegel::generators;
      *
-     * // Create a generator and draw a value
-     * auto int_gen = gs::integers<int>({.min_value = 0, .max_value = 100});
-     * int value = hegel::draw(int_gen);
+     * hegel::hegel([](hegel::TestCase& tc) {
+     *     // Create a generator and draw a value
+     *     auto int_gen = gs::integers<int>({.min_value = 0, .max_value = 100});
+     *     int value = tc.draw(int_gen);
      *
-     * // Transform with map
-     * auto squared = int_gen.map([](int x) { return x * x; });
+     *     // Transform with map
+     *     auto squared = int_gen.map([](int x) { return x * x; });
      *
-     * // Filter values
-     * auto even = int_gen.filter([](int x) { return x % 2 == 0; });
+     *     // Filter values
+     *     auto even = int_gen.filter([](int x) { return x % 2 == 0; });
      *
-     * // Dependent generation with flat_map
-     * auto sized = gs::integers<size_t>({.min_value = 1, .max_value = 10})
-     *     .flat_map([](size_t len) {
-     *         return gs::text({.min_size = len, .max_size = len});
-     *     });
+     *     // Dependent generation with flat_map
+     *     auto sized = gs::integers<size_t>({.min_value = 1, .max_value = 10})
+     *         .flat_map([](size_t len) {
+     *             return gs::text({.min_size = len, .max_size = len});
+     *         });
+     * });
      * @endcode
      *
      * @tparam T The type to generate values for (must be reflect-cpp
@@ -98,8 +96,8 @@ namespace hegel::generators {
         Generator(std::shared_ptr<IGenerator<T>> p)
             : IGenerator<T>(), inner_(std::move(p)) {}
 
-        T do_draw(TestCaseData* data) const override {
-            return inner_->do_draw(data);
+        T do_draw(const TestCase& tc) const override {
+            return inner_->do_draw(tc);
         }
 
         std::optional<hegel::internal::json::json> schema() const override {
@@ -141,8 +139,8 @@ namespace hegel::generators {
             auto inner = inner_;
             return from_function<ResultType>(
                 [inner,
-                 f = std::forward<F>(f)](TestCaseData* data) -> ResultType {
-                    return f(inner->do_draw(data));
+                 f = std::forward<F>(f)](const TestCase& tc) -> ResultType {
+                    return f(inner->do_draw(tc));
                 });
         }
 
@@ -184,12 +182,12 @@ namespace hegel::generators {
             //     Function return type: Generator<ResultType>
             using ResultType =
                 decltype(std::declval<std::invoke_result_t<F, T>>().do_draw(
-                    std::declval<TestCaseData*>()));
+                    std::declval<const TestCase&>()));
             auto inner = inner_;
             return from_function<ResultType>(
                 [inner,
-                 f = std::forward<F>(f)](TestCaseData* data) -> ResultType {
-                    return f(inner->do_draw(data)).do_draw(data);
+                 f = std::forward<F>(f)](const TestCase& tc) -> ResultType {
+                    return f(inner->do_draw(tc)).do_draw(tc);
                 });
         }
 
@@ -223,14 +221,16 @@ namespace hegel::generators {
          */
         Generator<T> filter(std::function<bool(const T&)> pred) const {
             auto inner = inner_;
-            return from_function<T>([inner, pred](TestCaseData* data) -> T {
+            return from_function<T>([inner, pred](const TestCase& tc) -> T {
                 for (int i = 0; i < 3; ++i) {
-                    T value = inner->do_draw(data);
+                    T value = inner->do_draw(tc);
                     if (pred(value)) {
                         return value;
                     }
                 }
-                internal::stop_test();
+                tc.assume(false);
+                // unreachable: assume(false) throws
+                throw internal::HegelReject();
             });
         }
 
@@ -244,10 +244,10 @@ namespace hegel::generators {
     // internally by from_function() and by map()/flat_map()/filter().
     template <typename T> class FunctionBackedGenerator : public IGenerator<T> {
       public:
-        explicit FunctionBackedGenerator(std::function<T(TestCaseData*)> fn)
+        explicit FunctionBackedGenerator(std::function<T(const TestCase&)> fn)
             : gen_fn_(std::move(fn)) {}
 
-        FunctionBackedGenerator(std::function<T(TestCaseData*)> fn,
+        FunctionBackedGenerator(std::function<T(const TestCase&)> fn,
                                 hegel::internal::json::json schema)
             : gen_fn_(std::move(fn)), schema_(std::move(schema)) {}
 
@@ -255,10 +255,10 @@ namespace hegel::generators {
             return schema_;
         }
 
-        T do_draw(TestCaseData* data) const override { return gen_fn_(data); }
+        T do_draw(const TestCase& tc) const override { return gen_fn_(tc); }
 
       private:
-        std::function<T(TestCaseData*)> gen_fn_;
+        std::function<T(const TestCase&)> gen_fn_;
         std::optional<hegel::internal::json::json> schema_;
     };
     /// @endcond
@@ -277,9 +277,9 @@ namespace hegel::generators {
             return schema_;
         }
 
-        T do_draw(TestCaseData* data) const override {
+        T do_draw(const TestCase& tc) const override {
             hegel::internal::json::json response =
-                internal::communicate_with_core(schema_, data);
+                internal::communicate_with_core(schema_, tc);
 
             // Extract the result value
             if (!response.contains("result")) {
@@ -316,16 +316,16 @@ namespace hegel::generators {
 
     /// @cond INTERNAL
     // Construct a generator from a function. `fn` produces values of type T
-    // given test case data. The second overload associates a CBOR schema with
-    // the generator; the schema isn't used in do_draw(), but may be used when
+    // given a TestCase. The second overload associates a CBOR schema with the
+    // generator; the schema isn't used in do_draw(), but may be used when
     // composing generators.
     template <typename T>
-    Generator<T> from_function(std::function<T(TestCaseData*)> fn) {
+    Generator<T> from_function(std::function<T(const TestCase&)> fn) {
         return Generator<T>(new FunctionBackedGenerator<T>(std::move(fn)));
     }
 
     template <typename T>
-    Generator<T> from_function(std::function<T(TestCaseData*)> fn,
+    Generator<T> from_function(std::function<T(const TestCase&)> fn,
                                hegel::internal::json::json schema) {
         return Generator<T>(
             new FunctionBackedGenerator<T>(std::move(fn), std::move(schema)));
@@ -340,7 +340,7 @@ namespace hegel::generators {
     //                    {"min_value", 0},
     //                    {"max_value", 100}}
     // );
-    // int value = hegel::draw(gen);
+    // int value = tc.draw(gen);
     template <typename T>
     Generator<T> from_schema(hegel::internal::json::json schema) {
         return Generator<T>(new SchemaBackedGenerator<T>(std::move(schema)));
@@ -348,3 +348,12 @@ namespace hegel::generators {
     /// @endcond
 
 } // namespace hegel::generators
+
+namespace hegel {
+
+    template <typename T>
+    T TestCase::draw(const generators::Generator<T>& gen) const {
+        return gen.do_draw(*this);
+    }
+
+} // namespace hegel
