@@ -210,7 +210,7 @@ namespace hegel {
             throw std::runtime_error("Flaky Hegel test:\n" +
                                      results["flaky"].get<std::string>());
         }
-        
+
         bool test_passed = results.value("passed", true);
 
         if (!test_passed) {
