@@ -23,10 +23,6 @@
 
 using hegel::internal::json::ImplUtil;
 
-// =============================================================================
-// Primitive strategy implementations
-// =============================================================================
-
 namespace hegel::generators {
 
     Generator<std::monostate> nulls() {
@@ -39,10 +35,6 @@ namespace hegel::generators {
         hegel::internal::json::json schema = {{"type", "boolean"}};
         return from_schema<bool>(std::move(schema));
     }
-
-    // =============================================================================
-    // String strategy implementations
-    // =============================================================================
 
     /// Returns true if any individual character filtering param is set.
     static bool has_char_params(const TextParams& params) {
@@ -155,10 +147,6 @@ namespace hegel::generators {
         return from_schema<std::string>(std::move(schema));
     }
 
-    // =============================================================================
-    // Format string strategy implementations
-    // =============================================================================
-
     Generator<std::string> emails() {
         return from_schema<std::string>(
             hegel::internal::json::json{{"type", "email"}});
@@ -214,10 +202,6 @@ namespace hegel::generators {
         return from_schema<std::string>(
             hegel::internal::json::json{{"type", "datetime"}});
     }
-
-    // =============================================================================
-    // Random strategy implementations
-    // =============================================================================
 
     HegelRandom::HegelRandom(TestCaseData* data)
         : data_(data), engine_(std::nullopt) {}

@@ -18,7 +18,7 @@
 
 #include "json.h"
 
-namespace hegel::impl::data {
+namespace hegel::impl::test_case {
     struct TestCaseData;
 }
 
@@ -26,7 +26,7 @@ namespace hegel::impl::data {
 namespace hegel::internal {
     hegel::internal::json::json
     communicate_with_core(const hegel::internal::json::json& schema,
-                          impl::data::TestCaseData* data);
+                          impl::test_case::TestCaseData* data);
 
     /* Print a note message for debugging.
      *
@@ -70,7 +70,7 @@ namespace hegel::internal {
     [[noreturn]] void stop_test();
 
     /// @brief Get the current test case data, or nullptr if not in a test.
-    impl::data::TestCaseData* get_test_case_data();
+    impl::test_case::TestCaseData* get_test_case_data();
 
 } // namespace hegel::internal
 /// @endcond
