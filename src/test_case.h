@@ -1,35 +1,32 @@
 #pragma once
 
 /**
- * @file data.h
+ * @file test_case.h
  * @brief Internal test state
  * @cond INTERNAL
  */
 
 #include <cstdint>
-#include <hegel/options.h>
+#include <hegel/settings.h>
 
 namespace hegel::impl {
     class Connection;
 }
 
-// =============================================================================
-// Per-test-case State
-// =============================================================================
-namespace hegel::impl::data {
+namespace hegel::impl::test_case {
 
     struct TestCaseData {
         Connection* connection;
         uint32_t data_stream;
         bool is_last_run;
         bool test_aborted;
-        options::Verbosity verbosity;
+        settings::Verbosity verbosity;
     };
 
     void set(TestCaseData* data);
     void clear();
     TestCaseData* get();
 
-} // namespace hegel::impl::data
+} // namespace hegel::impl::test_case
 
 /// @endcond

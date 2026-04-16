@@ -45,12 +45,12 @@ dependencies.
 #include <hegel/hegel.h>
 #include <stdexcept>
 
-using namespace hegel::generators;
+namespace gs = hegel::generators;
 
 int main() {
     hegel::hegel([]() {
-        auto x = hegel::draw(integers<int>());
-        auto y = hegel::draw(integers<int>());
+        auto x = hegel::draw(gs::integers<int>());
+        auto y = hegel::draw(gs::integers<int>());
 
         // Addition should be commutative.
         if (x + y != y + x) {
@@ -74,12 +74,16 @@ target_link_libraries(test_add PRIVATE hegel)
 add_test(NAME test_add COMMAND test_add)
 ```
 
-To change the number of test cases, seed, or verbosity, pass a `HegelOptions`:
+To change the number of test cases, seed, or verbosity, pass a `HegelSettings`:
 
 ```cpp
 hegel::hegel([]() {
     // ...
+<<<<<<< HEAD
 }, {.test_cases = 500, .verbosity = hegel::options::Verbosity::Verbose, .seed = 1234});
+=======
+}, {.test_cases = 500, .verbosity = hegel::settings::Verbosity::Verbose});
+>>>>>>> main
 ```
 
 For a full walkthrough, including generators, combinators, and type-directed

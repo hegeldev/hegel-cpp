@@ -58,13 +58,22 @@ namespace hegel::generators {
         }
     }
 
-    /// @overload
+    /**
+     * @brief Sample uniformly from a fixed set of values (initializer list).
+     * @tparam T Element type
+     * @param elements Values to sample from (must not be empty)
+     * @return Generator that picks uniformly from elements
+     */
     template <typename T>
     Generator<T> sampled_from(std::initializer_list<T> elements) {
         return sampled_from(std::vector<T>(elements));
     }
 
-    /// @overload
+    /**
+     * @brief Sample uniformly from a fixed set of C-string literals.
+     * @param elements String literals to sample from (must not be empty)
+     * @return Generator of std::string picking uniformly from elements
+     */
     inline Generator<std::string>
     sampled_from(std::initializer_list<const char*> elements) {
         std::vector<std::string> strings;
@@ -137,7 +146,12 @@ namespace hegel::generators {
         });
     }
 
-    /// @overload
+    /**
+     * @brief Choose uniformly from a list of generators (initializer list).
+     * @tparam T Value type produced by each generator
+     * @param gens Generators to choose from (must not be empty)
+     * @return Generator that picks uniformly from gens and forwards do_draw
+     */
     template <typename T>
     Generator<T> one_of(std::initializer_list<Generator<T>> gens) {
         return one_of(std::vector<Generator<T>>(gens));

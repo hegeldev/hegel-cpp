@@ -9,6 +9,7 @@
 
 #include "../../../src/json_impl.h"
 using hegel::internal::json::ImplUtil;
+namespace gs = hegel::generators;
 
 // Extract Unicode codepoints from a UTF-8 string
 std::vector<uint32_t> extract_codepoints(const std::string& s) {
@@ -102,16 +103,15 @@ int main(int argc, char* argv[]) {
 
     hegel::hegel(
         [=]() {
-            auto gen = hegel::generators::text(
-                {.min_size = min_size,
-                 .max_size = max_size,
-                 .codec = codec,
-                 .min_codepoint = min_codepoint,
-                 .max_codepoint = max_codepoint,
-                 .categories = categories,
-                 .exclude_categories = exclude_categories,
-                 .include_characters = include_characters,
-                 .exclude_characters = exclude_characters});
+            auto gen = gs::text({.min_size = min_size,
+                                 .max_size = max_size,
+                                 .codec = codec,
+                                 .min_codepoint = min_codepoint,
+                                 .max_codepoint = max_codepoint,
+                                 .categories = categories,
+                                 .exclude_categories = exclude_categories,
+                                 .include_characters = include_characters,
+                                 .exclude_characters = exclude_characters});
             auto value = hegel::draw(gen);
             auto cps = extract_codepoints(value);
             nlohmann::json cp_array = nlohmann::json::array();

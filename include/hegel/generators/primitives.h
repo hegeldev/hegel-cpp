@@ -14,10 +14,16 @@ namespace hegel::generators {
     /// @name Primitive Strategies
     /// @{
 
-    /// Generate null values (std::monostate)
+    /**
+     * @brief Generate null values (std::monostate).
+     * @return Generator that always produces std::monostate{}.
+     */
     Generator<std::monostate> nulls();
 
-    /// Generate random boolean values
+    /**
+     * @brief Generate random boolean values.
+     * @return Generator producing `true` or `false`.
+     */
     Generator<bool> booleans();
 
     /**
@@ -50,7 +56,9 @@ namespace hegel::generators {
     }
 
     /**
-     * @brief Convenience overload for string literals.
+     * @brief Generate a constant string value (string literal convenience).
+     * @param value The C-string to convert to std::string.
+     * @return Generator that always produces std::string(value).
      */
     inline Generator<std::string> just(const char* value) {
         return just(std::string(value));

@@ -224,7 +224,9 @@ namespace hegel::generators {
      */
     template <typename T> class DerivedGenerator : public Generator<T> {
       public:
+        /// @cond INTERNAL
         DerivedGenerator(Generator<T> base) : Generator<T>(std::move(base)) {}
+        /// @endcond
 
         /**
          * @brief Override default per-field generators.
