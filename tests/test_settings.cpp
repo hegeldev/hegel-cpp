@@ -127,7 +127,6 @@ TEST(Settings, SuppressLargeBaseExample) {
                                       HealthCheck::TooSlow}});
 }
 
-
 static int global_counter = 1;
 
 TEST(FlakyReporting, FlakyReplay) {
@@ -158,8 +157,9 @@ TEST(FlakyReporting, FlakyGeneration) {
     try {
         hegel::hegel(
             [] {
-                hegel::draw(gs::integers<int>({.min_value = global_counter,
-                                           .max_value = global_counter + 1}));
+                hegel::draw(
+                    gs::integers<int>({.min_value = global_counter,
+                                       .max_value = global_counter + 1}));
                 global_counter++;
             },
             {.test_cases = 10,
