@@ -48,8 +48,10 @@ namespace hegel {
         ::close(child_read_fd);
         ::close(child_write_fd);
 
+        std::string hegel_path = HEGEL_DEFAULT_PATH;
+
         std::vector<std::string> args = {
-            HEGEL_DEFAULT_PATH, "--stdio", "--verbosity",
+            hegel_path, "--stdio", "--verbosity",
             settings::verbosity_to_string(settings.verbosity)};
 
         std::vector<char*> argv;
