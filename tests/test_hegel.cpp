@@ -138,7 +138,7 @@ TEST(HealthChecks, LargeBaseExampleSuppressed) {
 
 static int global_counter = 1;
 
-TEST(FlakyReporting, FlakyGlobalState) {
+TEST(FlakyReporting, FlakyReplay) {
     global_counter = 1;
     try {
         hegel::hegel(
@@ -154,7 +154,29 @@ TEST(FlakyReporting, FlakyGlobalState) {
                  hegel::options::HealthCheck::LargeInitialTestCase}});
         FAIL() << "Expected std::runtime_error";
     } catch (const std::runtime_error& e) {
-        EXPECT_NE(std::string(e.what()).find("Flaky Hegel test"),
+        EXPECT_NE(
+            std::string(e.what()).find("Your test produced different outcomes"),
+            std::string::npos)
+            << "Unexpected error message: " << e.what();
+    }
+}
+
+TEST(FlakyReporting, FlakyGeneration) {
+    global_counter = 0;
+    try {
+        hegel::hegel(
+            [] {
+                hegel::draw(integers<int>({.min_value = global_counter,
+                                           .max_value = global_counter + 1}));
+                global_counter++;
+            },
+            {.test_cases = 10,
+             .suppress_health_check = {
+                 hegel::options::HealthCheck::LargeInitialTestCase}});
+        FAIL() << "Expected std::runtime_error";
+    } catch (const std::runtime_error& e) {
+        EXPECT_NE(std::string(e.what()).find(
+                      "Your data generation is non-deterministic"),
                   std::string::npos)
             << "Unexpected error message: " << e.what();
     }
