@@ -113,7 +113,7 @@ namespace hegel {
 
         // Event loop on test stream
         hegel::internal::json::json results_json(nullptr);
-        int final_replays_remaining = 0;
+        uint32_t final_replays_remaining = 0;
         bool done = false;
         while (!done) {
             auto event = conn.recv_request(test_stream);
@@ -191,7 +191,7 @@ namespace hegel {
                 if (payload.contains("results")) {
                     results_json = payload["results"];
                     final_replays_remaining =
-                        results_json.value("interesting_test_cases", 0u);
+                        results_json.value("interesting_test_cases", 0);
                 }
 
                 if (final_replays_remaining <= 0) {
