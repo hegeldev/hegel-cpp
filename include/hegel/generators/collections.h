@@ -160,7 +160,6 @@ namespace hegel::generators {
             return result;
         });
     }
-    // clang-format off
     /**
      * @brief Generate dictionaries (maps) with configurable key and value
      * types.
@@ -183,7 +182,6 @@ namespace hegel::generators {
      * @param params Size constraints
      * @return Generator producing maps
      */
-    // clang-format on
     template <typename K, typename V>
     Generator<std::map<K, V>> dictionaries(Generator<K> keys,
                                            Generator<V> values,

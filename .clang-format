@@ -8,3 +8,4 @@ Language: Cpp
 DerivePointerAlignment: false
 PointerAlignment: Left
 NamespaceIndentation: All
+ReflowComments: false
