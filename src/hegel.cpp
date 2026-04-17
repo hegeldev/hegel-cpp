@@ -115,6 +115,7 @@ namespace hegel {
         hegel::internal::json::json results_json(nullptr);
         uint32_t final_replays_remaining = 0;
         bool done = false;
+        std::string final_exception_message;
         while (!done) {
             auto event = conn.recv_request(test_stream);
             auto& payload = event.payload;
@@ -142,6 +143,7 @@ namespace hegel {
                 // Run test
                 std::string status = "VALID";
                 std::string origin;
+                std::string exception_message;
                 bool stopped = false;
                 try {
                     test_fn(tc);
@@ -152,6 +154,7 @@ namespace hegel {
                 } catch (const std::exception& e) {
                     status = "INTERESTING";
                     origin = typeid(e).name();
+                    exception_message = e.what();
                 } catch (...) {
                     status = "INTERESTING";
                     if (const std::type_info* tinfo =
@@ -180,6 +183,9 @@ namespace hegel {
                     final_replays_remaining--;
                     if (final_replays_remaining <= 0) {
                         done = true;
+                    }
+                    if (status == "INTERESTING" && done) {
+                        final_exception_message = ": " + exception_message;
                     }
                 }
 
@@ -223,7 +229,8 @@ namespace hegel {
         bool test_passed = results.value("passed", true);
 
         if (!test_passed) {
-            throw std::runtime_error("Hegel test failed");
+            throw std::runtime_error("\nHegel test failed" +
+                                     final_exception_message);
         }
     }
 

@@ -120,3 +120,33 @@ TEST(Output, CustomNonStdExceptionIsHandled) {
     assert_matches_regex(r.stderr_data, R"(Hegel test failed)");
     assert_matches_regex(r.stderr_data, R"(Generated: 5\b)");
 }
+
+constexpr const char* EXCEPTION_MESSAGE_TEST_CODE = R"cpp(
+#include <cstdint>
+#include <hegel/hegel.h>
+#include <stdexcept>
+#include <string>
+
+namespace gs = hegel::generators;
+
+int main() {
+    hegel::hegel(
+        [](hegel::TestCase& tc) {
+            int32_t x = tc.draw(gs::integers<int32_t>());
+            if (x >= 7) {
+                throw std::runtime_error("custom exception for x=" +
+                                         std::to_string(x));
+            }
+        },
+        {.database = hegel::settings::Database::disabled()});
+    return 0;
+}
+)cpp";
+
+TEST(Output, ExceptionMessageIsShown) {
+    SubprocessResult r =
+        TempCppProject().main_file(EXCEPTION_MESSAGE_TEST_CODE).run();
+    EXPECT_NE(r.exit_code, 0);
+    assert_matches_regex(r.stderr_data,
+                         R"(Hegel test failed: custom exception for x=7)");
+}
