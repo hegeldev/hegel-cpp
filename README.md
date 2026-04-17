@@ -41,20 +41,30 @@ dependencies.
 
 ## Quick start
 
+Here's a short example of a Hegel test:
+
 ```cpp
 #include <hegel/hegel.h>
 #include <stdexcept>
 
 namespace gs = hegel::generators;
 
+std::vector<int> my_sort(std::vector<int> v) {
+    std::vector<int> v_(v);
+    std::sort(v_.begin(), v_.end());
+    auto last = std::unique(v_.begin(), v_.end());
+    v_.erase(last, v_.end());
+    return v_;
+}
+
 int main() {
     hegel::hegel([](hegel::TestCase& tc) {
-        auto x = tc.draw(gs::integers<int>());
-        auto y = tc.draw(gs::integers<int>());
+        auto vec1 = tc.draw(gs::vectors(gs::integers<int>()));
+        auto vec2 = my_sort(vec1);
+        std::sort(vec1.begin(), vec1.end());
 
-        // Addition should be commutative.
-        if (x + y != y + x) {
-            throw std::runtime_error("commutativity violated");
+        if (vec1 != vec2) {
+            throw std::runtime_error("vectors not equal");
         }
     });
 
@@ -69,17 +79,32 @@ so the enclosing process exits non-zero. Plug that into CTest (or any other
 runner) in the usual way:
 
 ```cmake
-add_executable(test_add test_add.cpp)
-target_link_libraries(test_add PRIVATE hegel)
-add_test(NAME test_add COMMAND test_add)
+add_executable(test_sort test_sort.cpp)
+target_link_libraries(test_sort PRIVATE hegel)
+add_test(NAME test_sort COMMAND test_sort)
 ```
+
+This test will fail. Hegel will produce a minimal failing test case for us:
+```
+Generated: [0, 0]
+libc++abi: terminating due to uncaught exception of type std::runtime_error: 
+Hegel test failed: vectors not equal
+```
+
+Hegel reports the minimal example showing that our sort is incorrectly dropping duplicates. 
+If we remove    
+```cpp 
+auto last = std::unique(v_.begin(), v_.end());
+v_.erase(last, v_.end());
+```
+from `my_sort`, this test will then pass (because it's just comparing the standard sort against itself).
 
 To change the number of test cases, seed, or verbosity, pass a `HegelSettings`:
 
 ```cpp
 hegel::hegel([](hegel::TestCase& tc) {
     // ...
-}, {.test_cases = 500, .verbosity = hegel::settings::Verbosity::Verbose});
+}, {.test_cases = 500, .verbosity = hegel::options::Verbosity::Verbose, .seed = 1234});
 ```
 
 For a full walkthrough, including generators, combinators, and type-directed
