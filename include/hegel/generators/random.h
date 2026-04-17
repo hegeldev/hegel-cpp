@@ -64,7 +64,7 @@ namespace hegel::generators {
          *
          * Each call to `operator()` draws entropy from Hegel via the
          * given test-case data, so the resulting values can be shrunken.
-         * The referenced TestCase must outlive this HegelRandom (typically both 
+         * The referenced TestCase must outlive this HegelRandom (typically both
          * live for the duration of one test callback invocation).
          *
          * @param data The active test case's data stream (non-owning).

@@ -23,7 +23,7 @@
  *     Person p = tc.draw(gs::default_generator<Person>());
  *
  *     // Generator-based generation
- *     int value = tc.draw(gs::integers<int>({.min_value = 0, .max_value = 100}));
+ *     int val = tc.draw(gs::integers<int>({.min_value = 0, .max_value = 100}));
  * });
  * @endcode
  *
@@ -78,8 +78,9 @@ namespace hegel {
      * int main() {
      *     hegel::hegel([](hegel::TestCase& tc) {
      *         namespace gs = hegel::generators;
-     *         auto x = tc.draw(gs::integers<int>({.min_value = 0, .max_value = 100}));
-     *         auto y = tc.draw(gs::integers<int>({.min_value = 0, .max_value = 100}));
+     *         auto x = tc.draw(gs::integers<int>({.min_value = 0, .max_value =
+     * 100})); auto y = tc.draw(gs::integers<int>({.min_value = 0, .max_value =
+     * 100}));
      *
      *         // Property: x + y >= x (true for non-negative integers)
      *         if (x + y < x) {

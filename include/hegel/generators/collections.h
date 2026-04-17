@@ -172,7 +172,8 @@ namespace hegel::generators {
      * auto intDict = dictionaries(integers<int>(), text());
      *
      * // With size bounds
-     * auto bounded = dictionaries(text(), integers<int>(), {.min_size = 1, .max_size = 3});
+     * auto bounded = dictionaries(text(), integers<int>(), {.min_size = 1,
+     * .max_size = 3});
      * @endcode
      *
      * @tparam K Key type

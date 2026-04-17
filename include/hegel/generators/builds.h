@@ -61,8 +61,10 @@ namespace hegel::generators {
      *
      * @code{.cpp}
      * auto rect = builds_agg<Rectangle>(
-     *     field<&Rectangle::width>(integers<int>({.min_value = 1, .max_value = 100})),
-     *     field<&Rectangle::height>(integers<int>({.min_value = 1, .max_value = 100}))
+     *     field<&Rectangle::width>(
+     *      integers<int>({.min_value = 1, .max_value = 100})),
+     *     field<&Rectangle::height>(
+     *      integers<int>({.min_value = 1, .max_value = 100}))
      * );
      * @endcode
      *
@@ -88,8 +90,10 @@ namespace hegel::generators {
      * };
      *
      * auto rect = builds_agg<Rectangle>(
-     *     field<&Rectangle::width>(integers<int>({.min_value = 1, .max_value = 100})),
-     *     field<&Rectangle::height>(integers<int>({.min_value = 1, .max_value = 100}))
+     *     field<&Rectangle::width>(
+     *      integers<int>({.min_value = 1, .max_value = 100})),
+     *     field<&Rectangle::height>(
+     *      integers<int>({.min_value = 1, .max_value = 100}))
      * );
      * @endcode
      * @tparam T Aggregate type to construct
