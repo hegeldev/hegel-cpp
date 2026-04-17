@@ -82,8 +82,9 @@ namespace hegel::tests::common {
         /// own exception — is re-raised.
         inline bool is_expected_property_failure(const std::exception& e,
                                                  bool sentinel_thrown) {
-            return sentinel_thrown &&
-                   std::string(e.what()) == "Hegel test failed";
+            return sentinel_thrown && std::string(e.what()) ==
+                                          "\nHegel test failed: MinimalFound" ||
+                   std::string(e.what()) == "\nHegel test failed: FindAnyFound";
         }
     } // namespace detail
 

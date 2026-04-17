@@ -112,9 +112,10 @@ namespace hegel {
         conn.request(0, run_test_msg);
 
         // Event loop on test stream
-        bool test_passed = true;
-        int final_replays_remaining = 0;
+        hegel::internal::json::json results_json(nullptr);
+        uint32_t final_replays_remaining = 0;
         bool done = false;
+        std::string final_exception_message;
         while (!done) {
             auto event = conn.recv_request(test_stream);
             auto& payload = event.payload;
@@ -142,6 +143,7 @@ namespace hegel {
                 // Run test
                 std::string status = "VALID";
                 std::string origin;
+                std::string exception_message;
                 bool stopped = false;
                 try {
                     test_fn(tc);
@@ -152,6 +154,7 @@ namespace hegel {
                 } catch (const std::exception& e) {
                     status = "INTERESTING";
                     origin = typeid(e).name();
+                    exception_message = e.what();
                 } catch (...) {
                     status = "INTERESTING";
                     if (const std::type_info* tinfo =
@@ -181,6 +184,9 @@ namespace hegel {
                     if (final_replays_remaining <= 0) {
                         done = true;
                     }
+                    if (status == "INTERESTING" && done) {
+                        final_exception_message = ": " + exception_message;
+                    }
                 }
 
             } else if (event_type == "test_done") {
@@ -189,10 +195,9 @@ namespace hegel {
                                  hegel::internal::json::json{{"result", true}});
 
                 if (payload.contains("results")) {
-                    auto& results = ImplUtil::raw(payload["results"]);
-                    test_passed = results.value("passed", true);
+                    results_json = payload["results"];
                     final_replays_remaining =
-                        results.value("interesting_test_cases", 0);
+                        results_json.value("interesting_test_cases", 0);
                 }
 
                 if (final_replays_remaining <= 0) {
@@ -207,8 +212,25 @@ namespace hegel {
         int status;
         waitpid(child_pid, &status, 0);
 
+        auto& results = ImplUtil::raw(results_json);
+        if (results.is_null()) {
+            throw std::runtime_error("test_done received without results");
+        }
+        if (results.contains("health_check_failure")) {
+            throw std::runtime_error(
+                "Hegel health check failure:\n" +
+                results["health_check_failure"].get<std::string>());
+        }
+        if (results.contains("flaky")) {
+            throw std::runtime_error("Flaky Hegel test:\n" +
+                                     results["flaky"].get<std::string>());
+        }
+
+        bool test_passed = results.value("passed", true);
+
         if (!test_passed) {
-            throw std::runtime_error("Hegel test failed");
+            throw std::runtime_error("\nHegel test failed" +
+                                     final_exception_message);
         }
     }
 

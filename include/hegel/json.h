@@ -93,6 +93,7 @@ namespace hegel::internal::json {
         json(const double init);
         json(const std::string& init);
         json(std::nullptr_t init = nullptr);
+        json(const json_raw_ref& init);
         ~json();
 
         json_raw_ref operator[](const std::string& key);

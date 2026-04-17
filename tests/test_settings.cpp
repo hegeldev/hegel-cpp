@@ -131,6 +131,52 @@ TEST(Settings, SuppressLargeBaseExample) {
                                       HealthCheck::TooSlow}});
 }
 
+static int global_counter = 1;
+
+TEST(FlakyReporting, FlakyReplay) {
+    global_counter = 1;
+    try {
+        hegel::hegel(
+            [&](hegel::TestCase& tc) {
+                auto x = tc.draw(gs::integers<int>());
+                if (global_counter == 1) {
+                    global_counter--;
+                    throw std::runtime_error("first test case fails");
+                }
+            },
+            {.test_cases = 1,
+             .suppress_health_check = {
+                 hegel::settings::HealthCheck::LargeInitialTestCase}});
+        FAIL() << "Expected std::runtime_error";
+    } catch (const std::runtime_error& e) {
+        EXPECT_NE(
+            std::string(e.what()).find("Your test produced different outcomes"),
+            std::string::npos)
+            << "Unexpected error message: " << e.what();
+    }
+}
+
+TEST(FlakyReporting, FlakyGeneration) {
+    global_counter = 0;
+    try {
+        hegel::hegel(
+            [&](hegel::TestCase& tc) {
+                tc.draw(gs::integers<int>({.min_value = global_counter,
+                                           .max_value = global_counter + 1}));
+                global_counter++;
+            },
+            {.test_cases = 10,
+             .suppress_health_check = {
+                 hegel::settings::HealthCheck::LargeInitialTestCase}});
+        FAIL() << "Expected std::runtime_error";
+    } catch (const std::runtime_error& e) {
+        EXPECT_NE(std::string(e.what()).find(
+                      "Your data generation is non-deterministic"),
+                  std::string::npos)
+            << "Unexpected error message: " << e.what();
+    }
+}
+
 // Mirrors rust/tests/test_database_key.rs. After a failing test is shrunk, the
 // minimal counterexample should be replayed first on the next run that points
 // at the same database directory.
