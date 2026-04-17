@@ -84,6 +84,7 @@ hegel_add_test(NAME test_hegel SOURCE test_hegel.cpp)
 hegel_add_test(NAME test_random SOURCE test_random.cpp)
 hegel_add_test(NAME test_no_nlohmann_include SOURCE test_no_nlohmann_include.cpp)
 hegel_add_test(NAME test_derived SOURCE test_derived.cpp)
+hegel_add_test(NAME test_coverage SOURCE test_coverage.cpp)
 
 # The `subject` binary used by TempCppProject is defined as a regular target
 # in the parent build tree rather than a separate cmake project. This way it

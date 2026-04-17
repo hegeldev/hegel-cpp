@@ -73,3 +73,15 @@ target_include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}
         $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>
 )
+
+add_executable(test_error_handling test_error_handling.cpp)
+target_link_libraries(test_error_handling PRIVATE hegel)
+
+add_executable(test_one_of test_one_of.cpp)
+target_link_libraries(test_one_of PRIVATE hegel)
+target_include_directories(
+    test_one_of
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>
+)
