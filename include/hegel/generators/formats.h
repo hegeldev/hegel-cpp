@@ -53,8 +53,7 @@ namespace hegel::generators {
      * Generates RFC 1035-compliant fully qualified domain names.
      *
      * @param params Length constraints. `max_length` (default 255) must
-     *   be in the range [4, 255]; values outside this range throw
-     *   `std::invalid_argument`.
+     *   be in the range [4, 255];
      * @return Generator producing domain-name strings.
      */
     Generator<std::string> domains(DomainsParams params = {});
