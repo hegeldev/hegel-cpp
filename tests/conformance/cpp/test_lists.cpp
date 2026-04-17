@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <hegel/json.h>
 #include <iostream>
 #include <optional>
@@ -30,25 +29,21 @@ int main(int argc, char* argv[]) {
         args["max_value"].is_null()
             ? std::nullopt
             : std::optional<int>(args["max_value"].get<int>());
+    bool unique = args["unique"].get<bool>();
+    std::string mode = conformance::get_mode(args);
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
         [=](hegel::TestCase& tc) {
-            auto gen =
-                gs::vectors(gs::integers<int>({.min_value = min_value,
-                                               .max_value = max_value}),
-                            {.min_size = min_size, .max_size = max_size});
+            auto elem_gen = gs::integers<int>(
+                {.min_value = min_value, .max_value = max_value});
+            auto gen = gs::vectors(
+                mode == "non_basic" ? conformance::make_non_basic(elem_gen)
+                                    : elem_gen,
+                {.min_size = min_size, .max_size = max_size, .unique = unique});
 
             auto vec = tc.draw(gen);
-
-            nlohmann::json metrics = {{"size", vec.size()}};
-            if (!vec.empty()) {
-                metrics["min_element"] =
-                    *std::min_element(vec.begin(), vec.end());
-                metrics["max_element"] =
-                    *std::max_element(vec.begin(), vec.end());
-            }
-            conformance::write_metrics(metrics);
+            conformance::write_metrics({{"elements", vec}});
         },
         {.test_cases = test_cases});
 

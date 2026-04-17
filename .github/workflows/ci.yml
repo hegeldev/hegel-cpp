@@ -154,7 +154,7 @@ jobs:
           python-version: '3.13'
 
       - name: Install hegel
-        run: pip install hegel-core==0.4.0
+        run: pip install hegel-core==0.4.1
 
       - name: Run conformance tests
         timeout-minutes: 10

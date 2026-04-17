@@ -25,6 +25,7 @@ int main(int argc, char* argv[]) {
     int max_key = args["max_key"].get<int>();
     int min_value = args["min_value"].get<int>();
     int max_value = args["max_value"].get<int>();
+    std::string mode = conformance::get_mode(args);
     int test_cases = conformance::get_test_cases();
 
     hegel::hegel(
@@ -32,11 +33,15 @@ int main(int argc, char* argv[]) {
             nlohmann::json metrics;
 
             if (key_type == "integer") {
+                auto key_gen = gs::integers<int>(
+                    {.min_value = min_key, .max_value = max_key});
+                auto val_gen = gs::integers<int>(
+                    {.min_value = min_value, .max_value = max_value});
                 auto gen = gs::dictionaries(
-                    gs::integers<int>(
-                        {.min_value = min_key, .max_value = max_key}),
-                    gs::integers<int>(
-                        {.min_value = min_value, .max_value = max_value}),
+                    mode == "non_basic" ? conformance::make_non_basic(key_gen)
+                                        : key_gen,
+                    mode == "non_basic" ? conformance::make_non_basic(val_gen)
+                                        : val_gen,
                     {.min_size = min_size, .max_size = max_size});
 
                 auto dict = tc.draw(gen);
@@ -61,10 +66,14 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 // string keys
+                auto text_gen = gs::text();
+                auto val_gen = gs::integers<int>(
+                    {.min_value = min_value, .max_value = max_value});
                 auto gen = gs::dictionaries(
-                    gs::text(),
-                    gs::integers<int>(
-                        {.min_value = min_value, .max_value = max_value}),
+                    mode == "non_basic" ? conformance::make_non_basic(text_gen)
+                                        : text_gen,
+                    mode == "non_basic" ? conformance::make_non_basic(val_gen)
+                                        : val_gen,
                     {.min_size = min_size, .max_size = max_size});
 
                 auto dict = tc.draw(gen);

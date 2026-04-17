@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <fstream>
+#include <hegel/hegel.h>
 #include <hegel/json.h>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -34,6 +35,21 @@ namespace conformance {
             f << metrics.dump() << "\n";
             f.flush();
         }
+    }
+
+    // Wrap a generator in a trivial filter so it loses its schema,
+    // forcing the compositional fallback path.
+    template <typename T>
+    hegel::generators::Generator<T>
+    make_non_basic(hegel::generators::Generator<T> gen) {
+        return gen.filter([](const T&) { return true; });
+    }
+
+    inline std::string get_mode(const nlohmann::json& args) {
+        if (args.contains("mode") && args["mode"].is_string()) {
+            return args["mode"].get<std::string>();
+        }
+        return "basic";
     }
 
 } // namespace conformance
