@@ -1,3 +1,3 @@
 RELEASE_TYPE: patch
 
-Support displaying health check failures and flaky failures.
+Support displaying user defined exceptions, health check failures, and flaky failures.
