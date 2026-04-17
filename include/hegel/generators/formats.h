@@ -81,7 +81,6 @@ namespace hegel::generators {
      *
      * @param params Version constraint: `v = 4` for IPv4 only, `v = 6`
      *   for IPv6 only, or `std::nullopt` (default) for a mix of both.
-     *   Other values throw `std::invalid_argument`.
      * @return Generator producing IP-address strings.
      */
     Generator<std::string> ip_addresses(IpAddressesParams params = {});

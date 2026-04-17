@@ -304,34 +304,15 @@ namespace hegel::generators {
         return Generator<T>(
             new FunctionBackedGenerator<T>(std::move(fn), std::move(schema)));
     }
-    /// @endcond
 
-    /**
-     * @brief Create a generator from an explicit CBOR schema.
-     *
-     * Use this when you need fine-grained control over the generation
-     * schema, or when working with types that don't support automatic
-     * schema derivation.
-     *
-     * See: https://hegel.dev/reference/protocol#schemas
-     *
-     * @code{.cpp}
-     * auto gen = hegel::generators::from_schema<int>(
-     *     hegel::internal::json::json{{"type", "integer"},
-     *                    {"min_value", 0},
-     *                    {"max_value", 100}}
-     * );
-     * int value = tc.draw(gen);
-     * @endcode
-     *
-     * @tparam T The type to deserialize generated values into
-     * @param schema CBOR schema describing the generation constraints
-     * @return A Generator<T> that generates according to the schema
-     */
+    // Create a generator from an explicit CBOR schema describing the generation
+    // constraints. See: https://hegel.dev/reference/protocol#schemas
     template <typename T>
     Generator<T> from_schema(hegel::internal::json::json schema) {
         return Generator<T>(new SchemaBackedGenerator<T>(std::move(schema)));
     }
+
+    /// @endcond
 
 } // namespace hegel::generators
 
