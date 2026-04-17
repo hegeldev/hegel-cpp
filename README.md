@@ -79,9 +79,9 @@ so the enclosing process exits non-zero. Plug that into CTest (or any other
 runner) in the usual way:
 
 ```cmake
-add_executable(test_add test_add.cpp)
-target_link_libraries(test_add PRIVATE hegel)
-add_test(NAME test_add COMMAND test_add)
+add_executable(test_sort test_sort.cpp)
+target_link_libraries(test_sort PRIVATE hegel)
+add_test(NAME test_sort COMMAND test_sort)
 ```
 
 This test will fail. Hegel will produce a minimal failing test case for us:

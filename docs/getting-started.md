@@ -353,12 +353,13 @@ You can also let Hegel derive a generator automatically, but override some of th
 default generators.
 
 ```cpp
+
+namespace gs = hegel::generators;
+
 int main() {
     hegel::hegel([](hegel::TestCase& tc) {
-        auto p = tc.draw(
-            hegel::generators::default_generator<Point>().override(
-                field<&Point::x>(hegel::generators::floats<double>(
-                    {.min_value = 1.0}))));
+        auto p = tc.draw(gs::default_generator<Point>().override(
+            field<&Point::x>(gs::floats<double>({.min_value = 1.0}))));
         // p.x >= 1.0
     });
 
