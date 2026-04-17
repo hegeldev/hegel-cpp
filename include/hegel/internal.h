@@ -20,8 +20,11 @@ namespace hegel {
     class TestCase;
 }
 
-/// @cond INTERNAL
+/**
+ * @brief Internal utilities exposed in public headers.
+ */
 namespace hegel::internal {
+    /// @cond INTERNAL
     hegel::internal::json::json
     communicate_with_core(const hegel::internal::json::json& schema,
                           const hegel::TestCase& tc);
@@ -51,4 +54,5 @@ namespace hegel::internal {
     };
 
 } // namespace hegel::internal
+
 /// @endcond

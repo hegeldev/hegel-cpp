@@ -51,7 +51,9 @@ namespace hegel::generators {
     /// @{
 
     /**
-     * @brief Generate random integers.
+     * @brief Generate random integers. For a given integral type T, produces
+     * values in the range [std::numeric_limits<T>::min(),
+     * std::numeric_limits<T>::max()] by default.
      *
      * @code{.cpp}
      * auto any_int = integers<int>();
@@ -68,10 +70,6 @@ namespace hegel::generators {
     Generator<T> integers(IntegersParams<T> params = {}) {
         T min_val = params.min_value.value_or(std::numeric_limits<T>::min());
         T max_val = params.max_value.value_or(std::numeric_limits<T>::max());
-
-        if (min_val > max_val) {
-            throw std::invalid_argument("Cannot have max_value < min_value");
-        }
 
         if (min_val > max_val) {
             throw std::invalid_argument("Cannot have max_value < min_value");
@@ -110,19 +108,6 @@ namespace hegel::generators {
         bool has_max = params.max_value.has_value();
         bool nan = params.allow_nan.value_or(!has_min && !has_max);
         bool inf = params.allow_infinity.value_or(!has_min || !has_max);
-
-        if (nan && (has_min || has_max)) {
-            throw std::invalid_argument(
-                "Cannot have allow_nan=true with min_value or max_value");
-        }
-        if (has_min && has_max && *params.min_value > *params.max_value) {
-            throw std::invalid_argument("Cannot have max_value < min_value");
-        }
-        if (inf && has_min && has_max) {
-            throw std::invalid_argument(
-                "Cannot have allow_infinity=true with both min_value and "
-                "max_value");
-        }
 
         if (nan && (has_min || has_max)) {
             throw std::invalid_argument(

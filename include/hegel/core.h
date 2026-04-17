@@ -108,28 +108,20 @@ namespace hegel::generators {
         /**
          * @brief Transform generated values with a function.
          *
-         * Given a Generator&lt;T&gt; and a function from T -> S, creates a
-         * Generator&lt;S&gt;.
+         * Given a Generator\<T\> and a function T -> S, creates a
+         * Generator\<S\>. This is used when you have a function to convert
+         * *values* between types. Compare with flat_map().
          *
-         * This works by generating values from the Generator&lt;T&gt; and
-         * applying a transformation to each value.
-         *
-         * This is used when you have a function to convert *values* between
-         * types. Compare with flat_map().
-         *
-         * Here's an example of how you'd use this with built-in strategies:
          * @code{.cpp}
-         * Generator<double> halved =                           // Result type
-         * Generator<double> gs::integers<int>() // Input type Generator<int>
-         * .map(
-         *             [](int x) { return double(x) / 2.0; }    //
-         * transformation: double f(int x)
-         *         );
+         * auto halved = integers<int>().map(
+         *     [](int x) { return double(x) / 2.0; }
+         * );
+         * // halved is Generator<double>
          * @endcode
          *
          * @tparam F Function type (T -> S)
          * @param f Transformation function with signature S f(T)
-         * @return Generator&lt;S&gt; producing transformed values
+         * @return Generator\<S\> producing transformed values
          * @see flat_map()
          */
         template <typename F>
@@ -147,31 +139,22 @@ namespace hegel::generators {
         /**
          * @brief Chain generators for dependent generation.
          *
-         * Given a Generator&lt;T&gt; and a function from T ->
-         * Generator&lt;S&gt;, creates a Generator&lt;S&gt;. Useful when
-         * generation parameters depend on previously generated values.
-         *
-         * This is used when you have a function that creates a new Generator
-         * based on the value. Compare this with map().
-         *
+         * Given a Generator\<T\> and a function T -> Generator\<S\>, creates a
+         * Generator\<S\>. Useful when generation parameters depend on
+         * previously generated values. Compare with map().
          *
          * @code{.cpp}
-         * Generator<std::string> sized_string =                     // Result
-         * type Generator<std::string> gs::integers<size_t>({.min_value = 1,
-         * .max_value = 10})   // Input type Generator<size_t> .flat_map(
-         *         [](size_t len) {                                  //
-         * transformation Generator<std::string> f(size_t len) return gs::text({
-         * // gs::text() return type is Generator<std::string> .min_size = len,
-         * // Constructor parameters to gs::text() depend on the value *len*
-         * .max_size = len
-         *             });
-         *     });
+         * auto sized_string =
+         *     integers<size_t>({.min_value = 1, .max_value = 10})
+         *         .flat_map([](size_t len) {
+         *             return text({.min_size = len, .max_size = len});
+         *         });
+         * // sized_string is Generator<std::string>
          * @endcode
          *
-         * @tparam F Function type (T -> Generator&lt;S&gt;)
-         * @param f Function that takes a T and returns a Generator&lt;S&gt;
-         * @return Generator&lt;S&gt; producing values from the chained
-         * generator
+         * @tparam F Function type (T -> Generator\<S\>)
+         * @param f Function that takes a T and returns a Generator\<S\>
+         * @return Generator\<S\> producing values from the chained generator
          * @see map(), text()
          */
         template <typename F> std::invoke_result_t<F, T> flat_map(F&& f) const {
@@ -198,26 +181,17 @@ namespace hegel::generators {
          * predicate. The new Generator has the same type as this Generator.
          *
          * For performance reasons, if 3 consecutive values fail the predicate,
-         * Hegel rejects the test case.
-         *
-         * So for example, if you want sorted lists of length N, you should
-         * generate sorted lists of length N, not generate random lists and
-         * filter by a predicate of 'length == N && is_sorted'. (Although the
-         * latter is logically correct, it would be a performance nightmare, so
-         * Hegel doesn't let you do it that way.)
+         * Hegel rejects the test case. You should prefer generating values that
+         * naturally satisfy your constraints rather than filtering broadly.
          *
          * @code{.cpp}
-         * Generator<int> even =                                  // Return type
-         * is same as input type gs::integers<int>({.min_value = 0, .max_value =
-         * 100})  // Input type = Generator<int> .filter(
-         *         [](int x) { return x % 2 == 0; }               // bool
-         * predicate(int x)
-         *     );
+         * auto even = integers<int>({.min_value = 0, .max_value = 100})
+         *     .filter([](int x) { return x % 2 == 0; });
+         * // even is Generator<int>
          * @endcode
          *
-         * @param pred Predicate that values must satisfy. Signature: bool
-         * pred(T value)
-         * @return Generator&lt;T&gt; producing only values satisfying pred
+         * @param pred Predicate that values must satisfy
+         * @return Generator<T> producing only values satisfying pred
          */
         Generator<T> filter(std::function<bool(const T&)> pred) const {
             auto inner = inner_;
@@ -330,21 +304,14 @@ namespace hegel::generators {
         return Generator<T>(
             new FunctionBackedGenerator<T>(std::move(fn), std::move(schema)));
     }
-    /// @endcond
 
-    /// @cond INTERNAL
-    // Create a generator from an explicit CBOR schema. Example:
-    //
-    // auto gen = hegel::generators::from_schema<int>(
-    //     hegel::internal::json::json{{"type", "integer"},
-    //                    {"min_value", 0},
-    //                    {"max_value", 100}}
-    // );
-    // int value = tc.draw(gen);
+    // Create a generator from an explicit CBOR schema describing the generation
+    // constraints. See: https://hegel.dev/reference/protocol#schemas
     template <typename T>
     Generator<T> from_schema(hegel::internal::json::json schema) {
         return Generator<T>(new SchemaBackedGenerator<T>(std::move(schema)));
     }
+
     /// @endcond
 
 } // namespace hegel::generators

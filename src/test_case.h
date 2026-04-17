@@ -1,5 +1,11 @@
 #pragma once
 
+/**
+ * @file test_case.h
+ * @brief Internal test state
+ * @cond INTERNAL
+ */
+
 #include <cstdint>
 #include <hegel/settings.h>
 
@@ -17,3 +23,5 @@ namespace hegel::impl::test_case {
     };
 
 } // namespace hegel::impl::test_case
+
+/// @endcond

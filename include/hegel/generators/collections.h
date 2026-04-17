@@ -160,7 +160,6 @@ namespace hegel::generators {
             return result;
         });
     }
-
     /**
      * @brief Generate dictionaries (maps) with configurable key and value
      * types.

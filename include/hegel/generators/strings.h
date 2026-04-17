@@ -100,10 +100,30 @@ namespace hegel::generators {
 
     /**
      * @brief Generate strings matching a regular expression.
-     * @param pattern Regex pattern to match
-     * @param fullmatch If true, the entire string must match the pattern; if
-     * false (default), the string just needs to contain a match
-     * @return Generator producing matching strings
+     *
+     * The pattern is interpreted server-side using Python's `re` syntax
+     * which differs from C++ `std::regex` — notably it supports `\d`, `\w`,
+     * `\s`, non-greedy quantifiers, and Unicode character classes.
+     *
+     * @code{.cpp}
+     * // Default: generated string only needs to *contain* a match,
+     * // so arbitrary prefix/suffix characters may surround it.
+     * auto loose = from_regex("[A-Z]{2}-[0-9]{4}");
+     * // e.g. "xx QX-8271 yy"
+     *
+     * // fullmatch = true: the entire generated string matches the pattern,
+     * // as if anchored with ^...$.
+     * auto strict = from_regex("[A-Z]{2}-[0-9]{4}", true);
+     * // e.g. "QX-8271"
+     * @endcode
+     *
+     * @param pattern Regex pattern (Python `re` syntax).
+     * @param fullmatch If `true`, the entire generated string must match
+     *   the pattern (equivalent to anchoring with `^` and `$`). If `false`
+     *   (default), the generated string need only contain a substring that
+     *   matches; arbitrary characters may appear before or after the match.
+     * @return Generator producing strings that satisfy @p pattern under the
+     *   selected match mode.
      */
     Generator<std::string> from_regex(const std::string& pattern,
                                       bool fullmatch = false);

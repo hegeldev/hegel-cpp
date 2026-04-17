@@ -104,7 +104,7 @@ To change the number of test cases, seed, or verbosity, pass a `HegelSettings`:
 ```cpp
 hegel::hegel([](hegel::TestCase& tc) {
     // ...
-}, {.test_cases = 500, .verbosity = hegel::options::Verbosity::Verbose, .seed = 1234});
+}, {.test_cases = 500, .verbosity = hegel::settings::Verbosity::Verbose, .seed = 1234});
 ```
 
 For a full walkthrough, including generators, combinators, and type-directed
