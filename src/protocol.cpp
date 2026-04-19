@@ -34,8 +34,8 @@ namespace hegel::impl::protocol {
         return v == "1" || v == "true";
     }
 
-    void init_protocol_debug(settings::Verbosity verbosity) {
-        set_protocol_debug(verbosity == settings::Verbosity::Debug ||
+    void init_protocol_debug(Verbosity verbosity) {
+        set_protocol_debug(verbosity == Verbosity::Debug ||
                            is_protocol_debug_env());
     }
 

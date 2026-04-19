@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
             : std::optional<int>(args["max_value"].get<int>());
     int test_cases = conformance::get_test_cases();
 
-    hegel::hegel(
+    hegel::test(
         [=](hegel::TestCase& tc) {
             auto gen = gs::integers<int>(
                 {.min_value = min_value, .max_value = max_value});

@@ -1,17 +1,12 @@
 #pragma once
 
-/**
- * @file builds.h
- * @brief Object construction generator functions: builds, builds_agg, field
- */
-
 #include <tuple>
 
 #include "hegel/core.h"
 
 namespace hegel::generators {
 
-    /// @name Object Construction Strategies
+    /// @name Combinators
     /// @{
 
     /**
@@ -40,7 +35,7 @@ namespace hegel::generators {
     template <typename T, typename... Gens> Generator<T> builds(Gens... gens) {
         auto gen_tuple = std::make_tuple(std::move(gens)...);
 
-        return from_function<T>([gen_tuple](const TestCase& tc) {
+        return compose([gen_tuple](const TestCase& tc) -> T {
             return std::apply([&tc](auto&... g) { return T(g.do_draw(tc)...); },
                               gen_tuple);
         });
@@ -106,7 +101,7 @@ namespace hegel::generators {
     Generator<T> builds_agg(Fields... fields) {
         auto gen_tuple = std::make_tuple(std::move(fields)...);
 
-        return from_function<T>([gen_tuple](const TestCase& tc) mutable {
+        return compose([gen_tuple](const TestCase& tc) mutable -> T {
             T result{};
             std::apply(
                 [&result, &tc](auto&... fs) {

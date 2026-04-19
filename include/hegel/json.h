@@ -1,9 +1,6 @@
 #pragma once
 
 /**
- * @file json.h
- * @brief Internal JSON wrapper types (hegel::internal::json). Hidden from
- * public docs; see hegel/json.h source for details.
  * @cond INTERNAL
  */
 

@@ -18,13 +18,13 @@ constexpr const char* FAILING_TEST_CODE = R"cpp(
 namespace gs = hegel::generators;
 
 int main() {
-    hegel::hegel(
+    hegel::test(
         [](hegel::TestCase& tc) {
             int32_t x = tc.draw(gs::integers<int32_t>());
             throw std::runtime_error("intentional failure: " +
                                      std::to_string(x));
         },
-        {.database = hegel::settings::Database::disabled()});
+        {.database = hegel::Database::disabled()});
     return 0;
 }
 )cpp";
@@ -45,7 +45,7 @@ constexpr const char* STABLE_ORIGIN_TEST_CODE = R"cpp(
 namespace gs = hegel::generators;
 
 int main() {
-    hegel::hegel(
+    hegel::test(
         [](hegel::TestCase& tc) {
             int32_t x = tc.draw(gs::integers<int32_t>());
             if (x >= 10) {
@@ -53,7 +53,7 @@ int main() {
                                          std::to_string(x));
             }
         },
-        {.database = hegel::settings::Database::disabled()});
+        {.database = hegel::Database::disabled()});
     return 0;
 }
 )cpp";
@@ -73,14 +73,14 @@ constexpr const char* THROW_INT_TEST_CODE = R"cpp(
 namespace gs = hegel::generators;
 
 int main() {
-    hegel::hegel(
+    hegel::test(
         [](hegel::TestCase& tc) {
             int32_t x = tc.draw(gs::integers<int32_t>());
             if (x >= 5) {
                 throw 42;
             }
         },
-        {.database = hegel::settings::Database::disabled()});
+        {.database = hegel::Database::disabled()});
     return 0;
 }
 )cpp";
@@ -101,14 +101,14 @@ struct MyError {};
 namespace gs = hegel::generators;
 
 int main() {
-    hegel::hegel(
+    hegel::test(
         [](hegel::TestCase& tc) {
             int32_t x = tc.draw(gs::integers<int32_t>());
             if (x >= 5) {
                 throw MyError{};
             }
         },
-        {.database = hegel::settings::Database::disabled()});
+        {.database = hegel::Database::disabled()});
     return 0;
 }
 )cpp";
