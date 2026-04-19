@@ -11,7 +11,7 @@ void test_nix_integration_canary() {
 }
 
 void test_addition_is_commutative() {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto x = tc.draw(gs::integers<int>());
         auto y = tc.draw(gs::integers<int>());
         tc.note("x = " + std::to_string(x) + ", y = " + std::to_string(y));
@@ -24,7 +24,7 @@ void test_addition_is_commutative() {
 }
 
 void test_zero_is_identity() {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto x = tc.draw(gs::integers<int>());
         tc.note("x = " + std::to_string(x));
 

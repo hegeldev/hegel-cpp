@@ -27,17 +27,17 @@ int main(int argc, char* argv[]) {
     int max_value = args["max_value"].get<int>();
     int test_cases = conformance::get_test_cases();
 
-    hegel::hegel(
+    hegel::test(
         [=](hegel::TestCase& tc) {
             nlohmann::json metrics;
 
             if (key_type == "integer") {
-                auto gen = gs::dictionaries(
-                    gs::integers<int>(
-                        {.min_value = min_key, .max_value = max_key}),
-                    gs::integers<int>(
-                        {.min_value = min_value, .max_value = max_value}),
-                    {.min_size = min_size, .max_size = max_size});
+                auto gen =
+                    gs::maps(gs::integers<int>(
+                                 {.min_value = min_key, .max_value = max_key}),
+                             gs::integers<int>({.min_value = min_value,
+                                                .max_value = max_value}),
+                             {.min_size = min_size, .max_size = max_size});
 
                 auto dict = tc.draw(gen);
 
@@ -61,11 +61,11 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 // string keys
-                auto gen = gs::dictionaries(
-                    gs::text(),
-                    gs::integers<int>(
-                        {.min_value = min_value, .max_value = max_value}),
-                    {.min_size = min_size, .max_size = max_size});
+                auto gen =
+                    gs::maps(gs::text(),
+                             gs::integers<int>({.min_value = min_value,
+                                                .max_value = max_value}),
+                             {.min_size = min_size, .max_size = max_size});
 
                 auto dict = tc.draw(gen);
 

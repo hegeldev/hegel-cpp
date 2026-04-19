@@ -1,22 +1,5 @@
 #pragma once
 
-/**
- * @file temp_project.h
- * @brief Compile + run an arbitrary hegel C++ program at test time.
- *
- * Mirrors rust/tests/common/project.rs (TempRustProject). The `subject`
- * executable is defined as a regular target in the parent cmake build tree
- * (see tests/CMakeLists.txt), so it inherits the exact toolchain used to
- * build libhegel.a — no second cmake configure, no flag forwarding, no ABI
- * mismatch when the parent uses e.g. `-stdlib=libc++`. At test time this
- * class overwrites the subject's source file and invokes `cmake --build
- * --target subject` to rebuild, then runs the produced binary.
- *
- * Tests using TempCppProject must run sequentially (gtest's default within
- * a single binary; ctest RESOURCE_LOCK across binaries) because they share
- * the single `subject` target.
- */
-
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -30,6 +13,18 @@
 #include <gtest/gtest.h>
 
 #include "common/subprocess.h"
+
+// The `subject`
+// executable is defined as a regular target in the parent cmake build tree
+// (see tests/CMakeLists.txt), so it inherits the exact toolchain used to
+// build libhegel.a — no second cmake configure, no flag forwarding, no ABI
+// mismatch when the parent uses e.g. `-stdlib=libc++`. At test time this
+// class overwrites the subject's source file and invokes `cmake --build
+// --target subject` to rebuild, then runs the produced binary.
+//
+// Tests using TempCppProject must run sequentially (gtest's default within
+// a single binary; ctest RESOURCE_LOCK across binaries) because they share
+// the single `subject` target.
 
 #ifndef HEGEL_TEMP_PROJECT_MAIN_CPP
 #error "HEGEL_TEMP_PROJECT_MAIN_CPP must be defined at build time"

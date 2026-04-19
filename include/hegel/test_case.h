@@ -1,10 +1,5 @@
 #pragma once
 
-/**
- * @file test_case.h
- * @brief TestCase class passed to every Hegel test callback.
- */
-
 #include <string_view>
 
 namespace hegel::impl::test_case {
@@ -21,15 +16,14 @@ namespace hegel {
      * @brief Handle to the currently-executing test case.
      *
      * A @c TestCase is passed as the sole argument to the callback given to
-     * hegel::hegel(). It is the entry point for drawing values, filtering
-     * generated inputs with assume(), and printing notes on failure.
+     * hegel::test(). It is the main way a test definition interacts with Hegel.
      *
      * @c TestCase is a non-owning handle into state managed by the Hegel
      * runner. It is neither copyable nor movable, and must not outlive the
      * test-case callback.
      *
      * @code{.cpp}
-     * hegel::hegel([](hegel::TestCase& tc) {
+     * hegel::test([](hegel::TestCase& tc) {
      *     namespace gs = hegel::generators;
      *     auto x = tc.draw(gs::integers<int>({.min_value = 0}));
      *     tc.assume(x != 0);
@@ -55,9 +49,6 @@ namespace hegel {
 
         /**
          * @brief Reject the current test case if @p condition is false.
-         *
-         * Use this when generated data doesn't meet a precondition.
-         * Rejected test cases are silently discarded, not counted as failures.
          *
          * @code{.cpp}
          * auto age = tc.draw(gs::integers<int>());

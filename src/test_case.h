@@ -13,7 +13,7 @@ namespace hegel::impl::test_case {
         Connection* connection;
         uint32_t data_stream;
         bool is_last_run;
-        settings::Verbosity verbosity;
+        Verbosity verbosity;
     };
 
 } // namespace hegel::impl::test_case

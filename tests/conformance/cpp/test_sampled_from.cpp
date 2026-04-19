@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
     std::vector<int> options = args["options"].get<std::vector<int>>();
     int test_cases = conformance::get_test_cases();
 
-    hegel::hegel(
+    hegel::test(
         [&](hegel::TestCase& tc) {
             auto gen = gs::sampled_from(options);
             auto value = tc.draw(gen);

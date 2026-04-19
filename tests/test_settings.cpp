@@ -9,13 +9,13 @@
 #include <vector>
 
 namespace gs = hegel::generators;
-using hegel::settings::Database;
-using hegel::settings::HealthCheck;
-using hegel::settings::HegelSettings;
+using hegel::Database;
+using hegel::HealthCheck;
+using hegel::Settings;
 
 TEST(Settings, DefaultRuns100TestCases) {
     int count = 0;
-    hegel::hegel([&count](hegel::TestCase& tc) {
+    hegel::test([&count](hegel::TestCase& tc) {
         tc.draw(gs::integers<int>());
         count++;
     });
@@ -24,23 +24,23 @@ TEST(Settings, DefaultRuns100TestCases) {
 
 TEST(Settings, CustomTestCases) {
     int count = 0;
-    hegel::hegel(
+    hegel::test(
         [&count](hegel::TestCase& tc) {
             tc.draw(gs::integers<int>());
             count++;
         },
-        HegelSettings{.test_cases = 17});
+        Settings{.test_cases = 17});
     EXPECT_EQ(count, 17);
 }
 
 TEST(Settings, SeedDeterminism) {
     auto run = []() {
         std::vector<int32_t> seen;
-        hegel::hegel(
+        hegel::test(
             [&seen](hegel::TestCase& tc) {
                 seen.push_back(tc.draw(gs::integers<int32_t>()));
             },
-            HegelSettings{.test_cases = 25, .seed = 42});
+            Settings{.test_cases = 25, .seed = 42});
         return seen;
     };
     auto a = run();
@@ -51,13 +51,13 @@ TEST(Settings, SeedDeterminism) {
 TEST(Settings, DerandomizeProducesRepeatableRuns) {
     auto run = []() {
         std::vector<int32_t> seen;
-        hegel::hegel(
+        hegel::test(
             [&seen](hegel::TestCase& tc) {
                 seen.push_back(tc.draw(gs::integers<int32_t>()));
             },
-            HegelSettings{.test_cases = 25,
-                          .derandomize = true,
-                          .database = Database::disabled()});
+            Settings{.test_cases = 25,
+                     .derandomize = true,
+                     .database = Database::disabled()});
         return seen;
     };
     auto a = run();
@@ -69,39 +69,38 @@ TEST(Settings, SuppressFilterTooMuch) {
     // Without suppression, the hypothesis filter_too_much health check fires
     // here because ~10% of draws are rejected. We suppress it and expect
     // the test to pass cleanly.
-    hegel::hegel(
+    hegel::test(
         [](hegel::TestCase& tc) {
             int n =
                 tc.draw(gs::integers<int>({.min_value = 0, .max_value = 100}));
             tc.assume(n < 90);
         },
-        HegelSettings{.suppress_health_check = {HealthCheck::FilterTooMuch}});
+        Settings{.suppress_health_check = {HealthCheck::FilterTooMuch}});
 }
 
 TEST(Settings, SuppressMultiple) {
-    hegel::hegel(
+    hegel::test(
         [](hegel::TestCase& tc) {
             int n =
                 tc.draw(gs::integers<int>({.min_value = 0, .max_value = 100}));
             tc.assume(n < 90);
         },
-        HegelSettings{.suppress_health_check = {HealthCheck::FilterTooMuch,
-                                                HealthCheck::TooSlow}});
+        Settings{.suppress_health_check = {HealthCheck::FilterTooMuch,
+                                           HealthCheck::TooSlow}});
 }
 
 TEST(Settings, SuppressAllWithAllHealthChecks) {
-    hegel::hegel(
+    hegel::test(
         [](hegel::TestCase& tc) {
             int n =
                 tc.draw(gs::integers<int>({.min_value = 0, .max_value = 100}));
             tc.assume(n < 90);
         },
-        HegelSettings{.suppress_health_check =
-                          hegel::settings::all_health_checks()});
+        Settings{.suppress_health_check = hegel::all_health_checks()});
 }
 
 TEST(Settings, SuppressDataTooLarge) {
-    hegel::hegel(
+    hegel::test(
         [](hegel::TestCase& tc) {
             bool do_big = tc.draw(gs::booleans());
             if (do_big) {
@@ -110,32 +109,31 @@ TEST(Settings, SuppressDataTooLarge) {
                 }
             }
         },
-        HegelSettings{.test_cases = 15,
-                      .suppress_health_check = {
-                          HealthCheck::TestCasesTooLarge, HealthCheck::TooSlow,
-                          HealthCheck::LargeInitialTestCase}});
+        Settings{.test_cases = 15,
+                 .suppress_health_check = {HealthCheck::TestCasesTooLarge,
+                                           HealthCheck::TooSlow,
+                                           HealthCheck::LargeInitialTestCase}});
 }
 
 TEST(Settings, SuppressLargeBaseExample) {
-    hegel::hegel(
+    hegel::test(
         [](hegel::TestCase& tc) {
             for (int i = 0; i < 10; ++i) {
                 (void)tc.draw(gs::vectors(gs::integers<int32_t>(),
                                           {.min_size = 50, .max_size = 50}));
             }
         },
-        HegelSettings{
-            .test_cases = 15,
-            .suppress_health_check = {HealthCheck::LargeInitialTestCase,
-                                      HealthCheck::TestCasesTooLarge,
-                                      HealthCheck::TooSlow}});
+        Settings{.test_cases = 15,
+                 .suppress_health_check = {HealthCheck::LargeInitialTestCase,
+                                           HealthCheck::TestCasesTooLarge,
+                                           HealthCheck::TooSlow}});
 }
 
 // Mirrors rust/tests/test_database_key.rs. After a failing test is shrunk, the
 // minimal counterexample should be replayed first on the next run that points
 // at the same database directory.
 //
-// XFAIL: HegelSettings does not yet expose a `database_key`. The server treats
+// XFAIL: Settings does not yet expose a `database_key`. The server treats
 // a null database_key as "don't persist", so the replay never happens. The
 // replay assertion below is wrapped in EXPECT_NONFATAL_FAILURE so that this
 // test passes today and will start failing (i.e. notice us) once database_key
@@ -149,7 +147,7 @@ TEST(Settings, DatabaseReplaysFailure) {
     fs::remove_all(db_path);
     fs::create_directories(db_path);
 
-    HegelSettings settings{
+    Settings settings{
         .database = Database::from_path(db_path.string()),
     };
 
@@ -157,7 +155,7 @@ TEST(Settings, DatabaseReplaysFailure) {
     auto run_once = [&] {
         values.clear();
         try {
-            hegel::hegel(
+            hegel::test(
                 [&](hegel::TestCase& tc) {
                     int64_t n = tc.draw(gs::integers<int64_t>());
                     values.push_back(n);
@@ -167,7 +165,7 @@ TEST(Settings, DatabaseReplaysFailure) {
                 },
                 settings);
         } catch (const std::runtime_error&) { // NOLINT(bugprone-empty-catch)
-            // expected: the property fails and hegel::hegel() rethrows
+            // expected: the property fails and hegel::test() rethrows
         }
     };
 

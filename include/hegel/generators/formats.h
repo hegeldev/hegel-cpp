@@ -1,10 +1,5 @@
 #pragma once
 
-/**
- * @file formats.h
- * @brief Format string generator functions: emails, urls, domains, etc.
- */
-
 #include <string>
 
 #include "hegel/core.h"
@@ -16,24 +11,20 @@ namespace hegel::generators {
     // =============================================================================
 
     /**
-     * @brief Parameters for domains() strategy.
+     * @brief Parameters for domains() generator.
      */
     struct DomainsParams {
         size_t max_length = 255; ///< Maximum domain name length
     };
 
     /**
-     * @brief Parameters for ip_addresses() strategy.
+     * @brief Parameters for ip_addresses() generator.
      */
     struct IpAddressesParams {
         std::optional<int> v; ///< IP version: 4, 6, or nullopt for both
     };
 
-    // =============================================================================
-    // Strategy declarations
-    // =============================================================================
-
-    /// @name Format String Strategies
+    /// @name Strings
     /// @{
 
     /**
@@ -55,12 +46,22 @@ namespace hegel::generators {
      */
     Generator<std::string> urls();
 
+    /// @}
+
+    /// @name Misc
+    /// @{
+
     /**
      * @brief Generate IP addresses.
      * @param params Version constraints (v=4, v=6, or both)
      * @return Generator producing IP address strings
      */
     Generator<std::string> ip_addresses(IpAddressesParams params = {});
+
+    /// @}
+
+    /// @name Datetime
+    /// @{
 
     /**
      * @brief Generate dates in ISO 8601 format (YYYY-MM-DD).

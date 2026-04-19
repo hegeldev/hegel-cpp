@@ -35,3 +35,37 @@ DISABLE_INDEX          = NO
 FULL_SIDEBAR           = NO
 HTML_COLORSTYLE        = LIGHT
 HTML_EXTRA_STYLESHEET  = @DOXYGEN_AWESOME_CSS_DIR@/doxygen-awesome.css
+
+ALIASES += "booleans=@ref hegel::generators::booleans \"booleans\""
+ALIASES += "just=@ref hegel::generators::just \"just\""
+ALIASES += "integers=@ref hegel::generators::integers \"integers\""
+ALIASES += "floats=@ref hegel::generators::floats \"floats\""
+ALIASES += "text=@ref hegel::generators::text \"text\""
+ALIASES += "characters=@ref hegel::generators::characters \"characters\""
+ALIASES += "binary=@ref hegel::generators::binary \"binary\""
+ALIASES += "from_regex=@ref hegel::generators::from_regex \"from_regex\""
+ALIASES += "vectors=@ref hegel::generators::vectors \"vectors\""
+ALIASES += "sets=@ref hegel::generators::sets \"sets\""
+ALIASES += "maps=@ref hegel::generators::maps \"maps\""
+ALIASES += "tuples=@ref hegel::generators::tuples \"tuples\""
+ALIASES += "sampled_from=@ref hegel::generators::sampled_from \"sampled_from\""
+ALIASES += "one_of=@ref hegel::generators::one_of \"one_of\""
+ALIASES += "variant=@ref hegel::generators::variant \"variant\""
+ALIASES += "optional=@ref hegel::generators::optional \"optional\""
+ALIASES += "emails=@ref hegel::generators::emails \"emails\""
+ALIASES += "domains=@ref hegel::generators::domains \"domains\""
+ALIASES += "urls=@ref hegel::generators::urls \"urls\""
+ALIASES += "ip_addresses=@ref hegel::generators::ip_addresses \"ip_addresses\""
+ALIASES += "dates=@ref hegel::generators::dates \"dates\""
+ALIASES += "times=@ref hegel::generators::times \"times\""
+ALIASES += "datetimes=@ref hegel::generators::datetimes \"datetimes\""
+ALIASES += "builds=@ref hegel::generators::builds \"builds\""
+ALIASES += "builds_agg=@ref hegel::generators::builds_agg \"builds_agg\""
+ALIASES += "default_generator=@ref hegel::generators::default_generator \"default_generator\""
+ALIASES += "randoms=@ref hegel::generators::randoms \"randoms\""
+ALIASES += "TestCase=@ref hegel::TestCase \"TestCase\""
+ALIASES += "Settings=@ref hegel::Settings \"Settings\""
+
+# Parameterized alias for TestCase members: @tc{draw} renders as "TestCase::draw"
+# linked to the method. Use for draw, note, assume, etc.
+ALIASES += "tc{1}=@ref hegel::TestCase::\1 \"TestCase::\1\""
