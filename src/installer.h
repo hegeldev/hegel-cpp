@@ -30,8 +30,6 @@ namespace hegel::impl {
     /// if uv cannot be found or installed.
     std::vector<std::string> hegel_command();
 
-    // Test hooks ----------------------------------------------------------
-
     /// Resolve a user-supplied `HEGEL_SERVER_COMMAND` value.
     ///
     /// - If `path` names an existing file, it is validated as executable and

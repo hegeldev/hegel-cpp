@@ -33,9 +33,6 @@ using hegel::internal::json::ImplUtil;
 
 namespace hegel {
 
-    // =============================================================================
-    // Child Process
-    // =============================================================================
     static void hegel_child(int child_read_fd, int child_write_fd,
                             const Settings& settings,
                             std::vector<std::string> args) {
