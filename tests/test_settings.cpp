@@ -143,8 +143,7 @@ TEST(FlakyReporting, FlakyReplay) {
                 }
             },
             {.test_cases = 1,
-             .suppress_health_check = {
-                 hegel::HealthCheck::LargeInitialTestCase}});
+             .suppress_health_check = {HealthCheck::LargeInitialTestCase}});
         FAIL() << "Expected std::runtime_error";
     } catch (const std::runtime_error& e) {
         EXPECT_NE(
@@ -164,8 +163,7 @@ TEST(FlakyReporting, FlakyGeneration) {
                 global_counter++;
             },
             {.test_cases = 10,
-             .suppress_health_check = {
-                 hegel::HealthCheck::LargeInitialTestCase}});
+             .suppress_health_check = {HealthCheck::LargeInitialTestCase}});
         FAIL() << "Expected std::runtime_error";
     } catch (const std::runtime_error& e) {
         EXPECT_NE(std::string(e.what()).find(
