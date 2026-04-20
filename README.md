@@ -18,7 +18,7 @@ include(FetchContent)
 FetchContent_Declare(
     hegel
     GIT_REPOSITORY https://github.com/hegeldev/hegel-cpp.git
-    GIT_TAG v0.3.0
+    GIT_TAG v0.3.1
 )
 FetchContent_MakeAvailable(hegel)
 

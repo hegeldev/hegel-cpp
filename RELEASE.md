@@ -1,7 +1,5 @@
 RELEASE_TYPE: patch
 
-Support displaying user defined exceptions, health check failures, and flaky failures.
-
 Fix the compositional fallback path of `vectors` and `maps` to
 correctly honor uniqueness when element/key generators lack a schema.
 Previously the fallback for `vectors({.unique = true})` produced a

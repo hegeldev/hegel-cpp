@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 - 2026-04-20
+
+Support displaying user defined exceptions, health check failures, and flaky failures.
+
 ## 0.3.0 - 2026-04-20
 
 Multiple improvements to make hegel-cpp more idiomatic to use.
