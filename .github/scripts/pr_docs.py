@@ -8,10 +8,24 @@ WEBSITE = ROOT / "website"
 DOCS_SRC = ROOT / "build" / "docs" / "html"
 DOCS_DEST = WEBSITE / "public" / "cpp"
 BRANCH = "ci/update-cpp-docs"
+# The docs are served at hegel.dev/cpp. Vercel's `trailingSlash: false` strips
+# the trailing slash, so the browser's base URL at /cpp is / — which breaks
+# Doxygen's relative asset hrefs (they resolve to /doxygen.css instead of
+# /cpp/doxygen.css). Inject <base href="/cpp/"> so relative URLs resolve
+# against the docs root regardless of trailing slash.
+BASE_HREF = "/cpp/"
 
 
 def git(*args: str) -> None:
     subprocess.run(["git", *args], check=True, cwd=WEBSITE)
+
+
+def inject_base_href(root: Path, href: str) -> None:
+    tag = f'<base href="{href}">'
+    for html_path in root.rglob("*.html"):
+        content = html_path.read_text(encoding="utf-8")
+        content = content.replace("<head>", f"<head>\n{tag}", 1)
+        html_path.write_text(content, encoding="utf-8")
 
 
 def main() -> None:
@@ -22,6 +36,7 @@ def main() -> None:
     if DOCS_DEST.exists():
         shutil.rmtree(DOCS_DEST)
     shutil.copytree(DOCS_SRC, DOCS_DEST)
+    inject_base_href(DOCS_DEST, BASE_HREF)
 
     git("config", "user.name", f"{app_slug}[bot]")
     git("config", "user.email", f"{app_id}+{app_slug}[bot]@users.noreply.github.com")
