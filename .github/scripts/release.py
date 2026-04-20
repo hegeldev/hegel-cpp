@@ -8,6 +8,12 @@ from pathlib import Path
 SOURCE_DIRS = ["src/", "include/"]
 ROOT = Path(__file__).resolve().parent.parent.parent
 
+# Files with a `GIT_TAG vX.Y.Z` reference
+FILES_WITH_GIT_TAG = [
+    "README.md",
+    "include/hegel/hegel.h",
+]
+
 
 def git(*args: str, cwd: Path | None = None) -> None:
     subprocess.run(["git", *args], check=True, cwd=cwd)
@@ -57,6 +63,18 @@ def set_version(cmake_file: Path, new_version: str) -> None:
         count=1,
     )
     cmake_file.write_text(new_text)
+
+
+def bump_git_tag(path: Path, new_version: str) -> None:
+    text = path.read_text()
+    new_text, count = re.subn(
+        r"GIT_TAG v\d+\.\d+\.\d+",
+        f"GIT_TAG v{new_version}",
+        text,
+    )
+    if count == 0:
+        raise ValueError(f"No `GIT_TAG vX.Y.Z` found in {path}")
+    path.write_text(new_text)
 
 
 def add_changelog(path: Path, *, version: str, content: str) -> None:
@@ -131,6 +149,9 @@ def release() -> None:
 
     set_version(ROOT / "CMakeLists.txt", new_version)
 
+    for rel_path in FILES_WITH_GIT_TAG:
+        bump_git_tag(ROOT / rel_path, new_version)
+
     add_changelog(ROOT / "CHANGELOG.md", version=new_version, content=content)
 
     app_slug = os.environ["HEGEL_RELEASE_APP_SLUG"]
@@ -144,7 +165,7 @@ def release() -> None:
         f"{bot_user_id}+{app_slug}[bot]@users.noreply.github.com",
         cwd=ROOT,
     )
-    git("add", "CMakeLists.txt", "CHANGELOG.md", cwd=ROOT)
+    git("add", "CMakeLists.txt", "CHANGELOG.md", *FILES_WITH_GIT_TAG, cwd=ROOT)
     git("rm", "RELEASE.md", cwd=ROOT)
     git(
         "commit",

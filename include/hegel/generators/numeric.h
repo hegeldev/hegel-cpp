@@ -1,10 +1,5 @@
 #pragma once
 
-/**
- * @file numeric.h
- * @brief Numeric generator functions: integers, floats
- */
-
 #include <limits>
 
 #include "hegel/core.h"
@@ -16,7 +11,7 @@ namespace hegel::generators {
     // =============================================================================
 
     /**
-     * @brief Parameters for integers() strategy.
+     * @brief Parameters for integers() generator.
      * @tparam T The integer type
      */
     template <typename T> struct IntegersParams {
@@ -27,7 +22,7 @@ namespace hegel::generators {
     };
 
     /**
-     * @brief Parameters for floats() strategy.
+     * @brief Parameters for floats() generator.
      * @tparam T The floating point type
      */
     template <typename T> struct FloatsParams {
@@ -43,11 +38,92 @@ namespace hegel::generators {
             allow_infinity; ///< Allow infinity. Default: true if unbounded
     };
 
-    // =============================================================================
-    // Template strategies
-    // =============================================================================
+    /// @cond INTERNAL
+    // Concrete IGenerator<T> subclass produced by integers().
+    template <typename T>
+        requires std::is_integral_v<T>
+    class IntegerGenerator : public IGenerator<T> {
+      public:
+        explicit IntegerGenerator(IntegersParams<T> params = {})
+            : params_(std::move(params)) {
+            T min_val =
+                params_.min_value.value_or(std::numeric_limits<T>::min());
+            T max_val =
+                params_.max_value.value_or(std::numeric_limits<T>::max());
+            if (min_val > max_val) {
+                throw std::invalid_argument(
+                    "Cannot have max_value < min_value");
+            }
+        }
 
-    /// @name Numeric Strategies
+        std::optional<BasicGenerator<T>> as_basic() const override {
+            T min_val =
+                params_.min_value.value_or(std::numeric_limits<T>::min());
+            T max_val =
+                params_.max_value.value_or(std::numeric_limits<T>::max());
+            return BasicGenerator<T>{{{"type", "integer"},
+                                      {"min_value", min_val},
+                                      {"max_value", max_val}},
+                                     &default_parse_raw<T>};
+        }
+
+      private:
+        IntegersParams<T> params_;
+    };
+
+    // Concrete IGenerator<T> subclass produced by floats().
+    template <typename T>
+        requires std::is_floating_point_v<T>
+    class FloatGenerator : public IGenerator<T> {
+      public:
+        explicit FloatGenerator(FloatsParams<T> params = {})
+            : params_(std::move(params)) {
+            bool has_min = params_.min_value.has_value();
+            bool has_max = params_.max_value.has_value();
+            bool nan = params_.allow_nan.value_or(!has_min && !has_max);
+            bool inf = params_.allow_infinity.value_or(!has_min || !has_max);
+            if (nan && (has_min || has_max)) {
+                throw std::invalid_argument(
+                    "Cannot have allow_nan=true with min_value or max_value");
+            }
+            if (has_min && has_max && *params_.min_value > *params_.max_value) {
+                throw std::invalid_argument(
+                    "Cannot have max_value < min_value");
+            }
+            if (inf && has_min && has_max) {
+                throw std::invalid_argument(
+                    "Cannot have allow_infinity=true with both min_value and "
+                    "max_value");
+            }
+        }
+
+        std::optional<BasicGenerator<T>> as_basic() const override {
+            constexpr int width = sizeof(T) * 8;
+            bool has_min = params_.min_value.has_value();
+            bool has_max = params_.max_value.has_value();
+            bool nan = params_.allow_nan.value_or(!has_min && !has_max);
+            bool inf = params_.allow_infinity.value_or(!has_min || !has_max);
+
+            hegel::internal::json::json schema = {
+                {"type", "float"},
+                {"exclude_min", params_.exclude_min},
+                {"exclude_max", params_.exclude_max},
+                {"allow_nan", nan},
+                {"allow_infinity", inf},
+                {"width", width}};
+            if (params_.min_value)
+                schema["min_value"] = *params_.min_value;
+            if (params_.max_value)
+                schema["max_value"] = *params_.max_value;
+            return BasicGenerator<T>{std::move(schema), &default_parse_raw<T>};
+        }
+
+      private:
+        FloatsParams<T> params_;
+    };
+    /// @endcond
+
+    /// @name Numeric
     /// @{
 
     /**
@@ -66,22 +142,7 @@ namespace hegel::generators {
     template <typename T = int64_t>
         requires std::is_integral_v<T>
     Generator<T> integers(IntegersParams<T> params = {}) {
-        T min_val = params.min_value.value_or(std::numeric_limits<T>::min());
-        T max_val = params.max_value.value_or(std::numeric_limits<T>::max());
-
-        if (min_val > max_val) {
-            throw std::invalid_argument("Cannot have max_value < min_value");
-        }
-
-        if (min_val > max_val) {
-            throw std::invalid_argument("Cannot have max_value < min_value");
-        }
-
-        hegel::internal::json::json schema = {{"type", "integer"},
-                                              {"min_value", min_val},
-                                              {"max_value", max_val}};
-
-        return from_schema<T>(std::move(schema));
+        return Generator<T>(new IntegerGenerator<T>(std::move(params)));
     }
 
     /**
@@ -103,57 +164,7 @@ namespace hegel::generators {
     template <typename T = double>
         requires std::is_floating_point_v<T>
     Generator<T> floats(FloatsParams<T> params = {}) {
-        // Determine width from type size (float = 32 bits, double = 64 bits)
-        constexpr int width = sizeof(T) * 8;
-
-        bool has_min = params.min_value.has_value();
-        bool has_max = params.max_value.has_value();
-        bool nan = params.allow_nan.value_or(!has_min && !has_max);
-        bool inf = params.allow_infinity.value_or(!has_min || !has_max);
-
-        if (nan && (has_min || has_max)) {
-            throw std::invalid_argument(
-                "Cannot have allow_nan=true with min_value or max_value");
-        }
-        if (has_min && has_max && *params.min_value > *params.max_value) {
-            throw std::invalid_argument("Cannot have max_value < min_value");
-        }
-        if (inf && has_min && has_max) {
-            throw std::invalid_argument(
-                "Cannot have allow_infinity=true with both min_value and "
-                "max_value");
-        }
-
-        if (nan && (has_min || has_max)) {
-            throw std::invalid_argument(
-                "Cannot have allow_nan=true with min_value or max_value");
-        }
-        if (has_min && has_max && *params.min_value > *params.max_value) {
-            throw std::invalid_argument("Cannot have max_value < min_value");
-        }
-        if (inf && has_min && has_max) {
-            throw std::invalid_argument(
-                "Cannot have allow_infinity=true with both min_value and "
-                "max_value");
-        }
-
-        hegel::internal::json::json schema = {
-            {"type", "float"},
-            {"exclude_min", params.exclude_min},
-            {"exclude_max", params.exclude_max},
-            {"allow_nan", nan},
-            {"allow_infinity", inf},
-            {"width", width}};
-
-        if (params.min_value) {
-            schema["min_value"] = *params.min_value;
-        }
-
-        if (params.max_value) {
-            schema["max_value"] = *params.max_value;
-        }
-
-        return from_schema<T>(std::move(schema));
+        return Generator<T>(new FloatGenerator<T>(std::move(params)));
     }
 
     /// @}

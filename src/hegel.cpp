@@ -41,7 +41,7 @@ namespace hegel {
     // Child Process
     // =============================================================================
     static void hegel_child(int child_read_fd, int child_write_fd,
-                            const settings::HegelSettings& settings) {
+                            const Settings& settings) {
         // Wire pipes to stdin/stdout for --stdio mode
         dup2(child_read_fd, STDIN_FILENO);
         dup2(child_write_fd, STDOUT_FILENO);
@@ -52,7 +52,7 @@ namespace hegel {
 
         std::vector<std::string> args = {
             hegel_path, "--stdio", "--verbosity",
-            settings::verbosity_to_string(settings.verbosity)};
+            verbosity_to_string(settings.verbosity)};
 
         std::vector<char*> argv;
         argv.reserve(args.size() + 1);
@@ -71,7 +71,7 @@ namespace hegel {
     static void hegel_parent(const std::function<void(TestCase&)>& test_fn,
                              pid_t child_pid, // NOLINT(misc-include-cleaner)
                              int read_fd, int write_fd,
-                             const settings::HegelSettings& settings) {
+                             const Settings& settings) {
         impl::Connection conn(read_fd, write_fd);
 
         conn.handshake();
@@ -92,20 +92,19 @@ namespace hegel {
         }
         run_test_msg["derandomize"] = settings.derandomize;
         switch (settings.database.kind()) {
-        case hegel::settings::Database::Kind::Unset:
+        case hegel::Database::Kind::Unset:
             break;
-        case hegel::settings::Database::Kind::Disabled:
+        case hegel::Database::Kind::Disabled:
             run_test_msg["database"] = nullptr;
             break;
-        case hegel::settings::Database::Kind::Path:
+        case hegel::Database::Kind::Path:
             run_test_msg["database"] = settings.database.path();
             break;
         }
         if (!settings.suppress_health_check.empty()) {
             auto arr = hegel::internal::json::json::array();
             for (auto c : settings.suppress_health_check) {
-                arr.push_back(
-                    std::string(hegel::settings::health_check_to_string(c)));
+                arr.push_back(std::string(hegel::health_check_to_string(c)));
             }
             run_test_msg["suppress_health_check"] = arr;
         }
@@ -212,8 +211,8 @@ namespace hegel {
         }
     }
 
-    void hegel(const std::function<void(TestCase&)>& test_fn,
-               const settings::HegelSettings& settings) {
+    void test(const std::function<void(TestCase&)>& test_fn,
+              const Settings& settings) {
         // Create pipes for parent<->child stdio communication
         // parent_to_child: parent writes to [1], child reads from [0]
         // child_to_parent: child writes to [1], parent reads from [0]

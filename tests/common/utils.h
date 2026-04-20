@@ -1,13 +1,5 @@
 #pragma once
 
-/**
- * @file utils.h
- * @brief Test utilities for the Hegel C++ test suite.
- *
- * These mirror rust/tests/common/utils.rs. They are intentionally header-only
- * because they are templated on generator/value types.
- */
-
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -20,6 +12,9 @@
 #include <gtest/gtest.h>
 
 #include <hegel/hegel.h>
+
+// These are intentionally header-only because they are templated on
+// generator/value types.
 
 namespace hegel::tests::common {
 
@@ -52,7 +47,7 @@ namespace hegel::tests::common {
     void assert_all_examples(const gs::Generator<T>& gen,
                              std::function<bool(const T&)> predicate,
                              uint64_t test_cases = 100) {
-        hegel::hegel(
+        hegel::test(
             [&](hegel::TestCase& tc) {
                 T value = tc.draw(gen);
                 if (!predicate(value)) {
@@ -60,10 +55,9 @@ namespace hegel::tests::common {
                         "Found value that does not match predicate");
                 }
             },
-            hegel::settings::HegelSettings{
-                .test_cases = test_cases,
-                .derandomize = true,
-                .database = hegel::settings::Database::disabled()});
+            hegel::Settings{.test_cases = test_cases,
+                            .derandomize = true,
+                            .database = hegel::Database::disabled()});
     }
 
     /// @brief Assert that no example drawn from `gen` satisfies `predicate`.
@@ -76,7 +70,7 @@ namespace hegel::tests::common {
     }
 
     namespace detail {
-        /// Only swallow `hegel()`'s rethrow if it was caused by our own
+        /// Only swallow `test()`'s rethrow if it was caused by our own
         /// sentinel *and* carries the generic "Hegel test failed" message.
         /// Anything else — infrastructure failures, user code throwing its
         /// own exception — is re-raised.
@@ -100,7 +94,7 @@ namespace hegel::tests::common {
         auto mu = std::make_shared<std::mutex>();
 
         try {
-            hegel::hegel(
+            hegel::test(
                 [&](hegel::TestCase& tc) {
                     T value = tc.draw(gen);
                     if (condition(value)) {
@@ -110,10 +104,9 @@ namespace hegel::tests::common {
                         throw FindAnyFound{};
                     }
                 },
-                hegel::settings::HegelSettings{
-                    .test_cases = max_attempts,
-                    .derandomize = true,
-                    .database = hegel::settings::Database::disabled()});
+                hegel::Settings{.test_cases = max_attempts,
+                                .derandomize = true,
+                                .database = hegel::Database::disabled()});
         } catch (const std::runtime_error& e) {
             if (!detail::is_expected_property_failure(e, *sentinel_thrown)) {
                 throw;
@@ -145,7 +138,7 @@ namespace hegel::tests::common {
         auto mu = std::make_shared<std::mutex>();
 
         try {
-            hegel::hegel(
+            hegel::test(
                 [&](hegel::TestCase& tc) {
                     T value = tc.draw(gen);
                     if (condition(value)) {
@@ -155,10 +148,9 @@ namespace hegel::tests::common {
                         throw MinimalFound{};
                     }
                 },
-                hegel::settings::HegelSettings{
-                    .test_cases = test_cases,
-                    .derandomize = true,
-                    .database = hegel::settings::Database::disabled()});
+                hegel::Settings{.test_cases = test_cases,
+                                .derandomize = true,
+                                .database = hegel::Database::disabled()});
         } catch (const std::runtime_error& e) {
             if (!detail::is_expected_property_failure(e, *sentinel_thrown)) {
                 throw;

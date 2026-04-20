@@ -6,7 +6,7 @@ namespace gs = hegel::generators;
 int main(int argc, char* argv[]) {
     int test_cases = conformance::get_test_cases();
 
-    hegel::hegel(
+    hegel::test(
         [](hegel::TestCase& tc) {
             auto gen = gs::booleans();
             auto value = tc.draw(gen);

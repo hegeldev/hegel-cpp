@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
             : std::optional<size_t>(args["max_size"].get<size_t>());
     int test_cases = conformance::get_test_cases();
 
-    hegel::hegel(
+    hegel::test(
         [=](hegel::TestCase& tc) {
             auto gen = gs::binary({.min_size = min_size, .max_size = max_size});
             std::vector<uint8_t> value = tc.draw(gen);

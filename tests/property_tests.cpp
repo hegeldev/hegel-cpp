@@ -1,13 +1,3 @@
-// property_tests.cpp - Property-based unit tests using hegel in embedded mode
-//
-// These tests demonstrate standard property-based testing patterns:
-// - Algebraic properties (commutativity, associativity, identity)
-// - Invariants (sorting, data structure properties)
-// - Round-trip properties (encode/decode, serialize/deserialize)
-// - Bounds and size properties
-//
-// Run with: ctest or ./property_tests
-
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -24,7 +14,7 @@ namespace gs = hegel::generators;
 // =============================================================================
 
 TEST(AlgebraicProperties, AdditionIsCommutative) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto x = tc.draw(gs::integers<int32_t>());
         auto y = tc.draw(gs::integers<int32_t>());
         tc.note("Testing: " + std::to_string(x) + " + " + std::to_string(y));
@@ -37,7 +27,7 @@ TEST(AlgebraicProperties, AdditionIsCommutative) {
 }
 
 TEST(AlgebraicProperties, MultiplicationIsCommutative) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto x = tc.draw(gs::integers<int32_t>());
         auto y = tc.draw(gs::integers<int32_t>());
         tc.note("Testing: " + std::to_string(x) + " * " + std::to_string(y));
@@ -49,7 +39,7 @@ TEST(AlgebraicProperties, MultiplicationIsCommutative) {
 }
 
 TEST(AlgebraicProperties, AdditionIsAssociative) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         // Use smaller integers to avoid overflow
         auto gen = gs::integers<int16_t>();
         auto x = tc.draw(gen);
@@ -66,7 +56,7 @@ TEST(AlgebraicProperties, AdditionIsAssociative) {
 }
 
 TEST(AlgebraicProperties, ZeroIsAdditiveIdentity) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto x = tc.draw(gs::integers<int64_t>());
         tc.note("Testing: " + std::to_string(x) + " + 0");
 
@@ -76,7 +66,7 @@ TEST(AlgebraicProperties, ZeroIsAdditiveIdentity) {
 }
 
 TEST(AlgebraicProperties, OneIsMultiplicativeIdentity) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto x = tc.draw(gs::integers<int64_t>());
         tc.note("Testing: " + std::to_string(x) + " * 1");
 
@@ -90,7 +80,7 @@ TEST(AlgebraicProperties, OneIsMultiplicativeIdentity) {
 // =============================================================================
 
 TEST(SortingInvariants, SortedOutputIsSorted) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto v = tc.draw(
             gs::vectors(gs::integers<int>(), {.min_size = 0, .max_size = 100}));
         tc.note("Testing vector of size " + std::to_string(v.size()));
@@ -104,7 +94,7 @@ TEST(SortingInvariants, SortedOutputIsSorted) {
 }
 
 TEST(SortingInvariants, SortPreservesLength) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto v = tc.draw(
             gs::vectors(gs::integers<int>(), {.min_size = 0, .max_size = 100}));
         size_t original_size = v.size();
@@ -117,7 +107,7 @@ TEST(SortingInvariants, SortPreservesLength) {
 }
 
 TEST(SortingInvariants, SortPreservesElements) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto v = tc.draw(
             gs::vectors(gs::integers<int>(), {.min_size = 0, .max_size = 50}));
         std::multiset<int> original(v.begin(), v.end());
@@ -130,7 +120,7 @@ TEST(SortingInvariants, SortPreservesElements) {
 }
 
 TEST(SortingInvariants, SortIsIdempotent) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto v = tc.draw(
             gs::vectors(gs::integers<int>(), {.min_size = 0, .max_size = 50}));
 
@@ -148,7 +138,7 @@ TEST(SortingInvariants, SortIsIdempotent) {
 // =============================================================================
 
 TEST(StringProperties, ReverseReverseIsIdentity) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto s = tc.draw(gs::text({.max_size = 100}));
         tc.note("Testing string of length " + std::to_string(s.size()));
 
@@ -161,7 +151,7 @@ TEST(StringProperties, ReverseReverseIsIdentity) {
 }
 
 TEST(StringProperties, ConcatenationLengthIsSum) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto s1 = tc.draw(gs::text({.max_size = 50}));
         auto s2 = tc.draw(gs::text({.max_size = 50}));
 
@@ -173,7 +163,7 @@ TEST(StringProperties, ConcatenationLengthIsSum) {
 }
 
 TEST(StringProperties, SubstringIsContained) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto s = tc.draw(gs::text({.min_size = 5, .max_size = 100}));
         tc.assume(s.size() >= 5);
 
@@ -194,7 +184,7 @@ TEST(StringProperties, SubstringIsContained) {
 // =============================================================================
 
 TEST(CollectionProperties, SetHasNoDuplicates) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto s = tc.draw(
             gs::sets(gs::integers<int>({.min_value = 0, .max_value = 1000}),
                      {.min_size = 0, .max_size = 50}));
@@ -208,7 +198,7 @@ TEST(CollectionProperties, SetHasNoDuplicates) {
 }
 
 TEST(CollectionProperties, UniqueVectorHasNoDuplicates) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto v = tc.draw(
             gs::vectors(gs::integers<int>({.min_value = 0, .max_value = 10000}),
                         {.min_size = 0, .max_size = 100, .unique = true}));
@@ -221,10 +211,10 @@ TEST(CollectionProperties, UniqueVectorHasNoDuplicates) {
 }
 
 TEST(CollectionProperties, MapKeysAreUnique) {
-    hegel::hegel([](hegel::TestCase& tc) {
-        auto m = tc.draw(gs::dictionaries(
-            gs::text({.min_size = 1, .max_size = 20}), gs::integers<int>(),
-            {.min_size = 0, .max_size = 20}));
+    hegel::test([](hegel::TestCase& tc) {
+        auto m = tc.draw(gs::maps(gs::text({.min_size = 1, .max_size = 20}),
+                                  gs::integers<int>(),
+                                  {.min_size = 0, .max_size = 20}));
 
         std::vector<std::string> keys;
         for (const auto& [k, v] : m) {
@@ -242,7 +232,7 @@ TEST(CollectionProperties, MapKeysAreUnique) {
 // =============================================================================
 
 TEST(NumericProperties, AbsoluteValueIsNonNegative) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto x = tc.draw(gs::integers<int32_t>());
         // Avoid INT_MIN which has no positive counterpart
         tc.assume(x != std::numeric_limits<int32_t>::min());
@@ -253,7 +243,7 @@ TEST(NumericProperties, AbsoluteValueIsNonNegative) {
 }
 
 TEST(NumericProperties, MaxIsGreaterOrEqual) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto x = tc.draw(gs::integers<int>());
         auto y = tc.draw(gs::integers<int>());
         tc.note("Testing max(" + std::to_string(x) + ", " + std::to_string(y) +
@@ -267,7 +257,7 @@ TEST(NumericProperties, MaxIsGreaterOrEqual) {
 }
 
 TEST(NumericProperties, MinIsLessOrEqual) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto x = tc.draw(gs::integers<int>());
         auto y = tc.draw(gs::integers<int>());
 
@@ -279,7 +269,7 @@ TEST(NumericProperties, MinIsLessOrEqual) {
 }
 
 TEST(NumericProperties, ClampIsInRange) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto lo =
             tc.draw(gs::integers<int>({.min_value = -100, .max_value = 0}));
         auto hi =
@@ -301,7 +291,7 @@ TEST(NumericProperties, ClampIsInRange) {
 // =============================================================================
 
 TEST(RoundTrip, IntToStringToInt) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto x = tc.draw(gs::integers<int>());
         tc.note("Testing round-trip for " + std::to_string(x));
 
@@ -313,7 +303,7 @@ TEST(RoundTrip, IntToStringToInt) {
 }
 
 TEST(RoundTrip, DoubleToStringToDouble) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         // Use bounded floats to avoid special values
         auto x = tc.draw(
             gs::floats<double>({.min_value = -1e10, .max_value = 1e10}));
@@ -347,7 +337,7 @@ TEST(RoundTrip, DoubleToStringToDouble) {
 }
 
 TEST(FilterMapProperties, FilteredValuesMatchPredicate) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto gen = gs::integers<int>({.min_value = 0, .max_value = 100})
                        .filter([](int x) { return x % 2 == 0; });
         auto x = tc.draw(gen);
@@ -359,7 +349,7 @@ TEST(FilterMapProperties, FilteredValuesMatchPredicate) {
 }
 
 TEST(FilterMapProperties, MappedValuesAreTransformed) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto gen =
             gs::integers<int>({.min_value = 1, .max_value = 10}).map([](int x) {
                 return x * x;

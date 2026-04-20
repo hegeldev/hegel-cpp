@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
     std::string mode = conformance::get_mode(args);
     int test_cases = conformance::get_test_cases();
 
-    hegel::hegel(
+    hegel::test(
         [=](hegel::TestCase& tc) {
             auto elem_gen = gs::integers<int>(
                 {.min_value = min_value, .max_value = max_value});

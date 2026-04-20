@@ -61,9 +61,9 @@ function(hegel_add_test)
     gtest_discover_tests(${HAT_NAME})
 endfunction()
 
-hegel_add_test(NAME test_crc32 SOURCE unit/test_crc32.cpp INTERNAL)
-hegel_add_test(NAME test_protocol SOURCE unit/test_protocol.cpp INTERNAL)
-hegel_add_test(NAME test_utils SOURCE unit/test_utils.cpp INTERNAL)
+hegel_add_test(NAME test_crc32 SOURCE test_crc32.cpp INTERNAL)
+hegel_add_test(NAME test_protocol SOURCE test_protocol.cpp INTERNAL)
+hegel_add_test(NAME test_utils SOURCE test_utils.cpp INTERNAL)
 
 foreach(name IN ITEMS integers floats strings collections flatmap
         mixed_types)
@@ -84,6 +84,7 @@ hegel_add_test(NAME test_hegel SOURCE test_hegel.cpp)
 hegel_add_test(NAME test_random SOURCE test_random.cpp)
 hegel_add_test(NAME test_no_nlohmann_include SOURCE test_no_nlohmann_include.cpp)
 hegel_add_test(NAME test_derived SOURCE test_derived.cpp)
+hegel_add_test(NAME test_compose SOURCE test_compose.cpp)
 
 # The `subject` binary used by TempCppProject is defined as a regular target
 # in the parent build tree rather than a separate cmake project. This way it
@@ -118,14 +119,14 @@ target_compile_definitions(test_output
 # parallelism with other test binaries.
 gtest_discover_tests(test_output PROPERTIES RESOURCE_LOCK temp_project_subject)
 
-add_executable(gtest_failure_test gtest_failure_test.cpp)
-target_link_libraries(gtest_failure_test
+add_executable(test_gtest test_gtest.cpp)
+target_link_libraries(test_gtest
     PRIVATE
         hegel
         GTest::gtest
 )
 
-add_test(NAME gtest_failure_test COMMAND gtest_failure_test)
-set_tests_properties(gtest_failure_test PROPERTIES
+add_test(NAME test_gtest COMMAND test_gtest)
+set_tests_properties(test_gtest PROPERTIES
     PASS_REGULAR_EXPRESSION "actual:"
 )

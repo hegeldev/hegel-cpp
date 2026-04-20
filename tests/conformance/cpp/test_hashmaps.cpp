@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
     std::string mode = conformance::get_mode(args);
     int test_cases = conformance::get_test_cases();
 
-    hegel::hegel(
+    hegel::test(
         [=](hegel::TestCase& tc) {
             nlohmann::json metrics;
 
@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
                     {.min_value = min_key, .max_value = max_key});
                 auto val_gen = gs::integers<int>(
                     {.min_value = min_value, .max_value = max_value});
-                auto gen = gs::dictionaries(
+                auto gen = gs::maps(
                     mode == "non_basic" ? conformance::make_non_basic(key_gen)
                                         : key_gen,
                     mode == "non_basic" ? conformance::make_non_basic(val_gen)
@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
                 auto text_gen = gs::text();
                 auto val_gen = gs::integers<int>(
                     {.min_value = min_value, .max_value = max_value});
-                auto gen = gs::dictionaries(
+                auto gen = gs::maps(
                     mode == "non_basic" ? conformance::make_non_basic(text_gen)
                                         : text_gen,
                     mode == "non_basic" ? conformance::make_non_basic(val_gen)

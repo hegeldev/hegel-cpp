@@ -1,9 +1,6 @@
 #pragma once
 
 /**
- * @file nlohmann_reader.h
- * @brief reflect-cpp Reader for hegel::internal::json::json (avoids JSON text
- * round-trip)
  * @cond INTERNAL
  */
 

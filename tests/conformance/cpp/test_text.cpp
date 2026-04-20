@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
 
     int test_cases = conformance::get_test_cases();
 
-    hegel::hegel(
+    hegel::test(
         [=](hegel::TestCase& tc) {
             auto gen = gs::text({.min_size = min_size,
                                  .max_size = max_size,

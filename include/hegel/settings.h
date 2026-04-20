@@ -5,13 +5,9 @@
 #include <string>
 #include <vector>
 
-/** @namespace hegel::settings
- * @brief The HegelSettings struct for configuring your Hegel run, and
- * supporting items
- */
-namespace hegel::settings {
+namespace hegel {
     /**
-     * @brief Verbosity levels for hegel output.
+     * @brief Verbosity levels.
      */
     enum class Verbosity {
         Quiet,   ///< Minimal output (used by TUI)
@@ -40,9 +36,7 @@ namespace hegel::settings {
     }
 
     /**
-     * @brief Hypothesis health checks that can be suppressed.
-     *
-     * Wire names match what the Hegel server (Hypothesis) expects.
+     * @brief Health checks.
      */
     enum class HealthCheck {
         FilterTooMuch,        ///< Test filters out too many generated examples.
@@ -78,37 +72,29 @@ namespace hegel::settings {
     }
 
     /**
-     * @brief Example database configuration.
-     *
-     * A three-state value for HegelSettings::database:
-     *
-     *  - `Database::unset()` — let the server pick the database
-     *    location. This is the default.
-     *  - `Database::disabled()` — no database is used for this run.
-     *    Sends `database: null` on the wire.
-     *  - `Database::from_path(path)` — use the given directory as the
-     *    example database.
+     * @brief Configure the Hegel database.
      */
     class Database {
       public:
-        /// Which variant this Database represents.
+        /// The configuration of the database. See the methods below.
         enum class Kind {
-            Unset,    ///< Server picks the default database location.
-            Disabled, ///< No database is used for this run.
-            Path,     ///< A specific directory is used for the database.
+            Unset, ///< Default behavior. By default, Hegel places the database
+                   ///< at `.hegel`.
+            Disabled, ///< Disable the database.
+            Path,     ///< Use the given directory as the database.
         };
 
-        /// Let the server pick the default database location.
-        /// @return A Database in the Unset state.
+        /// Default behavior. By default, Hegel places the database at `.hegel`.
+        /// @return A database with Database.Kind.Unset.
         static Database unset() { return {Kind::Unset, {}}; }
 
-        /// Disable the example database for this run.
-        /// @return A Database in the Disabled state.
+        /// Disable the database.
+        /// @return A database with Database.Kind.Disabled.
         static Database disabled() { return {Kind::Disabled, {}}; }
 
-        /// Use the given directory as the example database.
-        /// @param path Directory path for the example database.
-        /// @return A Database in the Path state.
+        /// Use the given directory as the database.
+        /// @param path The directory path for the database.
+        /// @return A database with Database.Kind.Path.
         static Database from_path(std::string path) {
             return {Kind::Path, std::move(path)};
         }
@@ -125,33 +111,27 @@ namespace hegel::settings {
     };
 
     /**
-     * @brief Configuration options for embedded mode execution.
-     * @see hegel::hegel()
+     * @brief Configuration options for hegel::test().
      */
-    struct HegelSettings {
-        /// Number of test cases to run. Default: 100
+    struct Settings {
+        /// Number of test cases to run. Defaults to 100.
         std::optional<uint64_t> test_cases;
 
-        /// Verbosity level for hegel output. Default: Normal
+        /// Verbosity level. Defaults to Verbosity::Normal.
         Verbosity verbosity = Verbosity::Normal;
 
-        /// Explicit RNG seed. If unset, Hegel picks one (unless derandomize).
+        /// Explicit seed for the test.
         std::optional<uint64_t> seed;
 
-        /// If true, the server uses a derandomized (deterministic) RNG.
-        /// Combined with `database = Database::disabled()` this produces a
-        /// fully reproducible run, which is what test helpers like
-        /// `minimal()` want.
+        /// If true, use a deterministic RNG, making the test deterministic
+        /// across executions.
         bool derandomize = false;
 
-        /// Example database configuration. Default: `Database::unset()`
-        /// (server picks the default location).
-        ///
-        /// Use `Database::disabled()` to disable the database for this
-        /// run, or `Database::from_path()` to use a specific directory.
+        /// Configure the Hegel database. See Database. Defaults to a database
+        /// at `.hegel`.
         Database database = Database::unset();
 
-        /// Health checks to suppress for this run. Defaults to none.
+        /// Health checks to suppress for this test.
         std::vector<HealthCheck> suppress_health_check;
     };
-} // namespace hegel::settings
+} // namespace hegel

@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
             : std::optional<bool>(args["allow_infinity"].get<bool>());
     int test_cases = conformance::get_test_cases();
 
-    hegel::hegel(
+    hegel::test(
         [=](hegel::TestCase& tc) {
             auto gen = gs::floats<double>({
                 .min_value = min_value,

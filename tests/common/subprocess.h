@@ -1,13 +1,5 @@
 #pragma once
 
-/**
- * @file subprocess.h
- * @brief Helpers for running a prebuilt executable and capturing its stdio.
- *
- * Used by test_output.cpp to run subject binaries that deliberately fail,
- * and assert on the stderr produced by the hegel runtime.
- */
-
 #include <cstring>
 #include <fcntl.h>
 #include <stdexcept>

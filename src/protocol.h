@@ -71,6 +71,6 @@ namespace hegel::impl::protocol {
     bool protocol_debug_enabled();
 
     /// Initialize protocol debug flag from verbosity + env var
-    void init_protocol_debug(settings::Verbosity verbosity);
+    void init_protocol_debug(Verbosity verbosity);
 
 } // namespace hegel::impl::protocol

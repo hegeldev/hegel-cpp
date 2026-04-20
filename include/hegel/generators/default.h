@@ -1,14 +1,5 @@
 #pragma once
 
-/**
- * @file default.h
- * @brief Default and derived generators: automatic generator dispatch
- *        for primitive types, containers, and reflected structs.
- *
- * This header must be included after all other strategy headers because
- * default_generator<T>() dispatches to integers<T>(), text(), etc.
- */
-
 #include <map>
 #include <optional>
 #include <set>
@@ -27,7 +18,7 @@
 
 namespace hegel::generators {
 
-    /// @name Deriving Generators
+    /// @name Typing
     /// @{
 
     template <typename T> class DerivedGenerator;
@@ -88,7 +79,7 @@ namespace hegel::generators {
                 "container, or reflectable struct");
 
             static Generator<T> generator() {
-                return from_function<T>([](const TestCase& tc) -> T {
+                return compose([](const TestCase& tc) -> T {
                     T result{};
                     auto view = rfl::to_view(result);
                     view.apply([&tc](const auto& field) {
@@ -116,7 +107,9 @@ namespace hegel::generators {
         };
 
         template <> struct DefaultGenerator<std::monostate> {
-            static Generator<std::monostate> generator() { return nulls(); }
+            static Generator<std::monostate> generator() {
+                return just(std::monostate{});
+            }
         };
 
         template <typename T>
@@ -156,8 +149,7 @@ namespace hegel::generators {
             static Generator<T> generator() {
                 using K = typename T::key_type;
                 using V = typename T::mapped_type;
-                return dictionaries(default_generator<K>(),
-                                    default_generator<V>());
+                return maps(default_generator<K>(), default_generator<V>());
             }
         };
 
@@ -249,8 +241,8 @@ namespace hegel::generators {
         DerivedGenerator<T> override(Fields... fields) const {
             Generator<T> base = *this;
             auto fields_tuple = std::make_tuple(std::move(fields)...);
-            return DerivedGenerator<T>(from_function<T>(
-                [base, fields_tuple](const TestCase& tc) mutable -> T {
+            return DerivedGenerator<T>(
+                compose([base, fields_tuple](const TestCase& tc) mutable -> T {
                     T result = base.do_draw(tc);
                     std::apply(
                         [&result, &tc](auto&... fs) {
@@ -268,7 +260,7 @@ namespace hegel::generators {
     /**
      * @brief Create a default generator for type T.
      *
-     * Dispatches to the appropriate built-in strategy based on the type:
+     * Dispatches to the appropriate built-in generator based on the type:
      * - Primitive types: bool, integers, floats, std::string
      * - Containers: vector, set, map, optional, tuple, variant
      * - Reflected structs: any struct with public fields (via reflect-cpp)

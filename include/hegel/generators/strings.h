@@ -1,10 +1,5 @@
 #pragma once
 
-/**
- * @file strings.h
- * @brief String generator functions: text, characters, binary, from_regex
- */
-
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -13,12 +8,8 @@
 
 namespace hegel::generators {
 
-    // =============================================================================
-    // Parameter structs
-    // =============================================================================
-
     /**
-     * @brief Parameters for text() strategy.
+     * @brief Parameters for text() generator.
      */
     struct TextParams {
         size_t min_size = 0; ///< Minimum string length
@@ -42,7 +33,7 @@ namespace hegel::generators {
     };
 
     /**
-     * @brief Parameters for characters() strategy.
+     * @brief Parameters for characters() generator.
      *
      * Same character filtering options as TextParams except no min_size,
      * max_size, or alphabet.
@@ -62,7 +53,7 @@ namespace hegel::generators {
     };
 
     /**
-     * @brief Parameters for binary() strategy.
+     * @brief Parameters for binary() generator.
      */
     struct BinaryParams {
         size_t min_size = 0; ///< Minimum size in bytes
@@ -70,11 +61,7 @@ namespace hegel::generators {
             max_size; ///< Maximum size in bytes. Default: no limit
     };
 
-    // =============================================================================
-    // Strategy declarations
-    // =============================================================================
-
-    /// @name String Strategies
+    /// @name Strings
     /// @{
 
     /**

@@ -76,6 +76,25 @@ TEST(DefaultGenerator, StructHasNoSchema) {
     EXPECT_FALSE(gs::default_generator<Point>().schema().has_value());
 }
 
+TEST(Map, PreservesSchemaOnBasicGenerator) {
+    // map() on a schema-backed generator should keep the schema (the
+    // transformation is composed into the client-side parse step).
+    auto squared =
+        gs::integers<int>({.min_value = 0, .max_value = 10}).map([](int x) {
+            return x * x;
+        });
+    EXPECT_TRUE(squared.schema().has_value());
+}
+
+TEST(Map, DropsSchemaOnFunctionBacked) {
+    // map() on a function-backed generator (no as_basic()) falls back to a
+    // function-backed result.
+    auto struct_gen = gs::default_generator<Point>();
+    EXPECT_FALSE(struct_gen.schema().has_value());
+    auto mapped = struct_gen.map([](const Point& p) { return p.x; });
+    EXPECT_FALSE(mapped.schema().has_value());
+}
+
 TEST(DefaultGenerator, Instantiation) {
     EXPECT_NO_THROW(gs::default_generator<Point>());
     EXPECT_NO_THROW(gs::default_generator<Person>());
@@ -96,7 +115,7 @@ TEST(DefaultGenerator, ContainerOfStructs) {
 }
 
 TEST(DefaultGeneratorProperty, StructFieldsAreGenerated) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto p = tc.draw(gs::default_generator<Point>());
         // Fields should be finite doubles (not NaN/Inf by default since
         // default floats generator allows them, but they should at least exist)
@@ -106,7 +125,7 @@ TEST(DefaultGeneratorProperty, StructFieldsAreGenerated) {
 }
 
 TEST(DefaultGeneratorProperty, NestedStructWorks) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto line = tc.draw(gs::default_generator<Line>());
         (void)line.start.x;
         (void)line.start.y;
@@ -116,7 +135,7 @@ TEST(DefaultGeneratorProperty, NestedStructWorks) {
 }
 
 TEST(DefaultGeneratorProperty, OverriddenFieldRespectsConstraints) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto gen = gs::default_generator<Point>().override(
             gs::field<&Point::x>(
                 gs::floats<double>({.min_value = 0.0, .max_value = 0.0})),
@@ -131,7 +150,7 @@ TEST(DefaultGeneratorProperty, OverriddenFieldRespectsConstraints) {
 }
 
 TEST(DefaultGeneratorProperty, PartialOverride) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         // Override only age, name uses default
         auto gen =
             gs::default_generator<Person>().override(gs::field<&Person::age>(
@@ -144,7 +163,7 @@ TEST(DefaultGeneratorProperty, PartialOverride) {
 }
 
 TEST(DefaultGeneratorProperty, VectorOfStructs) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto vec = tc.draw(gs::vectors(gs::default_generator<Point>(),
                                        {.min_size = 1, .max_size = 5}));
         ASSERT_GE(vec.size(), 1u);
@@ -157,7 +176,7 @@ TEST(DefaultGeneratorProperty, VectorOfStructs) {
 // =============================================================================
 
 TEST(DefaultGeneratorProperty, MapOnStruct) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto gen =
             gs::default_generator<Point>()
                 .override(gs::field<&Point::x>(gs::integers<int>(
@@ -171,7 +190,7 @@ TEST(DefaultGeneratorProperty, MapOnStruct) {
 }
 
 TEST(DefaultGeneratorProperty, FlatMapOnStruct) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto gen = gs::default_generator<Point>()
                        .override(gs::field<&Point::x>(gs::integers<uint16_t>(
                            {.min_value = 0, .max_value = 100})))
@@ -186,7 +205,7 @@ TEST(DefaultGeneratorProperty, FlatMapOnStruct) {
 }
 
 TEST(DefaultGeneratorProperty, OneOfWithStructs) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto gen = gs::one_of<Point>({
             gs::default_generator<Point>(),
             gs::default_generator<Point>().override(
@@ -200,7 +219,7 @@ TEST(DefaultGeneratorProperty, OneOfWithStructs) {
 }
 
 TEST(DefaultGeneratorProperty, StructWithAllDefaultGenerators) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto a = tc.draw(gs::default_generator<AllDefaults>());
         EXPECT_TRUE(a.b == true || a.b == false);
         EXPECT_EQ(a.i, a.i);
@@ -223,7 +242,7 @@ TEST(DefaultGeneratorProperty, StructWithAllDefaultGenerators) {
 }
 
 TEST(DefaultGeneratorProperty, OptionalOfStruct) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto gen = gs::optional(gs::default_generator<Point>());
         auto maybe_point = tc.draw(gen);
         if (maybe_point.has_value()) {
