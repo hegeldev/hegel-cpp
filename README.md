@@ -1,19 +1,22 @@
+> [!IMPORTANT]
+> We're excited you're checking out Hegel! Hegel is in beta, and we'd love for you to try it and [report any feedback](https://github.com/hegeldev/hegel-cpp/issues/new).
+>
+> As part of our beta, we may make breaking changes if it makes Hegel a better property-based testing library. If that instability bothers you, please check back in a few months for a stable release!
+>
+> See https://hegel.dev/compatibility for more details.
+
 # Hegel for C++
 
-> [!IMPORTANT]
-> We're excited you're checking out Hegel! Hegel in general is in beta, and we'd love for you to try it and [report any feedback](https://github.com/hegeldev/hegel-cpp/issues/new).
->
-> The C++ library in particular is not currently one of our "blessed" implementations. It's far more rough around the edges than the more mature libraries. We eventually intend to support it more thoroughly, but right now it falls short of our standards for a high quality Hegel library, and will often lag behind the more complete implementations.
->
-> We're using it in practice ourselves, so we're confident it works well enough to be useful, but it's currently less user friendly than we'd like and you are more likely to run into issues. You are more than welcome to use it anyway, and please do report any problems you run into while doing so.
+* [Documentation](https://hegel.dev/cpp)
+* [Website](https://hegel.dev)
 
 Hegel is a property-based testing library for C++. Hegel is based on [Hypothesis](https://github.com/hypothesisworks/hypothesis), using the [Hegel protocol](https://hegel.dev/).
 
 ## Installation
 
-Hegel requires C++20 and CMake 3.14.
+Hegel requires C++20.
 
-Add this to your `CMakeLists.txt`:
+To install with CMake, add this to your `CMakeLists.txt` (CMake 3.14+ required):
 
 ```cmake
 include(FetchContent)
@@ -27,10 +30,8 @@ FetchContent_MakeAvailable(hegel)
 target_link_libraries(your_target PRIVATE hegel)
 ```
 
-
 Hegel will use uv to install the required [hegel-core](https://github.com/hegeldev/hegel-core) server component.
-If `uv` is already on your path, it will use that, otherwise it will download a private copy of it to ~/.cache/hegel and not put it on your path.
-See https://hegel.dev/reference/installation for details.
+If `uv` is already on your path, it will use that, otherwise it will download a private copy of it to ~/.cache/hegel and not put it on your path. See https://hegel.dev/reference/installation for details.
 
 ## Quickstart
 
@@ -64,4 +65,12 @@ int main() {
 }
 ```
 
-This test will fail! Hegel will produce a minimal failing test case for us, reporting the minimal example showing that our sort is incorrectly dropping duplicates (the input `[0, 0]` sorts to `[0, 0]` but `my_sort` returns `[0]`). If we remove the `std::unique` call from `my_sort()`, this test will then pass (because it's just comparing the standard sort against itself).
+This test will fail! Hegel will produce a minimal failing test case for us:
+
+```
+Generated: [0,0]
+libc++abi: terminating due to uncaught exception of type std::runtime_error:
+Hegel test failed: sort mismatch
+```
+
+Hegel reports the minimal example showing that our sort is incorrectly dropping duplicates.
