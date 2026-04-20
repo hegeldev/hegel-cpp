@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 - 2026-04-20
+
+Update how we install uv and hegel-core to match https://hegel.dev/reference/installation.
+
 ## 0.3.1 - 2026-04-20
 
 Support displaying user defined exceptions, health check failures, and flaky failures.

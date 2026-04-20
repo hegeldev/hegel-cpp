@@ -7,6 +7,7 @@
 #include <hegel/json.h>
 #include <hegel/settings.h>
 
+#include "installer.h"
 #include "json_impl.h"
 
 #include <connection.h>
@@ -18,20 +19,15 @@
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <cxxabi.h>
 #include <exception>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <sys/wait.h>
 #include <unistd.h>
-
-// Default path to hegel binary (can be overridden by CMake)
-#ifndef HEGEL_DEFAULT_PATH
-#define HEGEL_DEFAULT_PATH "hegel"
-#endif
 
 using hegel::internal::json::ImplUtil;
 
@@ -41,18 +37,17 @@ namespace hegel {
     // Child Process
     // =============================================================================
     static void hegel_child(int child_read_fd, int child_write_fd,
-                            const Settings& settings) {
+                            const Settings& settings,
+                            std::vector<std::string> args) {
         // Wire pipes to stdin/stdout for --stdio mode
         dup2(child_read_fd, STDIN_FILENO);
         dup2(child_write_fd, STDOUT_FILENO);
         ::close(child_read_fd);
         ::close(child_write_fd);
 
-        std::string hegel_path = HEGEL_DEFAULT_PATH;
-
-        std::vector<std::string> args = {
-            hegel_path, "--stdio", "--verbosity",
-            verbosity_to_string(settings.verbosity)};
+        args.emplace_back("--stdio");
+        args.emplace_back("--verbosity");
+        args.emplace_back(verbosity_to_string(settings.verbosity));
 
         std::vector<char*> argv;
         argv.reserve(args.size() + 1);
@@ -63,8 +58,8 @@ namespace hegel {
 
         execvp(argv[0], argv.data());
         // execvp only returns on failure
-        fprintf(stderr, "Failed to run Hegel server at path %s: %s\n",
-                hegel_path.c_str(), strerror(errno));
+        fprintf(stderr, "Failed to run Hegel server at path %s: %s\n", argv[0],
+                strerror(errno));
         _exit(1);
     }
 
@@ -235,6 +230,11 @@ namespace hegel {
 
     void test(const std::function<void(TestCase&)>& test_fn,
               const Settings& settings) {
+        // Resolve the command (including uv bootstrap, if needed) before
+        // fork so any install cost is paid once in the parent, where
+        // failures surface cleanly.
+        std::vector<std::string> command = impl::hegel_command();
+
         // Create pipes for parent<->child stdio communication
         // parent_to_child: parent writes to [1], child reads from [0]
         // child_to_parent: child writes to [1], parent reads from [0]
@@ -253,7 +253,8 @@ namespace hegel {
             // Child: close unused pipe ends
             ::close(parent_to_child[1]);
             ::close(child_to_parent[0]);
-            hegel_child(parent_to_child[0], child_to_parent[1], settings);
+            hegel_child(parent_to_child[0], child_to_parent[1], settings,
+                        std::move(command));
         } else {
             // Parent: close unused pipe ends
             ::close(parent_to_child[0]);

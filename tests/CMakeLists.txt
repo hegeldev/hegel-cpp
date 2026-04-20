@@ -64,6 +64,8 @@ endfunction()
 hegel_add_test(NAME test_crc32 SOURCE test_crc32.cpp INTERNAL)
 hegel_add_test(NAME test_protocol SOURCE test_protocol.cpp INTERNAL)
 hegel_add_test(NAME test_utils SOURCE test_utils.cpp INTERNAL)
+hegel_add_test(NAME test_uv SOURCE test_uv.cpp INTERNAL)
+hegel_add_test(NAME test_installer SOURCE test_installer.cpp INTERNAL)
 
 foreach(name IN ITEMS integers floats strings collections flatmap
         mixed_types)

@@ -11,6 +11,8 @@ Hegel is a property-based testing library for C++. Hegel is based on [Hypothesis
 
 ## Installation
 
+Hegel requires C++20 and CMake 3.14.
+
 Add this to your `CMakeLists.txt`:
 
 ```cmake
@@ -18,14 +20,15 @@ include(FetchContent)
 FetchContent_Declare(
     hegel
     GIT_REPOSITORY https://github.com/hegeldev/hegel-cpp.git
-    GIT_TAG v0.3.1
+    GIT_TAG v0.3.2
 )
 FetchContent_MakeAvailable(hegel)
 
 target_link_libraries(your_target PRIVATE hegel)
 ```
 
-Hegel will use [uv](https://docs.astral.sh/uv/) to install the required [hegel-core](https://github.com/hegeldev/hegel-core) server component.
+
+Hegel will use uv to install the required [hegel-core](https://github.com/hegeldev/hegel-core) server component.
 If `uv` is already on your path, it will use that, otherwise it will download a private copy of it to ~/.cache/hegel and not put it on your path.
 See https://hegel.dev/reference/installation for details.
 
