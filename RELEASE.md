@@ -8,5 +8,3 @@ unbounded number of attempts when the key generator repeatedly returned
 duplicates. Both now cap attempts and reject the test case via
 `tc.assume()` when the generator cannot satisfy the requested size with
 unique values.
-
-Update and build our documentation to https://hegel.dev/.

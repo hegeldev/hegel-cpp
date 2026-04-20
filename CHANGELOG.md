@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.3 - 2026-04-20
+
+Update and build our documentation to https://hegel.dev/.
+
 ## 0.3.2 - 2026-04-20
 
 Update how we install uv and hegel-core to match https://hegel.dev/reference/installation.
