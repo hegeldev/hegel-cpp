@@ -41,8 +41,6 @@ namespace hegel::internal::json {
 
         size_t size() const noexcept;
 
-        std::string type_name() const noexcept;
-
         bool is_string() const noexcept;
         bool is_null() const noexcept;
         bool is_boolean() const noexcept;
@@ -95,7 +93,6 @@ namespace hegel::internal::json {
         json(const json_raw_ref& init);
         ~json();
 
-        json_raw_ref to_ref();
         json_raw_ref operator[](const std::string& key);
 
         json& operator=(json other) noexcept;

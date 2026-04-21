@@ -227,23 +227,13 @@
 #include "generators/random.h"
 #include "generators/strings.h"
 
-#include <any>
 #include <functional>
-#include <typeinfo>
 
 /** @namespace hegel
  * @brief Main namespace
  */
 namespace hegel {
     /**
-     * @brief Run property-based tests using Hegel in embedded mode.
-     *
-     * This is the recommended way to run property tests. The function:
-     * 1. Creates a Unix socket server for communication
-     * 2. Spawns the Hegel CLI as a subprocess
-     * 3. Runs the test function for each generated test case
-     * 4. Handles shrinking when failures occur
-     * 5. Throws std::runtime_error if any test case fails
      * @brief Run a Hegel test.
      *
      * @code{.cpp}

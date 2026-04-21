@@ -40,6 +40,7 @@ namespace hegel::internal {
             return "test case stopped by backend";
         }
     };
+
 } // namespace hegel::internal
 
 /// @endcond
