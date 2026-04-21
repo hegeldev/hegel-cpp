@@ -1,10 +1,10 @@
 {
-  description = "Hegel C++ SDK";
+  description = "Hegel for C++";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-compat.url = "https://flakehub.com/f/edolstra/flake-compat/1.tar.gz";
-    hegel.url = "git+https://github.com/hegeldev/hegel-core.git";
+    hegel.url = "git+https://github.com/hegeldev/hegel-core?dir=nix&ref=refs/tags/v0.4.0";
   };
 
   outputs =
@@ -78,7 +78,6 @@
           nativeBuildInputs = [
             pkgs.cmake
             pkgs.ninja
-            pkgs.doxygen
           ];
 
           buildInputs = [
@@ -86,13 +85,13 @@
           ];
 
           cmakeFlags = (mkFetchContentFlags pkgs) ++ [
-            (lib.cmakeFeature "HEGEL_BUILD_DOCS" "ON")
             (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
           ];
 
           doCheck = true;
           checkPhase = ''
             runHook preCheck
+            export HEGEL_SERVER_COMMAND=${hegel.packages.${system}.default}/bin/hegel
             ctest --output-on-failure --verbose
             runHook postCheck
           '';

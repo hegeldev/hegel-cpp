@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(hegel-cpp VERSION 0.2.7 LANGUAGES CXX)
+project(hegel-cpp VERSION 0.3.4 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,95 +15,20 @@ if(HEGEL_COVERAGE)
     add_link_options(--coverage)
 endif()
 
-# In order:
-# * Prefer `hegel` on PATH
-# * If not found, install hegel with uv
-#    * Prefer `uv` on PATH
-#    * If not found, install uv from installer
-#
-# All artifacts are installed to `CMAKE_BINARY_DIR/_deps/hegel`.
+set(UV_INSTALL_SCRIPT_IN  "${CMAKE_CURRENT_SOURCE_DIR}/src/uv-install.sh")
+set(UV_INSTALL_SCRIPT_OUT "${CMAKE_CURRENT_BINARY_DIR}/generated/uv_install_script.cpp")
 
-set(HEGEL_PYTHON_VERSION "3.13")
-set(HEGEL_INSTALL_DIR "${CMAKE_BINARY_DIR}/_deps/hegel")
-
-find_program(HEGEL_ON_PATH hegel)
-
-if(HEGEL_ON_PATH)
-  message(STATUS "found hegel on path: ${HEGEL_ON_PATH}")
-  set(HEGEL_BINARY_PATH "${HEGEL_ON_PATH}")
-else()
-  set(HEGEL_VENV_DIR "${HEGEL_INSTALL_DIR}/.venv")
-  set(HEGEL_BINARY_PATH "${HEGEL_VENV_DIR}/bin/hegel")
-
-  if(EXISTS "${HEGEL_BINARY_PATH}")
-    message(STATUS "found hegel: ${HEGEL_BINARY_PATH}")
-  else()
-    find_program(UV_ON_PATH uv)
-
-    if(UV_ON_PATH)
-      message(STATUS "found uv on PATH: ${UV_ON_PATH}")
-      set(UV_EXECUTABLE "${UV_ON_PATH}")
-    else()
-      set(UV_EXECUTABLE "${HEGEL_INSTALL_DIR}/uv")
-
-      if(EXISTS "${UV_EXECUTABLE}")
-        message(STATUS "found uv: ${UV_EXECUTABLE}")
-      else()
-        message(STATUS "installing uv")
-
-        file(MAKE_DIRECTORY "${HEGEL_INSTALL_DIR}")
-
-        execute_process(
-          COMMAND sh -c "curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=${HEGEL_INSTALL_DIR} UV_NO_MODIFY_PATH=1 sh"
-          RESULT_VARIABLE UV_INSTALL_RESULT
-        )
-        if(NOT UV_INSTALL_RESULT EQUAL 0)
-          message(FATAL_ERROR "uv install script failed")
-        endif()
-        if(NOT EXISTS "${UV_EXECUTABLE}")
-          message(FATAL_ERROR "uv not found at ${UV_EXECUTABLE} after installation")
-        endif()
-      endif()
-    endif()
-
-    message(STATUS "using uv: ${UV_EXECUTABLE}")
-
-    message(STATUS "creating venv at ${HEGEL_VENV_DIR}")
-
-    execute_process(
-      COMMAND ${UV_EXECUTABLE} venv --python ${HEGEL_PYTHON_VERSION} ${HEGEL_VENV_DIR}
-      RESULT_VARIABLE UV_VENV_RESULT
-    )
-    if(NOT UV_VENV_RESULT EQUAL 0)
-      message(FATAL_ERROR "failed to create venv")
-    endif()
-
-    message(STATUS "installing hegel")
-
-    # Prefer local checkout in external/hegel if present
-    set(HEGEL_LOCAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/hegel")
-    if(EXISTS "${HEGEL_LOCAL_DIR}/pyproject.toml")
-      message(STATUS "using local hegel from ${HEGEL_LOCAL_DIR}")
-      set(HEGEL_INSTALL_SOURCE "${HEGEL_LOCAL_DIR}")
-    else()
-      set(HEGEL_INSTALL_SOURCE "git+https://github.com/hegeldev/hegel-core.git")
-    endif()
-
-    execute_process(
-      COMMAND ${UV_EXECUTABLE} pip install ${HEGEL_INSTALL_SOURCE}
-              --python ${HEGEL_VENV_DIR}/bin/python
-      RESULT_VARIABLE HEGEL_INSTALL_RESULT
-    )
-    if(NOT HEGEL_INSTALL_RESULT EQUAL 0)
-      message(FATAL_ERROR "failed to install hegel")
-    endif()
-    if(NOT EXISTS "${HEGEL_BINARY_PATH}")
-      message(FATAL_ERROR "hegel not found after installation: ${HEGEL_BINARY_PATH}")
-    endif()
-  endif()
-endif()
-
-message(STATUS "using hegel: ${HEGEL_BINARY_PATH}")
+add_custom_command(
+    OUTPUT  "${UV_INSTALL_SCRIPT_OUT}"
+    DEPENDS "${UV_INSTALL_SCRIPT_IN}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_script.cmake"
+    COMMAND ${CMAKE_COMMAND}
+            -DINPUT=${UV_INSTALL_SCRIPT_IN}
+            -DOUTPUT=${UV_INSTALL_SCRIPT_OUT}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_script.cmake
+    COMMENT "Embedding uv-install.sh"
+    VERBATIM
+)
 
 # =============================================================================
 # Dependencies via FetchContent
@@ -148,12 +73,15 @@ add_library(hegel
   STATIC
     src/hegel.cpp
     src/generators.cpp
-    src/socket.cpp
-    src/data.cpp
-    src/internal.cpp
+    src/test_case.cpp
     src/protocol.cpp
     src/connection.cpp
+    src/crc32.cpp
     src/json.cpp
+    src/utils.cpp
+    src/uv.cpp
+    src/installer.cpp
+    ${UV_INSTALL_SCRIPT_OUT}
 )
 target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -167,9 +95,6 @@ target_link_libraries(hegel
   PUBLIC reflectcpp
 )
 target_compile_features(hegel PUBLIC cxx_std_20)
-target_compile_definitions(hegel PUBLIC
-    HEGEL_DEFAULT_PATH="${HEGEL_BINARY_PATH}"
-)
 
 # =============================================================================
 # Tests with Google Test
@@ -240,10 +165,12 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
       DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
   )
 
-  # Install docs
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs
-      TYPE DOC
-  )
+  # Install docs (only when they were actually built)
+  if(HEGEL_BUILD_DOCS)
+    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs
+        TYPE DOC
+    )
+  endif()
 
 endif()
 

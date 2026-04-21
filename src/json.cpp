@@ -63,6 +63,8 @@ namespace hegel::internal::json {
     json::json(const double init) : impl(new json_holder(init)) {}
     json::json(const std::string& init) : impl(new json_holder(init)) {}
     json::json(std::nullptr_t init) : impl(new json_holder(init)) {}
+    json::json(const json_raw_ref& init)
+        : impl(new json_holder(ImplUtil::raw(init))) {}
     json::~json() = default;
 
     json_raw_ref json::to_ref() {
@@ -160,6 +162,19 @@ namespace hegel::internal::json {
         ref->data = other;
         return *this;
     }
+    json_raw_ref& json_raw_ref::operator=(bool other) {
+        ref->data = other;
+        return *this;
+    }
+    json_raw_ref& json_raw_ref::operator=(const std::string& other) {
+        ref->data = other;
+        return *this;
+    }
+    json_raw_ref& json_raw_ref::operator=(const json& other) {
+        ref->data = ImplUtil::raw(other);
+        return *this;
+    }
+
 #ifdef __APPLE__
     json_raw_ref& json_raw_ref::operator=(const uint64_t& other) {
         ref->data = other;

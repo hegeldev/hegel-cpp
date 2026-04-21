@@ -1,17 +1,12 @@
 #pragma once
 
-/**
- * @file builds.h
- * @brief Object construction generator functions: builds, builds_agg, field
- */
-
 #include <tuple>
 
 #include "hegel/core.h"
 
 namespace hegel::generators {
 
-    /// @name Object Construction Strategies
+    /// @name Combinators
     /// @{
 
     /**
@@ -40,10 +35,9 @@ namespace hegel::generators {
     template <typename T, typename... Gens> Generator<T> builds(Gens... gens) {
         auto gen_tuple = std::make_tuple(std::move(gens)...);
 
-        return from_function<T>([gen_tuple](TestCaseData* data) {
-            return std::apply(
-                [data](auto&... g) { return T(g.do_draw(data)...); },
-                gen_tuple);
+        return compose([gen_tuple](const TestCase& tc) -> T {
+            return std::apply([&tc](auto&... g) { return T(g.do_draw(tc)...); },
+                              gen_tuple);
         });
     }
 
@@ -63,9 +57,10 @@ namespace hegel::generators {
      *
      * @code{.cpp}
      * auto rect = builds_agg<Rectangle>(
-     *     field<&Rectangle::width>(integers<int>({.min_value = 1, .max_value =
-     * 100})), field<&Rectangle::height>(integers<int>({.min_value = 1,
-     * .max_value = 100}))
+     *     field<&Rectangle::width>(
+     *      integers<int>({.min_value = 1, .max_value = 100})),
+     *     field<&Rectangle::height>(
+     *      integers<int>({.min_value = 1, .max_value = 100}))
      * );
      * @endcode
      *
@@ -84,7 +79,6 @@ namespace hegel::generators {
      *
      * Useful for structs where you want to specify fields by name rather
      * than position. Each field() specifies a member pointer and generator.
-     *
      * @code{.cpp}
      * struct Rectangle {
      *     int width;
@@ -92,9 +86,10 @@ namespace hegel::generators {
      * };
      *
      * auto rect = builds_agg<Rectangle>(
-     *     field<&Rectangle::width>(integers<int>({.min_value = 1, .max_value =
-     * 100})), field<&Rectangle::height>(integers<int>({.min_value = 1,
-     * .max_value = 100}))
+     *     field<&Rectangle::width>(
+     *      integers<int>({.min_value = 1, .max_value = 100})),
+     *     field<&Rectangle::height>(
+     *      integers<int>({.min_value = 1, .max_value = 100}))
      * );
      * @endcode
      *
@@ -107,13 +102,13 @@ namespace hegel::generators {
     Generator<T> builds_agg(Fields... fields) {
         auto gen_tuple = std::make_tuple(std::move(fields)...);
 
-        return from_function<T>([gen_tuple](TestCaseData* data) mutable {
+        return compose([gen_tuple](const TestCase& tc) mutable -> T {
             T result{};
             std::apply(
-                [&result, data](auto&... fs) {
+                [&result, &tc](auto&... fs) {
                     ((result.*
                           (std::remove_reference_t<decltype(fs)>::member_ptr) =
-                          fs.generator.do_draw(data)),
+                          fs.generator.do_draw(tc)),
                      ...);
                 },
                 gen_tuple);

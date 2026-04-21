@@ -8,6 +8,7 @@
 
 #include "../../../src/json_impl.h"
 using hegel::internal::json::ImplUtil;
+namespace gs = hegel::generators;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -36,9 +37,9 @@ int main(int argc, char* argv[]) {
             : std::optional<bool>(args["allow_infinity"].get<bool>());
     int test_cases = conformance::get_test_cases();
 
-    hegel::hegel(
-        [=]() {
-            auto gen = hegel::generators::floats<double>({
+    hegel::test(
+        [=](hegel::TestCase& tc) {
+            auto gen = gs::floats<double>({
                 .min_value = min_value,
                 .max_value = max_value,
                 .exclude_min = exclude_min,
@@ -46,7 +47,7 @@ int main(int argc, char* argv[]) {
                 .allow_nan = allow_nan,
                 .allow_infinity = allow_infinity,
             });
-            auto value = hegel::draw(gen);
+            auto value = tc.draw(gen);
             conformance::write_metrics({
                 {"value", value},
                 {"is_nan", std::isnan(value)},

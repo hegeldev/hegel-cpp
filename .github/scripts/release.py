@@ -1,4 +1,5 @@
 import argparse
+import os
 import re
 import subprocess
 from datetime import datetime, timezone
@@ -6,6 +7,12 @@ from pathlib import Path
 
 SOURCE_DIRS = ["src/", "include/"]
 ROOT = Path(__file__).resolve().parent.parent.parent
+
+# Files with a `GIT_TAG vX.Y.Z` reference
+FILES_WITH_GIT_TAG = [
+    "README.md",
+    "include/hegel/hegel.h",
+]
 
 
 def git(*args: str, cwd: Path | None = None) -> None:
@@ -56,6 +63,18 @@ def set_version(cmake_file: Path, new_version: str) -> None:
         count=1,
     )
     cmake_file.write_text(new_text)
+
+
+def bump_git_tag(path: Path, new_version: str) -> None:
+    text = path.read_text()
+    new_text, count = re.subn(
+        r"GIT_TAG v\d+\.\d+\.\d+",
+        f"GIT_TAG v{new_version}",
+        text,
+    )
+    if count == 0:
+        raise ValueError(f"No `GIT_TAG vX.Y.Z` found in {path}")
+    path.write_text(new_text)
 
 
 def add_changelog(path: Path, *, version: str, content: str) -> None:
@@ -111,23 +130,42 @@ def check(base_ref: str) -> None:
     parse_release_file(release_file)
 
 
+def current_version() -> str:
+    m = re.search(
+        r"project\(hegel-cpp\s+VERSION\s+(\S+)",
+        (ROOT / "CMakeLists.txt").read_text(),
+    )
+    if m is None:
+        raise ValueError("Could not find project version in CMakeLists.txt")
+    return m.group(1)
+
+
 def release() -> None:
     release_file = ROOT / "RELEASE.md"
     assert release_file.exists()
 
     release_type, content = parse_release_file(release_file)
+    new_version = bump_version(current_version(), release_type)
 
-    cmake_file = ROOT / "CMakeLists.txt"
-    m = re.search(r"project\(hegel-cpp\s+VERSION\s+(\S+)", cmake_file.read_text())
-    new_version = bump_version(m.group(1), release_type)
+    set_version(ROOT / "CMakeLists.txt", new_version)
 
-    set_version(cmake_file, new_version)
+    for rel_path in FILES_WITH_GIT_TAG:
+        bump_git_tag(ROOT / rel_path, new_version)
 
     add_changelog(ROOT / "CHANGELOG.md", version=new_version, content=content)
 
-    git("config", "user.name", "hegel-release[bot]", cwd=ROOT)
-    git("config", "user.email", "noreply@github.com", cwd=ROOT)
-    git("add", "CMakeLists.txt", "CHANGELOG.md", cwd=ROOT)
+    app_slug = os.environ["HEGEL_RELEASE_APP_SLUG"]
+    bot_user_id = subprocess.check_output(
+        ["gh", "api", f"/users/{app_slug}[bot]", "--jq", ".id"], text=True
+    ).strip()
+    git("config", "user.name", f"{app_slug}[bot]", cwd=ROOT)
+    git(
+        "config",
+        "user.email",
+        f"{bot_user_id}+{app_slug}[bot]@users.noreply.github.com",
+        cwd=ROOT,
+    )
+    git("add", "CMakeLists.txt", "CHANGELOG.md", *FILES_WITH_GIT_TAG, cwd=ROOT)
     git("rm", "RELEASE.md", cwd=ROOT)
     git(
         "commit",
@@ -136,7 +174,7 @@ def release() -> None:
         cwd=ROOT,
     )
     git("tag", f"v{new_version}", cwd=ROOT)
-    git("push", "origin", "main", "--tags", cwd=ROOT)
+    git("push", "origin", f"v{new_version}", cwd=ROOT)
 
     subprocess.run(
         [
@@ -154,6 +192,47 @@ def release() -> None:
     )
 
 
+def push_or_pr() -> None:
+    version = current_version()
+
+    result = subprocess.run(["git", "push", "origin", "main"], cwd=ROOT)
+    if result.returncode == 0:
+        return
+
+    print(f"Push to main failed, creating PR for release v{version}")
+
+    branch = f"release/v{version}"
+    git("checkout", "-b", branch, cwd=ROOT)
+    git("push", "origin", branch, cwd=ROOT)
+
+    # Ensure the "skip release" label exists so check-release doesn't run on this PR
+    subprocess.run(
+        [
+            "gh", "label", "create", "skip release",
+            "--force",
+            "--description", "Skip the release check on this PR",
+        ],
+        cwd=ROOT,
+    )
+
+    subprocess.run(
+        [
+            "gh", "pr", "create",
+            "--base", "main",
+            "--head", branch,
+            "--title", f"Release v{version}",
+            "--body",
+            f"The push to main after tagging v{version} failed because main had "
+            f"diverged. The tag and GitHub release succeeded.\n\n"
+            f"This PR merges the release commit (version bump, changelog, "
+            f"RELEASE.md removal) into main.",
+            "--label", "skip release",
+        ],
+        check=True,
+        cwd=ROOT,
+    )
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Release automation for hegel-cpp.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -161,9 +240,12 @@ if __name__ == "__main__":
     check_parser = subparsers.add_parser("check")
     check_parser.add_argument("base_ref", help="Git ref to diff against.")
     subparsers.add_parser("release")
+    subparsers.add_parser("push-or-pr")
 
     args = parser.parse_args()
     if args.command == "check":
         check(args.base_ref)
     elif args.command == "release":
         release()
+    elif args.command == "push-or-pr":
+        push_or_pr()

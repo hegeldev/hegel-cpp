@@ -1,48 +1,37 @@
 # Changelog
 
-## 0.2.7 - 2026-04-03
+## 0.3.4 - 2026-04-21
 
-Add support for new hegel-core protocol version.
+General documentation improvements
 
-## 0.2.6 - 2026-03-11
+## 0.3.3 - 2026-04-20
 
-Fix socket setup to prevent child process from inheriting fd.
+Update and build our documentation to https://hegel.dev/.
 
-## 0.2.5 - 2026-03-11
+## 0.3.2 - 2026-04-20
 
-Add argument validation.
+Update how we install uv and hegel-core to match https://hegel.dev/reference/installation.
 
-## 0.2.4 - 2026-03-06
+## 0.3.1 - 2026-04-20
 
-Add `generators::randoms`, for use with `std::random`.
+Support displaying user defined exceptions, health check failures, and flaky failures.
 
-## 0.2.3 - 2026-03-06
+## 0.3.0 - 2026-04-20
 
-Add clang-tidy and fix resulting lints.
+Multiple improvements to make hegel-cpp more idiomatic to use.
 
-## 0.2.2 - 2026-03-03
+* Rename `hegel::hegel` to `hegel::test`.
+* Rename `HegelSettings` to `Settings`.
+* Move settings objects into the main `hegel` namespace, from the `hegel::settings` namespace. Removed the `hegel::settings` namespace.
+* Rename `from_function` to `compose`. `compose` no longer requires an explicit declaration of the return type, unless you want to override the inferred type.
+* Rename `dictionaries` to `maps`.
+* Remove the `nulls()` generator, which misleadingly returned `std::monostate`.
+* The `just` and `sampled_from` generators now accept any object, not just serializable objects.
 
-Replace `gen.generate()` with `draw(gen)`.
+## 0.2.0 - 2026-04-16
 
+Multiple refactors and renames, as we prepare for a more standard release.
 
-## 0.2.1 - 2026-03-02
+## 0.1.0 - 2026-04-15
 
-Better error message when calling `assume()` or `note()` outside of a test.
-
-## 0.2.0 - 2026-02-27
-
-- Renamed `hegel::strategies` namespace to `hegel::generators`, consolidating all strategy factory functions into the existing generators namespace.
-- Renamed `flatmap()` to `flat_map()` for snake_case consistency with the rest of the API.
-- Re-exported `assume()`, `note()`, and `stop_test()` into the `hegel` namespace so callers no longer need to qualify them as `hegel::internal::assume()` etc.
-
-## 0.1.3 - 2026-02-26
-
-Rename the `strategies` namespace to `generators`.
-
-## 0.1.2 - 2026-02-26
-
-Add support older `nlohmann/json` versions.
-
-## 0.1.1 - 2026-02-24
-
-Remove unecessary internal calls to `assume()`.
+Initial release!

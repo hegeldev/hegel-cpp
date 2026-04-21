@@ -1,4 +1,4 @@
-// gtest_failure_test.cpp - Tests that hegel properly reports failures with
+// test_gtest.cpp - Tests that hegel properly reports failures with
 // counterexamples
 //
 // This test intentionally fails to verify that:
@@ -12,13 +12,13 @@
 
 #include <hegel/hegel.h>
 
-using namespace hegel::generators;
+namespace gs = hegel::generators;
 
 TEST(FailureReporting, ShowsCounterexample) {
-    hegel::hegel(
-        [] {
+    hegel::test(
+        [](hegel::TestCase& tc) {
             int x =
-                hegel::draw(integers<int>({.min_value = 0, .max_value = 100}));
+                tc.draw(gs::integers<int>({.min_value = 0, .max_value = 100}));
             // This assertion will fail when x > 50, which should happen quickly
             // The failure message should include the actual value as a
             // counterexample

@@ -9,6 +9,7 @@
 
 #include "../../../src/json_impl.h"
 using hegel::internal::json::ImplUtil;
+namespace gs = hegel::generators;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -26,19 +27,19 @@ int main(int argc, char* argv[]) {
     int max_value = args["max_value"].get<int>();
     int test_cases = conformance::get_test_cases();
 
-    hegel::hegel(
-        [=]() {
+    hegel::test(
+        [=](hegel::TestCase& tc) {
             nlohmann::json metrics;
 
             if (key_type == "integer") {
-                auto gen = hegel::generators::dictionaries(
-                    hegel::generators::integers<int>(
-                        {.min_value = min_key, .max_value = max_key}),
-                    hegel::generators::integers<int>(
-                        {.min_value = min_value, .max_value = max_value}),
-                    {.min_size = min_size, .max_size = max_size});
+                auto gen =
+                    gs::maps(gs::integers<int>(
+                                 {.min_value = min_key, .max_value = max_key}),
+                             gs::integers<int>({.min_value = min_value,
+                                                .max_value = max_value}),
+                             {.min_size = min_size, .max_size = max_size});
 
-                auto dict = hegel::draw(gen);
+                auto dict = tc.draw(gen);
 
                 metrics["size"] = dict.size();
                 if (!dict.empty()) {
@@ -60,13 +61,13 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 // string keys
-                auto gen = hegel::generators::dictionaries(
-                    hegel::generators::text(),
-                    hegel::generators::integers<int>(
-                        {.min_value = min_value, .max_value = max_value}),
-                    {.min_size = min_size, .max_size = max_size});
+                auto gen =
+                    gs::maps(gs::text(),
+                             gs::integers<int>({.min_value = min_value,
+                                                .max_value = max_value}),
+                             {.min_size = min_size, .max_size = max_size});
 
-                auto dict = hegel::draw(gen);
+                auto dict = tc.draw(gen);
 
                 metrics["size"] = dict.size();
                 if (!dict.empty()) {

@@ -1,46 +1,63 @@
-# hegel-cpp
+> [!IMPORTANT]
+> We're excited you're checking out Hegel! Hegel is in beta, and we'd love for you to try it and [report any feedback](https://github.com/hegeldev/hegel-cpp/issues/new).
+>
+> As part of our beta, we may make breaking changes if it makes Hegel a better property-based testing library. If that instability bothers you, please check back in a few months for a stable release!
+>
+> See https://hegel.dev/compatibility for more details.
 
-A C++ SDK for [Hegel](https://github.com/antithesishq/hegel-core) — universal
-property-based testing powered by [Hypothesis](https://hypothesis.works/).
+# Hegel for C++
 
-Hegel generates random inputs for your tests, finds failures, and automatically
-shrinks them to minimal counterexamples.
+* [Documentation](https://hegel.dev/cpp)
+* [Website](https://hegel.dev)
+
+Hegel is a property-based testing library for C++. Hegel is based on [Hypothesis](https://github.com/hypothesisworks/hypothesis), using the [Hegel protocol](https://hegel.dev/).
 
 ## Installation
 
-Add to your `CMakeLists.txt`:
+Hegel requires C++20.
+
+To install with CMake, add this to your `CMakeLists.txt` (CMake 3.14+ required):
 
 ```cmake
 include(FetchContent)
 FetchContent_Declare(
     hegel
-    GIT_REPOSITORY https://github.com/antithesishq/hegel-cpp.git
-    GIT_TAG main
+    GIT_REPOSITORY https://github.com/hegeldev/hegel-cpp.git
+    GIT_TAG v0.3.4
 )
 FetchContent_MakeAvailable(hegel)
 
 target_link_libraries(your_target PRIVATE hegel)
 ```
 
-The `hegel` CLI is installed automatically during the CMake build. If you
-already have it on your PATH, it will be used instead.
+Hegel will use uv to install the required [hegel-core](https://github.com/hegeldev/hegel-core) server component.
+If `uv` is already on your path, it will use that, otherwise it will download a private copy of it to ~/.cache/hegel and not put it on your path. See https://hegel.dev/reference/installation for details.
 
-## Quick Start
+## Quickstart
+
+Here's a quick example of how to write a Hegel test:
 
 ```cpp
 #include <hegel/hegel.h>
+#include <algorithm>
 #include <stdexcept>
+#include <vector>
 
-using namespace hegel::generators;
+namespace gs = hegel::generators;
+
+std::vector<int> my_sort(std::vector<int> ls) {
+    std::sort(ls.begin(), ls.end());
+    ls.erase(std::unique(ls.begin(), ls.end()), ls.end());
+    return ls;
+}
 
 int main() {
-    hegel::hegel([]() {
-        auto x = hegel::draw(integers<int>());
-        auto y = hegel::draw(integers<int>());
-
-        // Addition should be commutative
-        if (x + y != y + x) {
-            throw std::runtime_error("commutativity violated");
+    hegel::test([](hegel::TestCase& tc) {
+        auto vec1 = tc.draw(gs::vectors(gs::integers<int>()));
+        auto vec2 = my_sort(vec1);
+        std::sort(vec1.begin(), vec1.end());
+        if (vec1 != vec2) {
+            throw std::runtime_error("sort mismatch");
         }
     });
 
@@ -48,19 +65,12 @@ int main() {
 }
 ```
 
-Hegel generates 100 random input pairs and reports the minimal counterexample
-if it finds one.
+This test will fail! Hegel will produce a minimal failing test case for us:
 
-For a full walkthrough, see [docs/getting-started.md](docs/getting-started.md).
-
-## Development
-
-Prerequisites: C++20 compiler, CMake 3.14+, [just](https://github.com/casey/just),
-[clang-format](https://clang.llvm.org/docs/ClangFormat.html).
-
-```bash
-just check   # Full CI: build + test + format check
-just test    # Build and run tests
-just format  # Auto-format code
-just docs    # Build Doxygen documentation
 ```
+Generated: [0,0]
+libc++abi: terminating due to uncaught exception of type std::runtime_error:
+Hegel test failed: sort mismatch
+```
+
+Hegel reports the minimal example showing that our sort is incorrectly dropping duplicates.

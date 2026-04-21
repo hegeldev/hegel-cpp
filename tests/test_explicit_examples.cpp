@@ -10,9 +10,9 @@ using namespace hegel::generators;
 
 TEST(ExplicitExamples, SingleDrawSingleExample) {
     bool ran = false;
-    hegel::hegel(
-        [&] {
-            auto x = hegel::draw(integers<int>());
+    hegel::test(
+        [&ran](hegel::TestCase& tc){
+            auto x = tc.draw(integers<int>());
             EXPECT_EQ(x, 42);
             ran = true;
         },
@@ -22,10 +22,10 @@ TEST(ExplicitExamples, SingleDrawSingleExample) {
 
 TEST(ExplicitExamples, MultipleDraws) {
     bool ran = false;
-    hegel::hegel(
-        [&] {
-            auto x = hegel::draw(integers<int>());
-            auto s = hegel::draw(text());
+    hegel::test(
+        [&ran](hegel::TestCase& tc){
+            auto x = tc.draw(integers<int>());
+            auto s = tc.draw(text());
             EXPECT_EQ(x, 7);
             EXPECT_EQ(s, "hello");
             ran = true;
@@ -36,9 +36,9 @@ TEST(ExplicitExamples, MultipleDraws) {
 
 TEST(ExplicitExamples, MultipleExamples) {
     int call_count = 0;
-    hegel::hegel(
-        [&] {
-            auto x = hegel::draw(integers<int>());
+    hegel::test(
+        [&call_count](hegel::TestCase& tc){
+            auto x = tc.draw(integers<int>());
             if (call_count == 0) {
                 EXPECT_EQ(x, 10);
             } else {
@@ -52,9 +52,9 @@ TEST(ExplicitExamples, MultipleExamples) {
 
 TEST(ExplicitExamples, BooleanValues) {
     bool ran = false;
-    hegel::hegel(
-        [&] {
-            auto b = hegel::draw(booleans());
+    hegel::test(
+        [&ran](hegel::TestCase& tc){
+            auto b = tc.draw(booleans());
             EXPECT_TRUE(b);
             ran = true;
         },
@@ -70,9 +70,9 @@ struct Point {
 
 TEST(ExplicitExamples, StructValues) {
     bool ran = false;
-    hegel::hegel(
-        [&] {
-            auto p = hegel::draw(builds<Point>());
+    hegel::test(
+        [&ran](hegel::TestCase& tc){
+            auto p = tc.draw(builds<Point>());
             EXPECT_EQ(p, (Point{3, 4}));
             ran = true;
         },
@@ -82,9 +82,9 @@ TEST(ExplicitExamples, StructValues) {
 
 TEST(ExplicitExamples, RandomValue) {
     bool ran = false;
-    hegel::hegel(
-        [&] {
-            auto rng = hegel::draw(randoms());
+    hegel::test(
+        [&ran](hegel::TestCase& tc){
+            auto rng = tc.draw(randoms());
             std::uniform_int_distribution<int> dist(1, 100);
             int val = dist(rng);
             EXPECT_GE(val, 1);
@@ -99,9 +99,9 @@ TEST(ExplicitExamples, RandomValue) {
 // =============================================================================
 
 TEST(ExplicitExamples, TooManyValuesThrows) {
-    EXPECT_THROW(hegel::hegel(
-                     [&] {
-                         hegel::draw(integers<int>());
+    EXPECT_THROW(hegel::test(
+                     [](hegel::TestCase& tc){
+                         tc.draw(integers<int>());
                          // Only one draw, but two values provided
                      },
                      {.test_cases = 0, .examples = {{1, 2}}}),
@@ -111,30 +111,30 @@ TEST(ExplicitExamples, TooManyValuesThrows) {
 TEST(ExplicitExamples, TooFewValuesUsesGenerator) {
     // When explicit values run out, draw() falls through to the generator.
     // With connection=nullptr, this will throw (no server).
-    EXPECT_THROW(hegel::hegel(
-                     [&] {
-                         hegel::draw(integers<int>());
-                         hegel::draw(integers<int>()); // No explicit value left
+    EXPECT_THROW(hegel::test(
+                     [](hegel::TestCase& tc){
+                         tc.draw(integers<int>());
+                         tc.draw(integers<int>()); // No explicit value left
                      },
                      {.test_cases = 0, .examples = {{42}}}),
                  std::exception);
 }
 
 TEST(ExplicitExamples, AssumeFailureIsError) {
-    EXPECT_THROW(hegel::hegel(
-                     [&] {
-                         auto x = hegel::draw(integers<int>());
-                         hegel::assume(x > 100); // 42 is not > 100
+    EXPECT_THROW(hegel::test(
+                     [](hegel::TestCase& tc){
+                         auto x = tc.draw(integers<int>());
+                         tc.assume(x > 100); // 42 is not > 100
                      },
                      {.test_cases = 0, .examples = {{42}}}),
                  std::runtime_error);
 }
 
 TEST(ExplicitExamples, TypeMismatchThrows) {
-    EXPECT_THROW(hegel::hegel(
-                     [&] {
+    EXPECT_THROW(hegel::test(
+                     [](hegel::TestCase& tc){
                          // Example stores int, but we draw a bool
-                         hegel::draw(booleans());
+                         tc.draw(booleans());
                      },
                      {.test_cases = 0, .examples = {{42}}}),
                  std::runtime_error);

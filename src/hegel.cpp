@@ -5,52 +5,47 @@
 #include <hegel/hegel.h>
 #include <hegel/internal.h>
 #include <hegel/json.h>
-#include <hegel/options.h>
+#include <hegel/settings.h>
 
+#include "installer.h"
 #include "json_impl.h"
 
 #include <algorithm>
 #include <connection.h>
-#include <data.h>
-#include <filesystem>
 #include <functional>
-#include <iostream>
 #include <protocol.h>
-#include <socket.h>
 #include <stdexcept>
+#include <test_case.h>
 
 #include <cerrno>
 #include <cstdint>
-#include <cstdlib>
+#include <cstdio>
 #include <cstring>
+#include <cxxabi.h>
 #include <exception>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <sys/wait.h>
 #include <unistd.h>
 
-// Default path to hegel binary (can be overridden by CMake)
-#ifndef HEGEL_DEFAULT_PATH
-#define HEGEL_DEFAULT_PATH "hegel"
-#endif
-
 using hegel::internal::json::ImplUtil;
 
 namespace hegel {
 
-    // =============================================================================
-    // Child Process
-    // =============================================================================
-    static void hegel_child(const std::string& socket_path,
-                            const options::HegelOptions& options) {
-        std::string hegel_path =
-            options.hegel_path.value_or(HEGEL_DEFAULT_PATH);
-        uint64_t test_cases = options.test_cases.value_or(100);
+    static void hegel_child(int child_read_fd, int child_write_fd,
+                            const Settings& settings,
+                            std::vector<std::string> args) {
+        // Wire pipes to stdin/stdout for --stdio mode
+        dup2(child_read_fd, STDIN_FILENO);
+        dup2(child_write_fd, STDOUT_FILENO);
+        ::close(child_read_fd);
+        ::close(child_write_fd);
 
-        std::vector<std::string> args = {
-            hegel_path, socket_path, "--verbosity",
-            options::verbosity_to_string(options.verbosity)};
+        args.emplace_back("--stdio");
+        args.emplace_back("--verbosity");
+        args.emplace_back(verbosity_to_string(settings.verbosity));
 
         std::vector<char*> argv;
         argv.reserve(args.size() + 1);
@@ -59,69 +54,60 @@ namespace hegel {
         }
         argv.push_back(nullptr);
 
-        int result = execvp(argv[0], argv.data());
-        if (result == -1) {
-            std::cerr << "Failed to run Hegel server at path "
-                      << hegel_path.c_str() << ": " << strerror(errno)
-                      << std::endl;
-        }
-        std::exit(1);
+        execvp(argv[0], argv.data());
+        // execvp only returns on failure
+        fprintf(stderr, "Failed to run Hegel server at path %s: %s\n", argv[0],
+                strerror(errno));
+        _exit(1);
     }
 
-    // =============================================================================
-    // Parent Process (SDK Client)
-    // =============================================================================
-    static void hegel_parent(const std::string& socket_path,
-                             const std::function<void()>& test_fn,
-                             const std::string& temp_dir,
+    static void hegel_parent(const std::function<void(TestCase&)>& test_fn,
                              pid_t child_pid, // NOLINT(misc-include-cleaner)
-                             const options::HegelOptions& options) {
-        // Wait for hegel-core to create the socket
-        if (!impl::socket::wait_for_socket(socket_path, 10000)) {
-            // Check if child died
-            int status;
-            // NOLINTNEXTLINE(misc-include-cleaner)
-            if (waitpid(child_pid, &status, WNOHANG) == child_pid) {
-                std::filesystem::remove_all(temp_dir);
-                throw std::runtime_error(
-                    "Hegel server exited before creating socket (exit code " +
-                    // NOLINTNEXTLINE(misc-include-cleaner)
-                    std::to_string(WIFEXITED(status) ? WEXITSTATUS(status)
-                                                     : -1) +
-                    ")");
-            }
-            std::filesystem::remove_all(temp_dir);
-            throw std::runtime_error("Timed out waiting for socket at " +
-                                     socket_path);
-        }
+                             int read_fd, int write_fd,
+                             const Settings& settings) {
+        impl::Connection conn(read_fd, write_fd);
 
-        // Connect as client
-        int fd = impl::socket::connect_to_socket(socket_path);
-        impl::Connection conn(fd);
-
-        // Version negotiation
         conn.handshake();
 
-        impl::protocol::init_protocol_debug(options.verbosity);
+        impl::protocol::init_protocol_debug(settings.verbosity);
 
         // Create test stream and start test
         uint32_t test_stream = conn.create_stream();
-        uint64_t test_cases = options.test_cases.value_or(100);
+        uint64_t test_cases = settings.test_cases.value_or(100);
 
         hegel::internal::json::json run_test_msg = {{"command", "run_test"},
                                                     {"test_cases", test_cases},
                                                     {"stream_id", test_stream}};
-        if (options.seed.has_value()) {
-            run_test_msg["seed"] = static_cast<size_t>(options.seed.value());
+        if (settings.seed.has_value()) {
+            run_test_msg["seed"] = settings.seed.value();
         } else {
             run_test_msg["seed"] = nullptr;
+        }
+        run_test_msg["derandomize"] = settings.derandomize;
+        switch (settings.database.kind()) {
+        case hegel::Database::Kind::Unset:
+            break;
+        case hegel::Database::Kind::Disabled:
+            run_test_msg["database"] = nullptr;
+            break;
+        case hegel::Database::Kind::Path:
+            run_test_msg["database"] = settings.database.path();
+            break;
+        }
+        if (!settings.suppress_health_check.empty()) {
+            auto arr = hegel::internal::json::json::array();
+            for (auto c : settings.suppress_health_check) {
+                arr.push_back(std::string(hegel::health_check_to_string(c)));
+            }
+            run_test_msg["suppress_health_check"] = arr;
         }
         conn.request(0, run_test_msg);
 
         // Event loop on test stream
-        bool test_passed = true;
-        int final_replays_remaining = 0;
+        hegel::internal::json::json results_json(nullptr);
+        uint32_t final_replays_remaining = 0;
         bool done = false;
+        std::string final_exception_message;
         while (!done) {
             auto event = conn.recv_request(test_stream);
             auto& payload = event.payload;
@@ -138,35 +124,42 @@ namespace hegel {
                 bool is_final = payload.value("is_final", false);
 
                 // Set up per-test-case state
-                impl::data::TestCaseData data{
+                impl::test_case::TestCaseData data{
                     .connection = &conn,
                     .data_stream = data_stream,
                     .is_last_run = is_final,
-                    .test_aborted = false,
-                    .verbosity = options.verbosity,
+                    .verbosity = settings.verbosity,
                 };
-                impl::data::set(&data);
+                TestCase tc(&data);
 
                 // Run test
                 std::string status = "VALID";
                 std::string origin;
+                std::string exception_message;
+                bool stopped = false;
                 try {
-                    test_fn();
+                    test_fn(tc);
+                } catch (const internal::HegelStopTest&) {
+                    stopped = true;
                 } catch (const internal::HegelReject&) {
                     status = "INVALID";
                 } catch (const std::exception& e) {
                     status = "INTERESTING";
-                    origin = e.what();
+                    origin = typeid(e).name();
+                    exception_message = e.what();
                 } catch (...) {
                     status = "INTERESTING";
-                    origin = "Unknown exception";
+                    if (const std::type_info* tinfo =
+                            abi::__cxa_current_exception_type()) {
+                        origin = tinfo->name();
+                    } else {
+                        origin = "unknown_exception";
+                    }
                 }
 
-                // Clear per-test-case state
-                impl::data::clear();
-
-                // Send mark_complete and close data stream (unless aborted)
-                if (!data.test_aborted) {
+                // Send mark_complete and close data stream (unless the
+                // backend already told us to stop this iteration)
+                if (!stopped) {
                     hegel::internal::json::json origin_value =
                         origin.empty() ? hegel::internal::json::json(nullptr)
                                        : hegel::internal::json::json(origin);
@@ -183,6 +176,9 @@ namespace hegel {
                     if (final_replays_remaining <= 0) {
                         done = true;
                     }
+                    if (status == "INTERESTING" && done) {
+                        final_exception_message = ": " + exception_message;
+                    }
                 }
 
             } else if (event_type == "test_done") {
@@ -191,63 +187,75 @@ namespace hegel {
                                  hegel::internal::json::json{{"result", true}});
 
                 if (payload.contains("results")) {
-                    auto& results = ImplUtil::raw(payload["results"]);
-                    test_passed = results.value("passed", true);
+                    results_json = payload["results"];
                     final_replays_remaining =
-                        results.value("interesting_test_cases", 0);
+                        results_json.value("interesting_test_cases", 0);
                 }
+
                 if (final_replays_remaining <= 0) {
                     done = true;
                 }
             }
         }
 
-        // Cleanup: release socket before waiting for child
+        // Cleanup: close pipes before waiting for child
         conn.close();
 
         int status;
         waitpid(child_pid, &status, 0);
-        std::filesystem::remove_all(temp_dir);
+
+        auto& results = ImplUtil::raw(results_json);
+        if (results.is_null()) {
+            throw std::runtime_error("test_done received without results");
+        }
+        if (results.contains("health_check_failure")) {
+            throw std::runtime_error(
+                "Hegel health check failure:\n" +
+                results["health_check_failure"].get<std::string>());
+        }
+        if (results.contains("flaky")) {
+            throw std::runtime_error("Flaky Hegel test:\n" +
+                                     results["flaky"].get<std::string>());
+        }
+
+        bool test_passed = results.value("passed", true);
 
         if (!test_passed) {
-            throw std::runtime_error("Hegel test failed");
+            throw std::runtime_error("\nHegel test failed" +
+                                     final_exception_message);
         }
     }
 
     // =============================================================================
     // Explicit Examples
     // =============================================================================
-    static void run_explicit_examples(const std::function<void()>& test_fn,
-                                      const options::HegelOptions& options) {
-        for (size_t i = 0; i < options.examples.size(); ++i) {
+    static void
+    run_explicit_examples(const std::function<void(TestCase&)>& test_fn,
+                          const Settings& settings) {
+        for (size_t i = 0; i < settings.examples.size(); ++i) {
             // Copy the example and reverse so pop_back() yields in order
-            std::vector<std::any> values(options.examples[i].begin(),
-                                         options.examples[i].end());
+            std::vector<std::any> values(settings.examples[i].begin(),
+                                         settings.examples[i].end());
             std::reverse(values.begin(), values.end());
 
-            impl::data::TestCaseData data{
-                .connection = nullptr,
-                .data_stream = 0,
-                .is_last_run = true,
-                .test_aborted = false,
-                .verbosity = options.verbosity,
-                .explicit_values = &values,
-            };
-            impl::data::set(&data);
-
             try {
-                test_fn();
+                hegel::impl::test_case::TestCaseData data{
+                    .connection = nullptr,
+                    .data_stream = 0,
+                    .is_last_run = true,
+                    .verbosity = settings.verbosity,
+                    .explicit_values = &values,
+                };
+                TestCase tc(&data);
+
+                test_fn(tc);
             } catch (const internal::HegelReject&) {
-                impl::data::clear();
                 throw std::runtime_error(
                     "assume() failed on explicit example " + std::to_string(i) +
                     ": explicit examples must not be filtered");
             } catch (...) {
-                impl::data::clear();
                 throw;
             }
-
-            impl::data::clear();
 
             if (!values.empty()) {
                 throw std::runtime_error(
@@ -259,36 +267,51 @@ namespace hegel {
         }
     }
 
-    // =============================================================================
-    // Entry Point
-    // =============================================================================
-    void hegel(const std::function<void()>& test_fn,
-               const options::HegelOptions& options) {
+    void test(const std::function<void(TestCase&)>& test_fn,
+              const Settings& settings) {
+        // Resolve the command (including uv bootstrap, if needed) before
+        // fork so any install cost is paid once in the parent, where
+        // failures surface cleanly.
+
         // Run explicit examples before fork (no server needed)
-        if (!options.examples.empty()) {
-            run_explicit_examples(test_fn, options);
+        if (!settings.examples.empty()) {
+            run_explicit_examples(test_fn, settings);
         }
 
         // If test_cases is explicitly 0, skip server-driven testing
-        if (options.test_cases.has_value() && options.test_cases.value() == 0) {
+        if (settings.test_cases.has_value() &&
+            settings.test_cases.value() == 0) {
             return;
         }
 
-        // Create temp directory with socket path
-        std::string temp_dir = "/tmp/hegel_" + std::to_string(getpid());
-        std::filesystem::create_directories(temp_dir);
-        std::string socket_path = temp_dir + "/hegel.sock";
+        std::vector<std::string> command = impl::hegel_command();
+
+        // Create pipes for parent<->child stdio communication
+        // parent_to_child: parent writes to [1], child reads from [0]
+        // child_to_parent: child writes to [1], parent reads from [0]
+        int parent_to_child[2];
+        int child_to_parent[2];
+        if (pipe(parent_to_child) < 0 || pipe(child_to_parent) < 0) {
+            throw std::runtime_error("Failed to create pipes");
+        }
 
         pid_t pid = fork();
         if (pid < 0) {
-            std::filesystem::remove_all(temp_dir);
             throw std::runtime_error("Failed to fork");
         }
 
         if (pid == 0) {
-            hegel_child(socket_path, options);
+            // Child: close unused pipe ends
+            ::close(parent_to_child[1]);
+            ::close(child_to_parent[0]);
+            hegel_child(parent_to_child[0], child_to_parent[1], settings,
+                        std::move(command));
         } else {
-            hegel_parent(socket_path, test_fn, temp_dir, pid, options);
+            // Parent: close unused pipe ends
+            ::close(parent_to_child[0]);
+            ::close(child_to_parent[1]);
+            hegel_parent(test_fn, pid, child_to_parent[0], parent_to_child[1],
+                         settings);
         }
     }
 } // namespace hegel

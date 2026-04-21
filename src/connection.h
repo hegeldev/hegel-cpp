@@ -8,9 +8,6 @@
 #include <unordered_map>
 #include <vector>
 
-// =============================================================================
-// Connection and Stream Multiplexing
-// =============================================================================
 namespace hegel::impl {
 
     struct IncomingRequest {
@@ -20,7 +17,7 @@ namespace hegel::impl {
 
     class Connection {
       public:
-        explicit Connection(int fd);
+        Connection(int read_fd, int write_fd);
         ~Connection();
 
         Connection(const Connection&) = delete;
@@ -50,7 +47,8 @@ namespace hegel::impl {
         void close();
 
       private:
-        int fd_;
+        int read_fd_;
+        int write_fd_;
         uint32_t next_stream_counter_ = 0;
         std::unordered_map<uint32_t, uint32_t> next_message_id_;
         std::unordered_map<uint32_t, std::deque<protocol::Packet>> pending_;

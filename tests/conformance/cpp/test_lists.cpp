@@ -8,6 +8,7 @@
 
 #include "../../../src/json_impl.h"
 using hegel::internal::json::ImplUtil;
+namespace gs = hegel::generators;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -31,14 +32,14 @@ int main(int argc, char* argv[]) {
             : std::optional<int>(args["max_value"].get<int>());
     int test_cases = conformance::get_test_cases();
 
-    hegel::hegel(
-        [=]() {
-            auto gen = hegel::generators::vectors(
-                hegel::generators::integers<int>(
-                    {.min_value = min_value, .max_value = max_value}),
-                {.min_size = min_size, .max_size = max_size});
+    hegel::test(
+        [=](hegel::TestCase& tc) {
+            auto gen =
+                gs::vectors(gs::integers<int>({.min_value = min_value,
+                                               .max_value = max_value}),
+                            {.min_size = min_size, .max_size = max_size});
 
-            auto vec = hegel::draw(gen);
+            auto vec = tc.draw(gen);
 
             nlohmann::json metrics = {{"size", vec.size()}};
             if (!vec.empty()) {

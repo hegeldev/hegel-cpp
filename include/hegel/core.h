@@ -1,223 +1,231 @@
 #pragma once
 
-/**
- * @file core.h
- * @brief Generator and SchemaBackedGenerator class templates for Hegel SDK
- *
- * Contains the core Generator<T> and SchemaBackedGenerator<T> class templates,
- * the Response wrapper, and factory functions.
- */
-
+#include <functional>
 #include <memory>
-#include <rfl.hpp>
-#include <rfl/json.hpp>
+#include <optional>
+#include <stdexcept>
+#include <string>
+#include <type_traits>
+#include <typeinfo>
+#include <utility>
 
 #include "internal.h"
 #include "nlohmann_reader.h"
-
-namespace hegel::internal {
-    /// Generate a schema for type T (wrapper around reflect-cpp)
-    template <typename T> hegel::internal::json::json type_schema() {
-        return hegel::internal::json::json::parse(
-            rfl::json::to_schema<T>().c_str());
-    }
-
-    /// Deserialize a json_raw_ref into a value of type T.
-    template <typename T>
-    T json_value_to(const hegel::internal::json::json_raw_ref& result) {
-        auto parse_result = read_nlohmann<T>(result);
-        if (!parse_result.has_value()) {
-            throw std::runtime_error(parse_result.error().what());
-        }
-        return parse_result.value();
-    }
-} // namespace hegel::internal
+#include "test_case.h"
 
 /**
- * @brief Namespace containing abstractions for data generation.
- *
- * You wouldn't typically use the *classes* in this namespace directly,
- * but rather use the default_generator() function and the strategies
- * in hegel::strategies.
+ * @brief Hegel generators.
  */
 namespace hegel::generators {
 
-    // Convenience alias used throughout this header
-    using TestCaseData = impl::data::TestCaseData;
+    template <typename T> struct BasicGenerator;
+    template <typename T> class CompositeGenerator;
+    template <typename T, typename U> class MappedGenerator;
+
+    /// @cond INTERNAL
+    // Default client-side parser used by schema-backed generators whose parse
+    // step is determined solely by T. Primitives use typed accessors on the
+    // raw json_raw_ref; reflectable composite types fall back to reflect-cpp.
+    template <typename T>
+    T default_parse_raw(const hegel::internal::json::json_raw_ref& result) {
+        if constexpr (std::is_same_v<T, std::string>) {
+            return result.get_string();
+        } else if constexpr (std::is_same_v<std::remove_cvref_t<T>, bool>) {
+            return result.get_bool();
+        } else if constexpr (std::is_floating_point_v<T>) {
+            return static_cast<T>(result.get_double());
+        } else if constexpr (std::is_unsigned_v<T>) {
+            return static_cast<T>(result.get_uint64_t());
+        } else if constexpr (std::is_integral_v<T>) {
+            return static_cast<T>(result.get_int64_t());
+        } else {
+            auto parse_result = internal::read_nlohmann<T>(result);
+            if (!parse_result.has_value()) {
+                throw std::runtime_error(
+                    "Failed to parse server response into requested type");
+            }
+            return parse_result.value();
+        }
+    }
+    /// @endcond
+
+    /// @cond INTERNAL
+    // Schema + client-side parser bundle. Every schema-backed generator
+    // exposes one of these via IGenerator<T>::as_basic().
+    template <typename T> struct BasicGenerator {
+        using Parse =
+            std::function<T(const hegel::internal::json::json_raw_ref&)>;
+
+        hegel::internal::json::json schema;
+        Parse parse;
+
+        T parse_raw(const hegel::internal::json::json_raw_ref& raw) const {
+            return parse(raw);
+        }
+
+        T do_draw(const TestCase& tc) const {
+            hegel::internal::json::json response =
+                internal::communicate_with_core(schema, tc);
+            if (!response.contains("result")) {
+                throw std::runtime_error(
+                    "Server response missing 'result' field");
+            }
+            return parse(response["result"]);
+        }
+
+        template <typename F, typename U = std::invoke_result_t<F, T>>
+        BasicGenerator<U> map(F f) const {
+            Parse old_parse = parse;
+            hegel::internal::json::json sch = schema;
+            return BasicGenerator<U>{
+                std::move(sch),
+                [old_parse = std::move(old_parse), f = std::move(f)](
+                    const hegel::internal::json::json_raw_ref& raw) -> U {
+                    return f(old_parse(raw));
+                }};
+        }
+    };
+    /// @endcond
 
     /**
-     * @brief The base interface that defines Generators.
+     * @brief Base interface for generators.
      *
-     * IGenerator's core method is do_draw(), which produces a single value
-     * of type T given the current test case data.
+     * IGenerator is not part of the public API. You should not implement it.
      *
-     * IGenerator also has a schema() method that returns the schema (if there
-     * is one).
-     *
-     * It's rare that you would need to implement IGenerator yourself; you would
-     * typically use pre-existing primitives from the library or compose them
-     * using compositors from the library. Even the library only uses IGenerator
-     * sparingly; most operations are exposed in Generator, a class that
-     * implements IGenerator.
-     *
-     * @tparam T The type to generate values for (must be reflect-cpp
-     * compatible)
-     * @see default_generator() Factory function for creating default type-based
-     * Generators
-     * @see hegel::generators Built-in functions that %generate data for you
-     * @see Generator Sub-class that implements IGenerator; the thing you
-     * typically interact with
+     * @tparam T The type to generate values for
      */
     template <typename T> struct IGenerator {
         IGenerator() {}
         virtual ~IGenerator() = default;
 
-        /**
-         * @brief Draw a random value.
-         * @param data The current test case data
-         * @return A randomly generated value of type T
-         */
-        virtual T do_draw(TestCaseData* data) const = 0;
+        /// @cond INTERNAL
+        // Returns a BasicGenerator<T> (schema + client-side parser) if this
+        // generator can be driven through the Hegel protocol as a single
+        // schema request. Composed generators (vectors, one_of, ...) use this
+        // to build compound schemas while keeping per-element parsing
+        // client-side; map() uses it to preserve schemas through
+        // transformations. Defaults to nullopt for generators whose
+        // production is fully client-side (filter, flat_map, user closures).
+        virtual std::optional<BasicGenerator<T>> as_basic() const {
+            return std::nullopt;
+        }
 
-        /**
-         * @brief Get the CBOR schema for this generator, if any.
-         *
-         * All IGenerators *may* have a schema, even if the schema isn't
-         * directly used for generating; this functionality may be used for
-         * composing generators, for example.
-         *
-         * @return Optional containing the schema, or nullopt if not
-         * schema-based
-         */
-        virtual std::optional<hegel::internal::json::json> schema() const = 0;
+        // Get the CBOR schema for this generator, if any. The default
+        // derives it from as_basic(); override only if you need to report a
+        // schema without also providing a parser.
+        virtual std::optional<hegel::internal::json::json> schema() const {
+            auto b = as_basic();
+            return b ? std::optional{b->schema} : std::nullopt;
+        }
+
+        // Produce a value. The default delegates to the basic form when
+        // available; generators without a basic form
+        // must override this to provide a client-side fallback.
+        virtual T do_draw(const TestCase& tc) const {
+            if (auto b = as_basic())
+                return b->do_draw(tc);
+            throw std::logic_error(
+                "IGenerator has no basic form and no do_draw override");
+        }
+        /// @endcond
     };
 
     /**
-     * @brief A Generator; this is the class that most methods return.
-     *
-     * Generator is the core abstraction for random data generation. It wraps
-     * an IGenerator (which produces values) and provides combinators  (map(),
-     * flat_map(), filter()) for transforming and composing generators.
+     * @brief The base class of all generators.
      *
      * @code{.cpp}
-     * using namespace hegel::generators;
+     * namespace gs = hegel::generators;
      *
-     * // Create a generator and draw a value
-     * auto int_gen = integers<int>({.min_value = 0, .max_value = 100});
-     * int value = hegel::draw(int_gen);
+     * hegel::test([](hegel::TestCase& tc) {
+     *     // Create a generator and draw a value
+     *     auto int_gen = gs::integers<int>({.min_value = 0, .max_value = 100});
+     *     int value = tc.draw(int_gen);
      *
-     * // Transform with map
-     * auto squared = int_gen.map([](int x) { return x * x; });
+     *     // Transform with map
+     *     auto squared = int_gen.map([](int x) { return x * x; });
      *
-     * // Filter values
-     * auto even = int_gen.filter([](int x) { return x % 2 == 0; });
+     *     // Filter values
+     *     auto even = int_gen.filter([](int x) { return x % 2 == 0; });
      *
-     * // Dependent generation with flat_map
-     * auto sized = integers<size_t>({.min_value = 1, .max_value = 10})
-     *     .flat_map([](size_t len) {
-     *         return text({.min_size = len, .max_size = len});
-     *     });
+     *     // Dependent generation with flat_map
+     *     auto sized = gs::integers<size_t>({.min_value = 1, .max_value = 10})
+     *         .flat_map([](size_t len) {
+     *             return gs::text({.min_size = len, .max_size = len});
+     *         });
+     * });
      * @endcode
      *
-     * @tparam T The type to generate values for (must be reflect-cpp
-     * compatible)
-     * @see default_generator() Factory function for creating default type-based
-     * Generators
-     * @see hegel::generators Built-in functions that %generate data for you
+     * @tparam T The type to generate values for
      */
     template <typename T> class Generator : IGenerator<T> {
       public:
-        /// @brief Create a Generator from a raw pointer
+        /// @cond INTERNAL
         Generator(IGenerator<T>* p) : IGenerator<T>(), inner_(p) {}
-        /// @brief Create a Generator from a std::shared_ptr
         Generator(std::shared_ptr<IGenerator<T>> p)
             : IGenerator<T>(), inner_(std::move(p)) {}
 
-        /**
-         * @brief Draw a random value (internal).
-         * @param data The current test case data
-         * @return A randomly generated value of type T
-         */
-        T do_draw(TestCaseData* data) const override {
-            return inner_->do_draw(data);
+        T do_draw(const TestCase& tc) const override {
+            return inner_->do_draw(tc);
         }
 
-        /**
-         * @brief Get the CBOR schema for this generator, if any.
-         * @return Optional containing the schema, or nullopt if not
-         * schema-based
-         */
         std::optional<hegel::internal::json::json> schema() const override {
             return inner_->schema();
         }
 
+        std::optional<BasicGenerator<T>> as_basic() const override {
+            return inner_->as_basic();
+        }
+        /// @endcond
+
         /**
          * @brief Transform generated values with a function.
          *
-         * Given a Generator&lt;T&gt; and a function from T -> S, creates a
-         * Generator&lt;S&gt;.
+         * Given a Generator\<T\> and a function T -> S, creates a
+         * Generator\<S\>.
          *
          * This works by generating values from the Generator&lt;T&gt; and
          * applying a transformation to each value.
          *
-         * This is used when you have a function to convert *values* between
-         * types. Compare with flat_map().
+         * Here's an example of how you'd use this:
          *
-         * Here's an example of how you'd use this with built-in strategies:
          * @code{.cpp}
-         * Generator<double> halved =                           // Result type
-         * Generator<double> integers<int>()                                  //
-         * Input type Generator<int> .map(
-         *             [](int x) { return double(x) / 2.0; }    //
-         * transformation: double f(int x)
-         *         );
+         * auto halved = integers<int>().map(
+         *     [](int x) { return double(x) / 2.0; }
+         * );
+         * // halved is Generator<double>
          * @endcode
          *
          * @tparam F Function type (T -> S)
          * @param f Transformation function with signature S f(T)
-         * @return Generator&lt;S&gt; producing transformed values
+         * @return Generator\<S\> producing transformed values
          * @see flat_map()
          */
         template <typename F>
-        Generator<std::invoke_result_t<F, T>> map(F&& f) const {
-            // F is of type T -> ResultType
+        Generator<std::invoke_result_t<F, T>> map(F f) const {
             using ResultType = std::invoke_result_t<F, T>;
-            auto inner = inner_;
-            return from_function<ResultType>(
-                [inner,
-                 f = std::forward<F>(f)](TestCaseData* data) -> ResultType {
-                    return f(inner->do_draw(data));
-                });
+            return Generator<ResultType>(
+                new MappedGenerator<T, ResultType>(inner_, std::move(f)));
         }
 
         /**
          * @brief Chain generators for dependent generation.
          *
-         * Given a Generator&lt;T&gt; and a function from T ->
-         * Generator&lt;S&gt;, creates a Generator&lt;S&gt;. Useful when
-         * generation parameters depend on previously generated values.
-         *
-         * This is used when you have a function that creates a new Generator
-         * based on the value. Compare this with map().
-         *
+         * Given a Generator\<T\> and a function T -> Generator\<S\>, creates a
+         * Generator\<S\>. Useful when generation parameters depend on
+         * previously generated values.
          *
          * @code{.cpp}
-         * Generator<std::string> sized_string =                     // Result
-         * type Generator<std::string> integers<size_t>({.min_value = 1,
-         * .max_value = 10})   // Input type Generator<size_t> .flat_map(
-         *         [](size_t len) {                                  //
-         * transformation Generator<std::string> f(size_t len) return text({ //
-         * text() return type is Generator<std::string> .min_size = len, //
-         * Constructor parameters to text() depend on the value *len* .max_size
-         * = len
-         *             });
-         *     });
+         * auto sized_string =
+         *     integers<size_t>({.min_value = 1, .max_value = 10})
+         *         .flat_map([](size_t len) {
+         *             return text({.min_size = len, .max_size = len});
+         *         });
+         * // sized_string is Generator<std::string>
          * @endcode
          *
-         * @tparam F Function type (T -> Generator&lt;S&gt;)
-         * @param f Function that takes a T and returns a Generator&lt;S&gt;
-         * @return Generator&lt;S&gt; producing values from the chained
-         * generator
+         * @tparam F Function type (T -> Generator\<S\>)
+         * @param f Function that takes a T and returns a Generator\<S\>
+         * @return Generator\<S\> producing values from the chained generator
          * @see map(), text()
          */
         template <typename F> std::invoke_result_t<F, T> flat_map(F&& f) const {
@@ -228,13 +236,12 @@ namespace hegel::generators {
             //     Function return type: Generator<ResultType>
             using ResultType =
                 decltype(std::declval<std::invoke_result_t<F, T>>().do_draw(
-                    std::declval<TestCaseData*>()));
+                    std::declval<const TestCase&>()));
             auto inner = inner_;
-            return from_function<ResultType>(
-                [inner,
-                 f = std::forward<F>(f)](TestCaseData* data) -> ResultType {
-                    return f(inner->do_draw(data)).do_draw(data);
-                });
+            return compose([inner, f = std::forward<F>(f)](
+                               const TestCase& tc) -> ResultType {
+                return f(inner->do_draw(tc)).do_draw(tc);
+            });
         }
 
         /**
@@ -243,38 +250,37 @@ namespace hegel::generators {
          * Creates a Generator that only produces values satisfying the
          * predicate. The new Generator has the same type as this Generator.
          *
-         * For performance reasons, if 3 consecutive values fail the predicate,
-         * Hegel rejects the test case.
-         *
          * So for example, if you want sorted lists of length N, you should
          * generate sorted lists of length N, not generate random lists and
          * filter by a predicate of 'length == N && is_sorted'. (Although the
          * latter is logically correct, it would be a performance nightmare, so
          * Hegel doesn't let you do it that way.)
          *
+         * For example, if you want sorted lists of length N, you should
+         * generate lists of length N and sort them, not generate random lists
+         * and filter by a predicate of 'length == N && is_sorted'.
+         *
          * @code{.cpp}
-         * Generator<int> even =                                  // Return type
-         * is same as input type integers<int>({.min_value = 0, .max_value =
-         * 100})  // Input type = Generator<int> .filter(
-         *         [](int x) { return x % 2 == 0; }               // bool
-         * predicate(int x)
-         *     );
+         * auto even = integers<int>({.min_value = 0, .max_value = 100})
+         *     .filter([](int x) { return x % 2 == 0; });
+         * // even is Generator<int>
          * @endcode
          *
-         * @param pred Predicate that values must satisfy. Signature: bool
-         * pred(T value)
-         * @return Generator&lt;T&gt; producing only values satisfying pred
+         * @param pred Predicate that values must satisfy
+         * @return Generator<T> producing only values satisfying pred
          */
         Generator<T> filter(std::function<bool(const T&)> pred) const {
             auto inner = inner_;
-            return from_function<T>([inner, pred](TestCaseData* data) -> T {
+            return compose([inner, pred](const TestCase& tc) -> T {
                 for (int i = 0; i < 3; ++i) {
-                    T value = inner->do_draw(data);
+                    T value = inner->do_draw(tc);
                     if (pred(value)) {
                         return value;
                     }
                 }
-                internal::stop_test();
+                tc.assume(false);
+                // unreachable: assume(false) throws
+                throw internal::HegelReject();
             });
         }
 
@@ -282,169 +288,108 @@ namespace hegel::generators {
         std::shared_ptr<IGenerator<T>> inner_;
     };
 
-    /**
-     * @brief A generator that uses a function to produce random values of type
-     * T.
-     *
-     * You shouldn't create this directly, but rather use the from_function()
-     * function.
-     *
-     * @tparam T The type of values this generator produces
-     */
-    template <typename T> class FunctionBackedGenerator : public IGenerator<T> {
+    /// @cond INTERNAL
+    // Generator that produces values by invoking a user-provided function.
+    // Users never construct or reference this type directly; it's produced
+    // internally by compose() and by map()/flat_map()/filter().
+    template <typename T> class CompositeGenerator : public IGenerator<T> {
       public:
-        /// @brief Create from a function
-        /// @param fn function that will be called repeatedly to draw values
-        explicit FunctionBackedGenerator(std::function<T(TestCaseData*)> fn)
+        explicit CompositeGenerator(std::function<T(const TestCase&)> fn)
             : gen_fn_(std::move(fn)) {}
 
-        /// @brief Create from a function
-        /// @param fn function that will be called repeatedly to draw values
-        /// @param schema schema for this generator; not used in do_draw(), but
-        /// may be used when composing this generator
-        FunctionBackedGenerator(std::function<T(TestCaseData*)> fn,
-                                hegel::internal::json::json schema)
-            : gen_fn_(std::move(fn)), schema_(std::move(schema)) {}
-
-        /**
-         * @brief Get the CBOR schema for this generator, if any.
-         * @return Optional containing the schema, or nullopt if not
-         * schema-based
-         */
-        std::optional<hegel::internal::json::json> schema() const override {
-            return schema_;
-        }
-
-        /**
-         * @brief Draw a random value.
-         * @param data The current test case data
-         * @return A randomly generated value of type T
-         */
-        T do_draw(TestCaseData* data) const override { return gen_fn_(data); }
+        T do_draw(const TestCase& tc) const override { return gen_fn_(tc); }
 
       private:
-        std::function<T(TestCaseData*)> gen_fn_;
-        std::optional<hegel::internal::json::json> schema_;
+        std::function<T(const TestCase&)> gen_fn_;
     };
+    /// @endcond
 
-    /**
-     * @brief A generator that generates data based on a schema.
-     *
-     * You shouldn't create this directly, but rather use the from_schema() or
-     * default_generator() functions.
-     *
-     * @tparam T The type to generate values for (must be reflect-cpp
-     * compatible)
-     * @see default_generator() Factory function for creating DefaultGenerators
-     */
-    template <typename T> class SchemaBackedGenerator : public IGenerator<T> {
+    /// @cond INTERNAL
+    // Generator that applies a client-side transformation to values drawn
+    // from a source generator. Produced internally by Generator<T>::map().
+    //
+    // Preserves basic-ness (and therefore the server-side schema) by
+    // composing the map function into the source's BasicGenerator::parse
+    // step; falls back to `f(source->do_draw(tc))` when the source is not
+    // basic.
+    template <typename T, typename U>
+    class MappedGenerator : public IGenerator<U> {
       public:
-        /// @brief Create, given the schema
-        SchemaBackedGenerator(hegel::internal::json::json schema)
-            : schema_(std::move(schema)) {}
+        MappedGenerator(std::shared_ptr<IGenerator<T>> source,
+                        std::function<U(T)> f)
+            : source_(std::move(source)), f_(std::move(f)) {}
 
-        /// Get the CBOR schema
-        std::optional<hegel::internal::json::json> schema() const override {
-            return schema_;
+        std::optional<BasicGenerator<U>> as_basic() const override {
+            auto basic = source_->as_basic();
+            if (!basic)
+                return std::nullopt;
+            return basic->map(f_);
         }
 
-        /**
-         * @brief Draw a random value of type T based on the schema.
-         * @param data The current test case data
-         * @return A randomly generated value
-         */
-        T do_draw(TestCaseData* data) const override {
-            hegel::internal::json::json response =
-                internal::communicate_with_socket(schema_, data);
-
-            if (!response.contains("result")) {
-                throw std::runtime_error(
-                    "Server response missing 'result' field");
+        U do_draw(const TestCase& tc) const override {
+            if (auto basic = as_basic()) {
+                return basic->do_draw(tc);
             }
-            return internal::json_value_to<T>(response["result"]);
+            return f_(source_->do_draw(tc));
         }
 
       private:
-        hegel::internal::json::json schema_;
+        std::shared_ptr<IGenerator<T>> source_;
+        std::function<U(T)> f_;
     };
-
-    // =============================================================================
-    // Factory functions
-    // =============================================================================
+    /// @endcond
 
     /**
-     * @brief Create a generator for type T using automatic schema derivation.
+     * @brief Build a generator from imperative code that draws from a
+     *        TestCase.
      *
-     * @brief Construct a generator from a function.
-     * @param fn Function that produces values of type T given test case data
-     */
-    template <typename T>
-    Generator<T> from_function(std::function<T(TestCaseData*)> fn) {
-        return Generator<T>(new FunctionBackedGenerator<T>(std::move(fn)));
-    }
-
-    /**
-     * @brief Construct a generator from a function (with an associated CBOR
-     * schema).
-     * @param fn Function that produces values of type T given test case data
-     * @param schema CBOR schema for this generator. This isn't used in
-     * do_draw(), but may be used when composing generators.
-     */
-    template <typename T>
-    Generator<T> from_function(std::function<T(TestCaseData*)> fn,
-                               hegel::internal::json::json schema) {
-        return Generator<T>(
-            new FunctionBackedGenerator<T>(std::move(fn), std::move(schema)));
-    }
-
-    /**
-     * @brief Create a generator from an explicit CBOR schema.
-     *
-     * Use this when you need fine-grained control over the generation
-     * schema, or when working with types that don't support automatic
-     * schema derivation.
-     *
-     * @todo link to Hegel schema docs
+     * The element type is deduced from @p fn's return type. To force a specific
+     * type, give the lambda an explicit trailing return type.
      *
      * @code{.cpp}
-     * auto gen = hegel::generators::from_schema<int>(
-     *     hegel::internal::json::json{{"type", "integer"},
-     *                    {"min_value", 0},
-     *                    {"max_value", 100}}
-     * );
-     * int value = hegel::draw(gen);
+     * auto generate_person() {
+     *     return gs::compose([](const hegel::TestCase& tc) {
+     *         int age = tc.draw(gs::integers<int>());
+     *         std::string name = tc.draw(gs::text());
+     *         return Person{age, name};
+     *     });
+     * }
      * @endcode
      *
-     * @tparam T The type to deserialize generated values into
-     * @param schema CBOR schema describing the generation constraints
-     * @return A Generator<T> that generates according to the schema
+     * @tparam F A callable taking `const TestCase&`
+     * @param fn Function that draws from the TestCase and returns a value
+     * @return A Generator whose element type is the return type of @p fn
      */
-    template <typename T>
-    Generator<T> from_schema(hegel::internal::json::json schema) {
-        return Generator<T>(new SchemaBackedGenerator<T>(std::move(schema)));
-    }
-
-    /**
-     * @brief Generate values of type T using reflect-cpp schema derivation.
-     *
-     * Uses reflect-cpp to derive a schema from the type's structure.
-     * Works with structs, classes, and standard library types.
-     *
-     * @code{.cpp}
-     * struct Person {
-     *     std::string name;
-     *     int age;
-     * };
-     *
-     * auto gen = hegel::generators::default_generator<Person>();
-     * Person p = hegel::draw(gen);
-     * @endcode
-     *
-     * @tparam T The type to generate (must be reflect-cpp compatible)
-     * @return A SchemaBackedGenerator<T> instance
-     */
-    template <typename T> Generator<T> default_generator() {
-        return from_schema<T>(internal::type_schema<T>());
+    template <typename F> auto compose(F&& fn) {
+        using T = std::invoke_result_t<F, const TestCase&>;
+        return Generator<T>(new CompositeGenerator<T>(
+            std::function<T(const TestCase&)>(std::forward<F>(fn))));
     }
 
 } // namespace hegel::generators
+
+namespace hegel {
+
+    template <typename T>
+    T TestCase::draw(const generators::Generator<T>& gen) const {
+        if (is_explicit_example()) {
+            if (!has_explicit_value()) {
+                throw std::runtime_error(
+                    "Explicit example has too few values for the "
+                    "number of draw() calls");
+            }
+            auto val = pop_explicit_value();
+            auto* ptr = std::any_cast<T>(&val);
+            if (!ptr) {
+                throw std::runtime_error(
+                    "Explicit example type mismatch: expected " +
+                    std::string(typeid(T).name()) + ", got " +
+                    (val.has_value() ? std::string(val.type().name())
+                                     : "empty"));
+            }
+            return std::move(*ptr);
+        }
+        return gen.do_draw(*this);
+    }
+
+} // namespace hegel
