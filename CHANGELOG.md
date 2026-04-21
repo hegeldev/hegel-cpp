@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.4 - 2026-04-21
+
+General documentation improvements
+
 ## 0.3.3 - 2026-04-20
 
 Update and build our documentation to https://hegel.dev/.

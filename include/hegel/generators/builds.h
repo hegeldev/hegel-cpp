@@ -57,9 +57,10 @@ namespace hegel::generators {
      *
      * @code{.cpp}
      * auto rect = builds_agg<Rectangle>(
-     *     field<&Rectangle::width>(integers<int>({.min_value = 1, .max_value =
-     * 100})), field<&Rectangle::height>(integers<int>({.min_value = 1,
-     * .max_value = 100}))
+     *     field<&Rectangle::width>(
+     *      integers<int>({.min_value = 1, .max_value = 100})),
+     *     field<&Rectangle::height>(
+     *      integers<int>({.min_value = 1, .max_value = 100}))
      * );
      * @endcode
      *
@@ -78,7 +79,6 @@ namespace hegel::generators {
      *
      * Useful for structs where you want to specify fields by name rather
      * than position. Each field() specifies a member pointer and generator.
-     *
      * @code{.cpp}
      * struct Rectangle {
      *     int width;
@@ -86,9 +86,10 @@ namespace hegel::generators {
      * };
      *
      * auto rect = builds_agg<Rectangle>(
-     *     field<&Rectangle::width>(integers<int>({.min_value = 1, .max_value =
-     * 100})), field<&Rectangle::height>(integers<int>({.min_value = 1,
-     * .max_value = 100}))
+     *     field<&Rectangle::width>(
+     *      integers<int>({.min_value = 1, .max_value = 100})),
+     *     field<&Rectangle::height>(
+     *      integers<int>({.min_value = 1, .max_value = 100}))
      * );
      * @endcode
      *

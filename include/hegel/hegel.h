@@ -1,5 +1,4 @@
 #pragma once
-
 /**
  * @mainpage Hegel
  *
@@ -21,7 +20,7 @@
  * FetchContent_Declare(
  *     hegel
  *     GIT_REPOSITORY https://github.com/hegeldev/hegel-cpp.git
- *     GIT_TAG v0.3.3
+ *     GIT_TAG v0.3.4
  * )
  * FetchContent_MakeAvailable(hegel)
  *
@@ -244,9 +243,9 @@ namespace hegel {
      * int main() {
      *     hegel::test([](hegel::TestCase& tc) {
      *         namespace gs = hegel::generators;
-     *         auto x = tc.draw(gs::integers<int>({.min_value = 0,
-     * .max_value = 100})); auto y = tc.draw(gs::integers<int>({.min_value =
-     * 0, .max_value = 100}));
+     *         auto x = tc.draw(gs::integers<int>({.min_value = 0, .max_value =
+     * 100})); auto y = tc.draw(gs::integers<int>({.min_value = 0, .max_value =
+     * 100}));
      *
      *         // Property: x + y >= x (true for non-negative integers)
      *         if (x + y < x) {
