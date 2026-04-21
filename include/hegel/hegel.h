@@ -233,6 +233,7 @@
  * @brief Main namespace
  */
 namespace hegel {
+
     /**
      * @brief Run a Hegel test.
      *

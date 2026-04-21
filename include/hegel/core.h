@@ -22,7 +22,7 @@ namespace hegel::generators {
     template <typename T> class CompositeGenerator;
     template <typename T, typename U> class MappedGenerator;
 
-    /// @cond INTERNAL
+    /** @cond INTERNAL */
     // Default client-side parser used by schema-backed generators whose parse
     // step is determined solely by T. Primitives use typed accessors on the
     // raw json_raw_ref; reflectable composite types fall back to reflect-cpp.
@@ -47,9 +47,9 @@ namespace hegel::generators {
             return parse_result.value();
         }
     }
-    /// @endcond
+    /** @endcond */
 
-    /// @cond INTERNAL
+    /** @cond INTERNAL */
     // Schema + client-side parser bundle. Every schema-backed generator
     // exposes one of these via IGenerator<T>::as_basic().
     template <typename T> struct BasicGenerator {
@@ -85,7 +85,7 @@ namespace hegel::generators {
                 }};
         }
     };
-    /// @endcond
+    /** @endcond */
 
     /**
      * @brief Base interface for generators.
