@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.5 - 2026-04-21
+
+Fix our CMake integration with `FetchContent` or `add_subdirectory`, which previously errored.
+
 ## 0.3.4 - 2026-04-21
 
 General documentation improvements

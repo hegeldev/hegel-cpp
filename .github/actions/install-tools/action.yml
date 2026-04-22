@@ -33,7 +33,8 @@ runs:
         DOXYGEN_SHA256: 0ec2e5b2c3cd82b7106d19cb42d8466450730b8cb7a9e85af712be38bf4523a1
       run: |
         sudo apt-get update && sudo apt-get install -y graphviz
-        curl -fsSL "https://www.doxygen.nl/files/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz" -o /tmp/doxygen.tar.gz
+        DOXYGEN_TAG="Release_${DOXYGEN_VERSION//./_}"
+        curl -fsSL "https://github.com/doxygen/doxygen/releases/download/${DOXYGEN_TAG}/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz" -o /tmp/doxygen.tar.gz
         echo "${DOXYGEN_SHA256}  /tmp/doxygen.tar.gz" | sha256sum -c -
         sudo tar -xzf /tmp/doxygen.tar.gz -C /opt
         sudo ln -sf "/opt/doxygen-${DOXYGEN_VERSION}/bin/doxygen" /usr/local/bin/doxygen
