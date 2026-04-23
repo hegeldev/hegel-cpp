@@ -1,12 +1,19 @@
 cmake_minimum_required(VERSION 3.14)
-project(hegel-cpp VERSION 0.3.4 LANGUAGES CXX)
+project(hegel-cpp VERSION 0.3.5 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(HEGEL_BUILD_TESTS "Build unit tests" ON)
-option(HEGEL_BUILD_CONFORMANCE "Build conformance test binary" ON)
+# don't build tests when consumed via add_subdirectory/FetchContent
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(_hegel_default_tests ON)
+else()
+    set(_hegel_default_tests OFF)
+endif()
+
+option(HEGEL_BUILD_TESTS "Build unit tests" ${_hegel_default_tests})
+option(HEGEL_BUILD_CONFORMANCE "Build conformance test binary" ${_hegel_default_tests})
 option(HEGEL_BUILD_DOCS "Build documentation" OFF)
 option(HEGEL_COVERAGE "Build with coverage instrumentation" OFF)
 
@@ -30,20 +37,14 @@ add_custom_command(
     VERBATIM
 )
 
-# =============================================================================
-# Dependencies via FetchContent
-# =============================================================================
-
 include(FetchContent)
 
-# Fetch reflect-cpp
 FetchContent_Declare(
     reflectcpp
     GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
     GIT_TAG v0.22.0
 )
 
-# reflect-cpp options - we use rfl::json for schema derivation and type conversion
 set(REFLECTCPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
 set(REFLECTCPP_BSON OFF CACHE BOOL "" FORCE)
@@ -64,10 +65,6 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(reflectcpp nlohmann_json)
-
-# =============================================================================
-# Main library target
-# =============================================================================
 
 add_library(hegel
   STATIC
@@ -96,35 +93,21 @@ target_link_libraries(hegel
 )
 target_compile_features(hegel PUBLIC cxx_std_20)
 
-# =============================================================================
-# Tests with Google Test
-# =============================================================================
-
 if(HEGEL_BUILD_TESTS)
     set(INSTALL_GTEST OFF CACHE BOOL "Disable installation of googletest" FORCE)
     set(INSTALL_GMOCK OFF CACHE BOOL "Disable installation of googlemock" FORCE)
     add_subdirectory(tests)
 endif()
 
-
-# =============================================================================
-# Conformance Tests
-# =============================================================================
-
 if(HEGEL_BUILD_CONFORMANCE)
     add_subdirectory(tests/conformance/cpp)
 endif()
-
-# =============================================================================
-# Installation
-# =============================================================================
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
   include(GNUInstallDirs)
   include(CMakePackageConfigHelpers)
 
-  # Install the library
   install(TARGETS hegel
     EXPORT hegelTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -132,40 +115,34 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   )
 
-  # Install headers
   install(DIRECTORY include/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
-  # Install CMake config files
   install(EXPORT hegelTargets
       FILE hegelTargets.cmake
       NAMESPACE hegel::
       DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
   )
 
-  # Generate package config file
   configure_package_config_file(
       ${CMAKE_CURRENT_SOURCE_DIR}/cmake/hegelConfig.cmake.in
       ${CMAKE_CURRENT_BINARY_DIR}/hegelConfig.cmake
       INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
   )
 
-  # Generate version file
   write_basic_package_version_file(
       ${CMAKE_CURRENT_BINARY_DIR}/hegelConfigVersion.cmake
       VERSION ${PROJECT_VERSION}
       COMPATIBILITY SameMajorVersion
   )
 
-  # Install config files
   install(FILES
       ${CMAKE_CURRENT_BINARY_DIR}/hegelConfig.cmake
       ${CMAKE_CURRENT_BINARY_DIR}/hegelConfigVersion.cmake
       DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
   )
 
-  # Install docs (only when they were actually built)
   if(HEGEL_BUILD_DOCS)
     install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs
         TYPE DOC
@@ -173,10 +150,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   endif()
 
 endif()
-
-# =============================================================================
-# Documentation
-# =============================================================================
 
 if(HEGEL_BUILD_DOCS)
     find_package(Doxygen REQUIRED)

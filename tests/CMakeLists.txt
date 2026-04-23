@@ -53,7 +53,7 @@ function(hegel_add_test)
     if(HAT_INTERNAL)
         target_include_directories(${HAT_NAME}
             PRIVATE
-                ${CMAKE_SOURCE_DIR}/src
+                ${PROJECT_SOURCE_DIR}/src
                 $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>
         )
     endif()
