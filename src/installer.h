@@ -12,7 +12,7 @@ namespace hegel::impl {
 
     /// hegel-core version that this library is built against. Kept in sync
     /// with the Rust library's `HEGEL_SERVER_VERSION`.
-    constexpr const char* HEGEL_SERVER_VERSION = "0.4.0";
+    constexpr const char* HEGEL_SERVER_VERSION = "0.6.0";
 
     /// Returns the argv prefix used to invoke the hegel server.
     ///
@@ -24,7 +24,7 @@ namespace hegel::impl {
     ///   where `uv` comes from `hegel::impl::uv::find_uv()`, bootstrapping
     ///   uv on first use if necessary.
     ///
-    /// The caller appends the remaining flags (`--stdio`, `--verbosity`, …).
+    /// The caller appends the remaining flags (`--verbosity`, …).
     ///
     /// Throws std::runtime_error if the override is set but unresolvable, or
     /// if uv cannot be found or installed.

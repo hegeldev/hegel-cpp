@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.8 - 2026-04-30
+
+Internal refactor.
+
+## 0.3.7 - 2026-04-29
+
+Internal refactor of `one_of`.
+
+## 0.3.6 - 2026-04-28
+
+Bump our pinned [`hegel-core`](https://github.com/hegeldev/hegel-core) version from `0.4.0` to [`0.4.14`](https://github.com/hegeldev/hegel-core/releases/tag/v0.4.14).
+
 ## 0.3.5 - 2026-04-21
 
 Fix our CMake integration with `FetchContent` or `add_subdirectory`, which previously errored.

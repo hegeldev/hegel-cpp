@@ -38,13 +38,14 @@ namespace hegel {
     static void hegel_child(int child_read_fd, int child_write_fd,
                             const Settings& settings,
                             std::vector<std::string> args) {
-        // Wire pipes to stdin/stdout for --stdio mode
+        // Wire pipes to stdin/stdout. As of hegel-core 0.4.8, the server
+        // always communicates over stdin/stdout; there is no longer a
+        // `--stdio` flag.
         dup2(child_read_fd, STDIN_FILENO);
         dup2(child_write_fd, STDOUT_FILENO);
         ::close(child_read_fd);
         ::close(child_write_fd);
 
-        args.emplace_back("--stdio");
         args.emplace_back("--verbosity");
         args.emplace_back(verbosity_to_string(settings.verbosity));
 

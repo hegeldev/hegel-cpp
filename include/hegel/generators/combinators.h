@@ -62,21 +62,18 @@ namespace hegel::generators {
                 basics.push_back(std::move(*b));
             }
 
-            // Tag each branch with its index so the client knows which
-            // parser to apply. Schema per branch is [constant(i), value].
-            hegel::internal::json::json tagged =
+            // The protocol guarantees `one_of` responses arrive as
+            // `[index, value]`, so the schema is just the raw children
+            // without any per-branch tagging. The index tells us which
+            // branch's parser (which carries any per-branch transforms
+            // composed in via map()) to apply to the value.
+            hegel::internal::json::json children =
                 hegel::internal::json::json::array();
-            for (size_t i = 0; i < basics.size(); ++i) {
-                hegel::internal::json::json elements =
-                    hegel::internal::json::json::array();
-                elements.push_back(hegel::internal::json::json{
-                    {"type", "constant"}, {"value", (int64_t)i}});
-                elements.push_back(basics[i].schema);
-                tagged.push_back(hegel::internal::json::json{
-                    {"type", "tuple"}, {"elements", elements}});
+            for (const auto& b : basics) {
+                children.push_back(b.schema);
             }
             hegel::internal::json::json schema = {{"type", "one_of"},
-                                                  {"generators", tagged}};
+                                                  {"generators", children}};
 
             return BasicGenerator<T>{
                 std::move(schema),
@@ -220,8 +217,9 @@ namespace hegel::generators {
     } // namespace detail
 
     // Concrete IGenerator for variant(). Schema path requires every branch
-    // to be basic and uses a tagged one_of (same wire format as
-    // OneOfGenerator, but branches can have heterogeneous types).
+    // to be basic; uses the same one_of protocol as OneOfGenerator, but
+    // branches can have heterogeneous types so each branch has its own
+    // typed parser.
     template <typename... Ts>
     class VariantGenerator : public IGenerator<std::variant<Ts...>> {
       public:
@@ -242,25 +240,18 @@ namespace hegel::generators {
             if (!all_basic)
                 return std::nullopt;
 
-            hegel::internal::json::json tagged =
+            // Server returns `[index, value]` for `one_of` schemas, so we
+            // can emit the children directly without per-branch tagging.
+            hegel::internal::json::json children =
                 hegel::internal::json::json::array();
-            size_t i = 0;
             std::apply(
-                [&tagged, &i](const auto&... b) {
-                    ((tagged.push_back(hegel::internal::json::json{
-                          {"type", "tuple"},
-                          {"elements", hegel::internal::json::json::array(
-                                           {hegel::internal::json::json{
-                                                {"type", "constant"},
-                                                {"value", (int64_t)i}},
-                                            b->schema})}}),
-                      ++i),
-                     ...);
+                [&children](const auto&... b) {
+                    (children.push_back(b->schema), ...);
                 },
                 basics);
 
             hegel::internal::json::json schema = {{"type", "one_of"},
-                                                  {"generators", tagged}};
+                                                  {"generators", children}};
 
             auto parsers = std::apply(
                 [](const auto&... b) { return std::make_tuple(b->parse...); },
@@ -309,7 +300,8 @@ namespace hegel::generators {
 
             hegel::internal::json::json generators =
                 hegel::internal::json::json::array();
-            generators.push_back(hegel::internal::json::json{{"type", "null"}});
+            generators.push_back(hegel::internal::json::json{
+                {"type", "constant"}, {"value", nullptr}});
             generators.push_back(basic->schema);
             hegel::internal::json::json schema = {{"type", "one_of"},
                                                   {"generators", generators}};
@@ -320,10 +312,13 @@ namespace hegel::generators {
                 [parse = std::move(parse)](
                     const hegel::internal::json::json_raw_ref& raw)
                     -> std::optional<T> {
-                    if (raw.is_null()) {
+                    // `one_of` responses arrive as `[index, value]`. Index
+                    // 0 is the null branch, index 1 is the inner value.
+                    size_t idx = static_cast<size_t>(raw[0].get_int64_t());
+                    if (idx == 0) {
                         return std::nullopt;
                     }
-                    return parse(raw);
+                    return parse(raw[1]);
                 }};
         }
 

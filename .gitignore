@@ -11,10 +11,9 @@ result
 
 .claude-reliability/
 **/.claude/reliability-config.yaml
-.claude/bin/
-.claude/settings.local.json
-.claude/*.local.md
-.claude/*.local.json
-.claude/*.local
-.claude/local/
+# whitelist .claude files, rather than blacklist. Some local claude files
+# (skills, agents) have to live in .claude - as opposed to eg CLAUDE.local.md,
+# which we gitignore at the top level.
+.claude/*
+!.claude/CLAUDE.md
 CLAUDE.local.md
