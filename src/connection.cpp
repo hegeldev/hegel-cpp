@@ -18,8 +18,8 @@
 using hegel::internal::json::ImplUtil;
 
 namespace hegel::impl {
-    static constexpr const char* MIN_PROTOCOL_VERSION = "0.15";
-    static constexpr const char* MAX_PROTOCOL_VERSION = "0.15";
+    static constexpr const char* MIN_PROTOCOL_VERSION = "0.16";
+    static constexpr const char* MAX_PROTOCOL_VERSION = "0.16";
     static constexpr const char* HANDSHAKE_STRING = "hegel_handshake_start";
 
     Connection::Connection(int read_fd, int write_fd)

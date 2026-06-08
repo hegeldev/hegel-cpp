@@ -12,7 +12,7 @@ namespace hegel::impl {
 
     /// hegel-core version that this library is built against. Kept in sync
     /// with the Rust library's `HEGEL_SERVER_VERSION`.
-    constexpr const char* HEGEL_SERVER_VERSION = "0.9.1";
+    constexpr const char* HEGEL_SERVER_VERSION = "0.10.0";
 
     /// Returns the argv prefix used to invoke the hegel server.
     ///
