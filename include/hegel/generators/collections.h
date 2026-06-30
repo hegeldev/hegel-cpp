@@ -4,6 +4,8 @@
 #include <map>
 #include <set>
 #include <tuple>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "hegel/core.h"
@@ -43,6 +45,15 @@ namespace hegel::generators {
     };
 
     /// @cond INTERNAL
+    // Detects whether `T` instances can be compared with `==`, so the unique
+    // fallback can be skipped for types lacking equality.
+    template <typename T, typename = void>
+    inline constexpr bool supports_equality_v = false;
+    template <typename T>
+    inline constexpr bool supports_equality_v<
+        T, std::void_t<decltype(std::declval<const T&>() ==
+                                std::declval<const T&>())>> = true;
+
     // Concrete IGenerator for vectors(). Schema path when the element
     // generator is basic; otherwise a client-side length draw + element
     // draws loop.
@@ -91,7 +102,7 @@ namespace hegel::generators {
             std::vector<T> result;
             result.reserve(len);
 
-            if constexpr (requires(T a, T b) { a == b; }) {
+            if constexpr (supports_equality_v<T>) {
                 if (params_.unique) {
                     size_t max_attempts = len * 10 + 10;
                     for (size_t attempts = 0;
