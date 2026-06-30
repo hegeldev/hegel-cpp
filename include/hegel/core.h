@@ -6,8 +6,9 @@
 #include <stdexcept>
 #include <type_traits>
 
+#include "config.h"
 #include "internal.h"
-#include "nlohmann_reader.h"
+#include "json.h"
 #include "test_case.h"
 
 /**
@@ -21,13 +22,16 @@ namespace hegel::generators {
 
     /// @cond INTERNAL
     // Default client-side parser used by schema-backed generators whose parse
-    // step is determined solely by T. Primitives use typed accessors on the
-    // raw json_raw_ref; reflectable composite types fall back to reflect-cpp.
+    // step is determined solely by T. Only primitives are parsed this way;
+    // composites assemble their result from per-element parsers in their own
+    // do_draw, so this is never instantiated for a non-primitive T.
     template <typename T>
     T default_parse_raw(const hegel::internal::json::json_raw_ref& result) {
         if constexpr (std::is_same_v<T, std::string>) {
             return result.get_string();
-        } else if constexpr (std::is_same_v<std::remove_cvref_t<T>, bool>) {
+        } else if constexpr (std::is_same_v<
+                                 std::remove_cv_t<std::remove_reference_t<T>>,
+                                 bool>) {
             return result.get_bool();
         } else if constexpr (std::is_floating_point_v<T>) {
             return static_cast<T>(result.get_double());
@@ -36,12 +40,10 @@ namespace hegel::generators {
         } else if constexpr (std::is_integral_v<T>) {
             return static_cast<T>(result.get_int64_t());
         } else {
-            auto parse_result = internal::read_nlohmann<T>(result);
-            if (!parse_result.has_value()) {
-                throw std::runtime_error(
-                    "Failed to parse server response into requested type");
-            }
-            return parse_result.value();
+            static_assert(
+                internal::always_false_v<T>,
+                "default_parse_raw only supports primitive types; provide an "
+                "explicit generator/parser for T.");
         }
     }
     /// @endcond
@@ -62,10 +64,14 @@ namespace hegel::generators {
 
         T do_draw(const TestCase& tc) const {
             hegel::internal::json::json response =
-                internal::communicate_with_core(schema, tc);
+                internal::generate_from_schema(schema, tc);
             if (!response.contains("result")) {
+                // The engine always returns a "result"; a miss would be an
+                // engine bug, not reachable from a test.
+                // GCOVR_EXCL_START
                 throw std::runtime_error(
-                    "Server response missing 'result' field");
+                    "engine response missing 'result' field");
+                // GCOVR_EXCL_STOP
             }
             return parse(response["result"]);
         }
@@ -96,35 +102,31 @@ namespace hegel::generators {
         virtual ~IGenerator() = default;
 
         /// @cond INTERNAL
-        // Returns a BasicGenerator<T> (schema + client-side parser) if this
-        // generator can be driven through the Hegel protocol as a single
-        // schema request. Composed generators (vectors, one_of, ...) use this
-        // to build compound schemas while keeping per-element parsing
-        // client-side; map() uses it to preserve schemas through
-        // transformations. Defaults to nullopt for generators whose
-        // production is fully client-side (filter, flat_map, user closures).
-        virtual std::optional<BasicGenerator<T>> as_basic() const {
-            return std::nullopt;
+        // Schema-backed generators build basic_ (schema + parser) in their
+        // constructor; composites build theirs from their children's basic().
+        // Generators with no schema path (filter, flat_map, user closures)
+        // leave it empty and override do_draw().
+        virtual const std::optional<BasicGenerator<T>>& basic() const {
+            return basic_;
         }
 
-        // Get the CBOR schema for this generator, if any. The default
-        // derives it from as_basic(); override only if you need to report a
-        // schema without also providing a parser.
         virtual std::optional<hegel::internal::json::json> schema() const {
-            auto b = as_basic();
+            const auto& b = basic();
             return b ? std::optional{b->schema} : std::nullopt;
         }
 
-        // Produce a value. The default delegates to the basic form when
-        // available; generators without a basic form
-        // must override this to provide a client-side fallback.
         virtual T do_draw(const TestCase& tc) const {
-            if (auto b = as_basic())
+            if (const auto& b = basic())
                 return b->do_draw(tc);
+            // GCOVR_EXCL_START
             throw std::logic_error(
                 "IGenerator has no basic form and no do_draw override");
+            // GCOVR_EXCL_STOP
         }
         /// @endcond
+
+      protected:
+        std::optional<BasicGenerator<T>> basic_;
     };
 
     /**
@@ -169,8 +171,8 @@ namespace hegel::generators {
             return inner_->schema();
         }
 
-        std::optional<BasicGenerator<T>> as_basic() const override {
-            return inner_->as_basic();
+        const std::optional<BasicGenerator<T>>& basic() const override {
+            return inner_->basic();
         }
         /// @endcond
 
@@ -305,7 +307,7 @@ namespace hegel::generators {
     // Generator that applies a client-side transformation to values drawn
     // from a source generator. Produced internally by Generator<T>::map().
     //
-    // Preserves basic-ness (and therefore the server-side schema) by
+    // Preserves basic-ness (and therefore the engine-side schema) by
     // composing the map function into the source's BasicGenerator::parse
     // step; falls back to `f(source->do_draw(tc))` when the source is not
     // basic.
@@ -314,17 +316,14 @@ namespace hegel::generators {
       public:
         MappedGenerator(std::shared_ptr<IGenerator<T>> source,
                         std::function<U(T)> f)
-            : source_(std::move(source)), f_(std::move(f)) {}
-
-        std::optional<BasicGenerator<U>> as_basic() const override {
-            auto basic = source_->as_basic();
-            if (!basic)
-                return std::nullopt;
-            return basic->map(f_);
+            : source_(std::move(source)), f_(std::move(f)) {
+            if (const auto& b = source_->basic()) {
+                this->basic_.emplace(b->map(f_));
+            }
         }
 
         U do_draw(const TestCase& tc) const override {
-            if (auto basic = as_basic()) {
+            if (const auto& basic = this->basic()) {
                 return basic->do_draw(tc);
             }
             return f_(source_->do_draw(tc));

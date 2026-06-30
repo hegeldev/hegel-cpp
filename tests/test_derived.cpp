@@ -49,6 +49,13 @@ TEST(DefaultGenerator, PrimitiveTypes) {
     EXPECT_NO_THROW(gs::default_generator<std::string>());
 }
 
+TEST(DefaultGenerator, Monostate) {
+    hegel::test([](hegel::TestCase& tc) {
+        std::monostate m = tc.draw(gs::default_generator<std::monostate>());
+        (void)m;
+    });
+}
+
 TEST(DefaultGenerator, ContainerTypes) {
     EXPECT_NO_THROW(gs::default_generator<std::vector<int>>());
     EXPECT_NO_THROW(gs::default_generator<std::set<int>>());

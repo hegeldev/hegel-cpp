@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
-project(hegel-cpp VERSION 0.3.5 LANGUAGES CXX)
+project(hegel-cpp VERSION 0.4.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -13,49 +12,49 @@ else()
 endif()
 
 option(HEGEL_BUILD_TESTS "Build unit tests" ${_hegel_default_tests})
-option(HEGEL_BUILD_CONFORMANCE "Build conformance test binary" ${_hegel_default_tests})
 option(HEGEL_BUILD_DOCS "Build documentation" OFF)
 option(HEGEL_COVERAGE "Build with coverage instrumentation" OFF)
 
+# default_generator (type-directed derivation) uses reflect-cpp, which requires
+# C++20. Turn this OFF to drop reflect-cpp and consume hegel from C++17; you
+# lose default_generator but everything else still works.
+option(HEGEL_REFLECTION "Enable reflect-cpp powered default_generator (requires C++20)" ON)
+
+# The library builds at C++20; with HEGEL_REFLECTION=OFF the public headers are
+# also C++17-consumable (verified by a standalone C++17 consumer in CI), and the
+# hegel target advertises cxx_std_17 so C++17 consumers are accepted.
+set(CMAKE_CXX_STANDARD 20)
+
 if(HEGEL_COVERAGE)
-    add_compile_options(--coverage -fprofile-arcs -ftest-coverage)
-    add_link_options(--coverage)
+    add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+    add_link_options(-fprofile-instr-generate)
 endif()
 
-set(UV_INSTALL_SCRIPT_IN  "${CMAKE_CURRENT_SOURCE_DIR}/src/uv-install.sh")
-set(UV_INSTALL_SCRIPT_OUT "${CMAKE_CURRENT_BINARY_DIR}/generated/uv_install_script.cpp")
-
-add_custom_command(
-    OUTPUT  "${UV_INSTALL_SCRIPT_OUT}"
-    DEPENDS "${UV_INSTALL_SCRIPT_IN}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_script.cmake"
-    COMMAND ${CMAKE_COMMAND}
-            -DINPUT=${UV_INSTALL_SCRIPT_IN}
-            -DOUTPUT=${UV_INSTALL_SCRIPT_OUT}
-            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_script.cmake
-    COMMENT "Embedding uv-install.sh"
-    VERBATIM
-)
+# Acquire libhegel (Hegel's native engine, called in-process via its C ABI)
+# and expose it as the imported target hegel::libhegel.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/libhegel.cmake)
 
 include(FetchContent)
 
-FetchContent_Declare(
-    reflectcpp
-    GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
-    GIT_TAG v0.22.0
-)
+if(HEGEL_REFLECTION)
+    FetchContent_Declare(
+        reflectcpp
+        GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
+        GIT_TAG v0.22.0
+    )
 
-set(REFLECTCPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_BSON OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_CBOR OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_FLEXBUFFERS OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_MSGPACK OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_TOML OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_UBJSON OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_XML OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_YAML OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_INSTALL ON)
+    set(REFLECTCPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_BSON OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_CBOR OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_FLEXBUFFERS OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_MSGPACK OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_TOML OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_UBJSON OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_XML OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_YAML OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_INSTALL ON)
+endif()
 
 set(NLOHMANN_JSON_VERSION "3.12.0" CACHE STRING "nlohmann/json version tag")
 FetchContent_Declare(
@@ -64,7 +63,11 @@ FetchContent_Declare(
     GIT_TAG v${NLOHMANN_JSON_VERSION}
 )
 
-FetchContent_MakeAvailable(reflectcpp nlohmann_json)
+if(HEGEL_REFLECTION)
+    FetchContent_MakeAvailable(reflectcpp nlohmann_json)
+else()
+    FetchContent_MakeAvailable(nlohmann_json)
+endif()
 
 add_library(hegel
   STATIC
@@ -72,13 +75,8 @@ add_library(hegel
     src/generators.cpp
     src/test_case.cpp
     src/protocol.cpp
-    src/connection.cpp
-    src/crc32.cpp
+    src/engine.cpp
     src/json.cpp
-    src/utils.cpp
-    src/uv.cpp
-    src/installer.cpp
-    ${UV_INSTALL_SCRIPT_OUT}
 )
 target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -86,21 +84,32 @@ target_include_directories(hegel PUBLIC
 
     PRIVATE
         src
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libhegel>
         $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>
 )
 target_link_libraries(hegel
-  PUBLIC reflectcpp
+  PUBLIC
+    # libhegel resolves the hegel_* symbols. Linked only in the build tree;
+    # installed consumers get it re-created by hegelConfig.cmake (which points
+    # at the dylib shipped beside the static lib).
+    $<BUILD_INTERFACE:hegel::libhegel>
 )
-target_compile_features(hegel PUBLIC cxx_std_20)
+
+if(HEGEL_REFLECTION)
+    target_link_libraries(hegel PUBLIC reflectcpp)
+    target_compile_definitions(hegel PUBLIC HEGEL_HAS_REFLECTION=1)
+    # reflect-cpp requires C++20.
+    target_compile_features(hegel PUBLIC cxx_std_20)
+else()
+    target_compile_definitions(hegel PUBLIC HEGEL_HAS_REFLECTION=0)
+    # Without reflect-cpp the public headers are C++17-compatible.
+    target_compile_features(hegel PUBLIC cxx_std_17)
+endif()
 
 if(HEGEL_BUILD_TESTS)
     set(INSTALL_GTEST OFF CACHE BOOL "Disable installation of googletest" FORCE)
     set(INSTALL_GMOCK OFF CACHE BOOL "Disable installation of googlemock" FORCE)
     add_subdirectory(tests)
-endif()
-
-if(HEGEL_BUILD_CONFORMANCE)
-    add_subdirectory(tests/conformance/cpp)
 endif()
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -113,6 +122,14 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  )
+
+  # Ship libhegel beside the static archive. The static lib's hegel_* symbols
+  # are resolved against this shared library when a consumer links the final
+  # executable; hegelConfig.cmake re-creates the imported target pointing here.
+  install(FILES "${HEGEL_LIBHEGEL_RESOLVED}"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RENAME "${HEGEL_LIBHEGEL_LOCAL_NAME}"
   )
 
   install(DIRECTORY include/
@@ -129,6 +146,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
       ${CMAKE_CURRENT_SOURCE_DIR}/cmake/hegelConfig.cmake.in
       ${CMAKE_CURRENT_BINARY_DIR}/hegelConfig.cmake
       INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
+      PATH_VARS CMAKE_INSTALL_LIBDIR
   )
 
   write_basic_package_version_file(

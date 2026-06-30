@@ -38,7 +38,7 @@ check-consumer MODE="subdirectory":
     BUILD_DIR="$ROOT/build/consumer-{{ MODE }}"
     if [ "{{ MODE }}" = "install" ]; then
         cmake -B build/consumer-hegel-install \
-            -DHEGEL_BUILD_TESTS=OFF -DHEGEL_BUILD_CONFORMANCE=OFF
+            -DHEGEL_BUILD_TESTS=OFF
         cmake --build build/consumer-hegel-install -j{{ jobs }}
         cmake --install build/consumer-hegel-install \
             --prefix "$ROOT/build/consumer-hegel-prefix"
@@ -78,10 +78,66 @@ check-consumer-all:
     done
     exit $rc
 
-check-conformance: build
-    uv run --with hegel-core \
-        --with pytest --with hypothesis \
-        pytest tests/conformance/test_conformance.py --durations=20 --durations-min=1.0
+# Verify the library, headers, and a consumer build and run under C++17
+# (HEGEL_REFLECTION=OFF drops reflect-cpp / default_generator).
+check-cxx17:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ROOT=$(pwd)
+    cmake -B build/cxx17-hegel -DHEGEL_REFLECTION=OFF -DHEGEL_BUILD_TESTS=OFF
+    cmake --build build/cxx17-hegel -j{{ jobs }}
+    cmake --install build/cxx17-hegel --prefix "$ROOT/build/cxx17-prefix"
+    cmake -B build/cxx17-consumer -S tests/consumer/cxx17 \
+        -DCMAKE_PREFIX_PATH="$ROOT/build/cxx17-prefix"
+    cmake --build build/cxx17-consumer -j{{ jobs }}
+    "$ROOT/build/cxx17-consumer/consumer"
+
+check-coverage:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cmake -B build/coverage -DHEGEL_COVERAGE=ON ${CMAKE_FLAGS:-}
+    cmake --build build/coverage -j{{ jobs }}
+
+    # LLVM source-based coverage needs llvm-profdata/llvm-cov matching the
+    # clang that built the instrumented binaries. On Linux these are versioned
+    # (llvm-cov-18); derive the suffix from CXX (e.g. clang++-18 -> -18).
+    cxx="${CXX:-c++}"
+    suffix=""
+    case "$cxx" in *clang++-*) suffix="-${cxx##*clang++-}";; esac
+    llvm_profdata="$(command -v "llvm-profdata$suffix" llvm-profdata 2>/dev/null | head -1 || true)"
+    llvm_cov="$(command -v "llvm-cov$suffix" llvm-cov 2>/dev/null | head -1 || true)"
+    if { [ -z "$llvm_profdata" ] || [ -z "$llvm_cov" ]; } && command -v xcrun >/dev/null 2>&1; then
+        llvm_profdata="${llvm_profdata:-$(xcrun --find llvm-profdata)}"
+        llvm_cov="${llvm_cov:-$(xcrun --find llvm-cov)}"
+    fi
+    if [ -z "$llvm_profdata" ] || [ -z "$llvm_cov" ]; then
+        echo "error: llvm-profdata/llvm-cov not found (need clang + llvm)" >&2
+        exit 1
+    fi
+
+    prof_dir="$PWD/build/coverage/profraw"
+    rm -rf "$prof_dir"; mkdir -p "$prof_dir"
+    export LLVM_PROFILE_FILE="$prof_dir/cov-%p-%m.profraw"
+    ctest --test-dir build/coverage/tests --output-on-failure -j{{ jobs }}
+
+    "$llvm_profdata" merge -sparse "$prof_dir"/*.profraw \
+        -o build/coverage/cov.profdata
+    # Collect the instrumented test executables. `file ... executable` matches
+    # both Mach-O and ELF (PIE) executables and excludes shared libraries,
+    # without relying on a non-portable `find -perm` mode.
+    objs=(); while IFS= read -r b; do objs+=("$b"); done < <(
+        find build/coverage/tests -type f -exec sh -c \
+            'file -b "$1" | grep -q executable' _ {} \; -print)
+    if [ "${#objs[@]}" -eq 0 ]; then
+        echo "error: no instrumented test binaries found" >&2; exit 1
+    fi
+    obj_args=(); for o in "${objs[@]:1}"; do obj_args+=(-object "$o"); done
+    "$llvm_cov" export -format=lcov \
+        -instr-profile=build/coverage/cov.profdata \
+        "${objs[0]}" "${obj_args[@]}" \
+        "$PWD/src" "$PWD/include/hegel" \
+        > build/coverage/coverage.lcov
+    python3 scripts/check-coverage.py build/coverage/coverage.lcov
 
 check-lint: check-format check-tidy
 
@@ -90,5 +146,4 @@ check-lint: check-format check-tidy
 test: check-tests
 tidy: check-tidy
 lint: check-lint
-conformance: check-conformance
-check: check-lint check-tests check-docs check-conformance
+check: check-lint check-tests check-docs check-coverage

@@ -69,7 +69,7 @@ namespace hegel::generators {
      * @param params Length and character filtering constraints
      * @return Generator producing random strings
      */
-    Generator<std::string> text(TextParams params = {});
+    Generator<std::string> text(const TextParams& params = {});
 
     /**
      * @brief Generate single-character UTF-8 strings.
@@ -88,10 +88,6 @@ namespace hegel::generators {
     /**
      * @brief Generate strings matching a regular expression.
      *
-     * The pattern is interpreted server-side using Python's `re` syntax
-     * which differs from C++ `std::regex` — notably it supports `\d`, `\w`,
-     * `\s`, non-greedy quantifiers, and Unicode character classes.
-     *
      * @code{.cpp}
      * // Default: generated string only needs to *contain* a match,
      * // so arbitrary prefix/suffix characters may surround it.
@@ -104,7 +100,7 @@ namespace hegel::generators {
      * // e.g. "QX-8271"
      * @endcode
      *
-     * @param pattern Regex pattern (Python `re` syntax).
+     * @param pattern Regex pattern
      * @param fullmatch If `true`, the entire generated string must match
      *   the pattern (equivalent to anchoring with `^` and `$`). If `false`
      *   (default), the generated string need only contain a substring that

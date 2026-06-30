@@ -1,5 +1,12 @@
 #pragma once
 
+#include "hegel/config.h"
+
+// default_generator (type-directed derivation) is the one feature that needs
+// reflect-cpp. Building with HEGEL_REFLECTION=OFF drops it so the rest of the
+// library can be consumed from C++17.
+#if HEGEL_HAS_REFLECTION
+
 #include <map>
 #include <optional>
 #include <set>
@@ -287,3 +294,5 @@ namespace hegel::generators {
     /// @}
 
 } // namespace hegel::generators
+
+#endif // HEGEL_HAS_REFLECTION

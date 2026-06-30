@@ -21,15 +21,24 @@
  * FetchContent_Declare(
  *     hegel
  *     GIT_REPOSITORY https://github.com/hegeldev/hegel-cpp.git
- *     GIT_TAG v0.3.5
+ *     GIT_TAG v0.4.0
  * )
  * FetchContent_MakeAvailable(hegel)
  *
  * target_link_libraries(your_target PRIVATE hegel)
  * @endcode
  *
- * Hegel requires C++20, CMake 3.14, and [`uv`](https://docs.astral.sh/uv/) on
- * the PATH.
+ * Hegel requires CMake 3.14 and, by default, a C++20 compiler. The build
+ * downloads a small prebuilt shared library (libhegel, Hegel's native engine)
+ * for your platform; no other tooling is required.
+ *
+ * To consume Hegel from C++17, configure with `-DHEGEL_REFLECTION=OFF`. This
+ * drops the reflect-cpp dependency: you lose @ref
+ * hegel::generators::default_generator "default_generator" (type-directed
+ * derivation for structs), but every other generator and combinator still
+ * works. (The designated-initializer parameter API, e.g.
+ * `integers<int>({.min_value = 0})`, then relies on a GCC/Clang C++17
+ * extension.)
  *
  * @subsection first_test Write your first test
  *

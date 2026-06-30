@@ -1,263 +1,254 @@
 /*
- * hegel.cpp - Implementation of non-template functions
+ * hegel.cpp - The hegel::test() entry point.
+ *
+ * Drives Hegel's native engine (libhegel) in-process through its C ABI:
+ * start a run, pull test cases, run the user body, mark each complete, then
+ * inspect the aggregate result and replay any counterexamples.
  */
 
 #include <hegel/hegel.h>
 #include <hegel/internal.h>
-#include <hegel/json.h>
 #include <hegel/settings.h>
+#include <hegel/test_case.h>
 
-#include "installer.h"
-#include "json_impl.h"
-
-#include <connection.h>
-#include <functional>
+#include <engine.h>
 #include <protocol.h>
-#include <stdexcept>
 #include <test_case.h>
 
-#include <cerrno>
+#include <hegel.h>
+
+#include <cstddef>
 #include <cstdint>
-#include <cstdio>
-#include <cstring>
 #include <cxxabi.h>
 #include <exception>
+#include <functional>
+#include <stdexcept>
 #include <string>
-#include <utility>
-#include <vector>
-
-#include <sys/wait.h>
-#include <unistd.h>
-
-using hegel::internal::json::ImplUtil;
+#include <typeinfo>
 
 namespace hegel {
 
-    static void hegel_child(int child_read_fd, int child_write_fd,
-                            const Settings& settings,
-                            std::vector<std::string> args) {
-        // Wire pipes to stdin/stdout for --stdio mode
-        dup2(child_read_fd, STDIN_FILENO);
-        dup2(child_write_fd, STDOUT_FILENO);
-        ::close(child_read_fd);
-        ::close(child_write_fd);
+    namespace {
+        constexpr const char* flaky_diagnostic =
+            "Flaky test detected: Your test produced different outcomes when "
+            "run with the same generated data — it failed when it previously "
+            "succeeded, or succeeded when it previously failed. This usually "
+            "means your test depends on external state such as global "
+            "variables, system time, or external random number generators.";
 
-        args.emplace_back("--stdio");
-        args.emplace_back("--verbosity");
-        args.emplace_back(verbosity_to_string(settings.verbosity));
+        // RAII guards for the libhegel handles. Each `*_free` is a no-op on
+        // NULL and never throws.
+        struct ContextGuard {
+            hegel_context_t* ctx = hegel_context_new();
+            ContextGuard() = default;
+            ~ContextGuard() { hegel_context_free(ctx); }
+            ContextGuard(const ContextGuard&) = delete;
+            ContextGuard& operator=(const ContextGuard&) = delete;
+        };
 
-        std::vector<char*> argv;
-        argv.reserve(args.size() + 1);
-        for (auto& a : args) {
-            argv.push_back(const_cast<char*>(a.c_str()));
-        }
-        argv.push_back(nullptr);
+        struct SettingsGuard {
+            hegel_context_t* ctx;
+            hegel_settings_t* s = nullptr;
+            ~SettingsGuard() { hegel_settings_free(ctx, s); }
+        };
 
-        execvp(argv[0], argv.data());
-        // execvp only returns on failure
-        fprintf(stderr, "Failed to run Hegel server at path %s: %s\n", argv[0],
-                strerror(errno));
-        _exit(1);
-    }
+        struct RunGuard {
+            hegel_context_t* ctx;
+            hegel_run_t* run = nullptr;
+            ~RunGuard() { hegel_run_free(ctx, run); }
+        };
 
-    static void hegel_parent(const std::function<void(TestCase&)>& test_fn,
-                             pid_t child_pid, // NOLINT(misc-include-cleaner)
-                             int read_fd, int write_fd,
-                             const Settings& settings) {
-        impl::Connection conn(read_fd, write_fd);
+        struct BodyOutcome {
+            hegel_status_t status;
+            std::string origin;
+            std::string message;
+        };
 
-        conn.handshake();
-
-        impl::protocol::init_protocol_debug(settings.verbosity);
-
-        // Create test stream and start test
-        uint32_t test_stream = conn.create_stream();
-        uint64_t test_cases = settings.test_cases.value_or(100);
-
-        hegel::internal::json::json run_test_msg = {{"command", "run_test"},
-                                                    {"test_cases", test_cases},
-                                                    {"stream_id", test_stream}};
-        if (settings.seed.has_value()) {
-            run_test_msg["seed"] = settings.seed.value();
-        } else {
-            run_test_msg["seed"] = nullptr;
-        }
-        run_test_msg["derandomize"] = settings.derandomize;
-        switch (settings.database.kind()) {
-        case hegel::Database::Kind::Unset:
-            break;
-        case hegel::Database::Kind::Disabled:
-            run_test_msg["database"] = nullptr;
-            break;
-        case hegel::Database::Kind::Path:
-            run_test_msg["database"] = settings.database.path();
-            break;
-        }
-        if (!settings.suppress_health_check.empty()) {
-            auto arr = hegel::internal::json::json::array();
-            for (auto c : settings.suppress_health_check) {
-                arr.push_back(std::string(hegel::health_check_to_string(c)));
-            }
-            run_test_msg["suppress_health_check"] = arr;
-        }
-        conn.request(0, run_test_msg);
-
-        // Event loop on test stream
-        hegel::internal::json::json results_json(nullptr);
-        uint32_t final_replays_remaining = 0;
-        bool done = false;
-        std::string final_exception_message;
-        while (!done) {
-            auto event = conn.recv_request(test_stream);
-            auto& payload = event.payload;
-
-            std::string event_type = payload.value("event", "");
-
-            if (event_type == "test_case") {
-                // Acknowledge test_case event
-                conn.write_reply(
-                    test_stream, event.message_id,
-                    hegel::internal::json::json{{"result", nullptr}});
-
-                uint32_t data_stream = payload.value("stream_id", uint32_t{0});
-                bool is_final = payload.value("is_final", false);
-
-                // Set up per-test-case state
-                impl::test_case::TestCaseData data{
-                    .connection = &conn,
-                    .data_stream = data_stream,
-                    .is_last_run = is_final,
-                    .verbosity = settings.verbosity,
-                };
-                TestCase tc(&data);
-
-                // Run test
-                std::string status = "VALID";
-                std::string origin;
-                std::string exception_message;
-                bool stopped = false;
-                try {
-                    test_fn(tc);
-                } catch (const internal::HegelStopTest&) {
-                    stopped = true;
-                } catch (const internal::HegelReject&) {
-                    status = "INVALID";
-                } catch (const std::exception& e) {
-                    status = "INTERESTING";
-                    origin = typeid(e).name();
-                    exception_message = e.what();
-                } catch (...) {
-                    status = "INTERESTING";
-                    if (const std::type_info* tinfo =
-                            abi::__cxa_current_exception_type()) {
-                        origin = tinfo->name();
-                    } else {
-                        origin = "unknown_exception";
-                    }
+        // Run the user's test body once and classify the outcome into the
+        // libhegel status the caller passes to hegel_mark_complete.
+        BodyOutcome run_body(const std::function<void(TestCase&)>& test_fn,
+                             TestCase& tc) {
+            try {
+                test_fn(tc);
+                return {HEGEL_STATUS_VALID, "", ""};
+            } catch (const internal::HegelStopTest&) {
+                return {HEGEL_STATUS_OVERRUN, "", ""};
+            } catch (const internal::HegelReject&) {
+                return {HEGEL_STATUS_INVALID, "", ""};
+            } catch (const std::exception& e) {
+                return {HEGEL_STATUS_INTERESTING, typeid(e).name(), e.what()};
+            } catch (...) {
+                const char* origin = "unknown_exception";
+                if (const std::type_info* tinfo =
+                        abi::__cxa_current_exception_type()) {
+                    origin = tinfo->name();
                 }
-
-                // Send mark_complete and close data stream (unless the
-                // backend already told us to stop this iteration)
-                if (!stopped) {
-                    hegel::internal::json::json origin_value =
-                        origin.empty() ? hegel::internal::json::json(nullptr)
-                                       : hegel::internal::json::json(origin);
-                    hegel::internal::json::json mark = {
-                        {"command", "mark_complete"},
-                        {"status", status},
-                        {"origin", origin_value}};
-                    conn.request(data_stream, mark);
-                    conn.close_stream(data_stream);
-                }
-
-                if (is_final) {
-                    final_replays_remaining--;
-                    if (final_replays_remaining <= 0) {
-                        done = true;
-                    }
-                    if (status == "INTERESTING" && done) {
-                        final_exception_message = ": " + exception_message;
-                    }
-                }
-
-            } else if (event_type == "test_done") {
-                // Acknowledge test_done event
-                conn.write_reply(test_stream, event.message_id,
-                                 hegel::internal::json::json{{"result", true}});
-
-                if (payload.contains("results")) {
-                    results_json = payload["results"];
-                    final_replays_remaining =
-                        results_json.value("interesting_test_cases", 0);
-                }
-
-                if (final_replays_remaining <= 0) {
-                    done = true;
-                }
+                return {HEGEL_STATUS_INTERESTING, origin, ""};
             }
         }
 
-        // Cleanup: close pipes before waiting for child
-        conn.close();
-
-        int status;
-        waitpid(child_pid, &status, 0);
-
-        auto& results = ImplUtil::raw(results_json);
-        if (results.is_null()) {
-            throw std::runtime_error("test_done received without results");
-        }
-        if (results.contains("health_check_failure")) {
-            throw std::runtime_error(
-                "Hegel health check failure:\n" +
-                results["health_check_failure"].get<std::string>());
-        }
-        if (results.contains("flaky")) {
-            throw std::runtime_error("Flaky Hegel test:\n" +
-                                     results["flaky"].get<std::string>());
+        void mark_complete(hegel_context_t* ctx, hegel_test_case_t* tc,
+                           const BodyOutcome& outcome) {
+            const char* origin =
+                outcome.origin.empty() ? nullptr : outcome.origin.c_str();
+            impl::mark_complete(ctx, tc, outcome.status, origin);
         }
 
-        bool test_passed = results.value("passed", true);
-
-        if (!test_passed) {
-            throw std::runtime_error("\nHegel test failed" +
-                                     final_exception_message);
+        BodyOutcome replay_failure(hegel_context_t* ctx, hegel_settings_t* s,
+                                   const char* blob, Verbosity verbosity,
+                                   const std::function<void(TestCase&)>& fn) {
+            hegel_test_case_t* tc = impl::test_case_from_blob(ctx, s, blob);
+            // Positional init (fields: ctx, tc, is_final, verbosity) so this
+            // TU stays clean under a C++17 (HEGEL_REFLECTION=OFF) build.
+            impl::test_case::TestCaseData data{ctx, tc, /*is_final=*/true,
+                                               verbosity};
+            TestCase tc_obj(&data);
+            BodyOutcome outcome = run_body(fn, tc_obj);
+            mark_complete(ctx, tc, outcome);
+            hegel_test_case_free(ctx, tc);
+            return outcome;
         }
-    }
+
+        // Translate hegel::Settings onto a fresh hegel_settings_t handle.
+        void apply_settings(hegel_context_t* ctx, hegel_settings_t* s,
+                            const Settings& settings) {
+            impl::settings_set_test_cases(ctx, s,
+                                          settings.test_cases.value_or(100));
+
+            hegel_verbosity_t v = HEGEL_VERBOSITY_NORMAL;
+            switch (settings.verbosity) {
+            case Verbosity::Quiet:
+                v = HEGEL_VERBOSITY_QUIET;
+                break;
+            case Verbosity::Normal:
+                v = HEGEL_VERBOSITY_NORMAL;
+                break;
+            case Verbosity::Verbose:
+                v = HEGEL_VERBOSITY_VERBOSE;
+                break;
+            case Verbosity::Debug:
+                v = HEGEL_VERBOSITY_DEBUG;
+                break;
+            }
+            impl::settings_set_verbosity(ctx, s, v);
+
+            impl::settings_set_seed(ctx, s, settings.seed.value_or(0),
+                                    settings.seed.has_value());
+            impl::settings_set_derandomize(ctx, s, settings.derandomize);
+
+            switch (settings.database.kind()) {
+            case Database::Kind::Unset:
+                break;
+            case Database::Kind::Disabled:
+                impl::settings_set_database(ctx, s, "");
+                break;
+            case Database::Kind::Path:
+                impl::settings_set_database(ctx, s,
+                                            settings.database.path().c_str());
+                break;
+            }
+
+            uint32_t suppress = 0;
+            for (HealthCheck c : settings.suppress_health_check) {
+                switch (c) {
+                case HealthCheck::FilterTooMuch:
+                    suppress |= HEGEL_HC_FILTER_TOO_MUCH;
+                    break;
+                case HealthCheck::TooSlow:
+                    suppress |= HEGEL_HC_TOO_SLOW;
+                    break;
+                case HealthCheck::TestCasesTooLarge:
+                    suppress |= HEGEL_HC_TEST_CASES_TOO_LARGE;
+                    break;
+                case HealthCheck::LargeInitialTestCase:
+                    suppress |= HEGEL_HC_LARGE_INITIAL_TEST_CASE;
+                    break;
+                }
+            }
+            if (suppress != 0) {
+                impl::settings_set_suppress_health_check(ctx, s, suppress);
+            }
+        }
+
+    } // namespace
 
     void test(const std::function<void(TestCase&)>& test_fn,
               const Settings& settings) {
-        // Resolve the command (including uv bootstrap, if needed) before
-        // fork so any install cost is paid once in the parent, where
-        // failures surface cleanly.
-        std::vector<std::string> command = impl::hegel_command();
+        impl::protocol::init_protocol_debug(settings.verbosity);
 
-        // Create pipes for parent<->child stdio communication
-        // parent_to_child: parent writes to [1], child reads from [0]
-        // child_to_parent: child writes to [1], parent reads from [0]
-        int parent_to_child[2];
-        int child_to_parent[2];
-        if (pipe(parent_to_child) < 0 || pipe(child_to_parent) < 0) {
-            throw std::runtime_error("Failed to create pipes");
+        ContextGuard ctx_guard;
+        hegel_context_t* ctx = ctx_guard.ctx;
+
+        SettingsGuard settings_guard{ctx};
+        settings_guard.s = impl::settings_new(ctx);
+        hegel_settings_t* s = settings_guard.s;
+        apply_settings(ctx, s, settings);
+
+        RunGuard run_guard{ctx};
+        run_guard.run = impl::run_start(ctx, s);
+        hegel_run_t* run = run_guard.run;
+
+        // Generation loop: pull cases until the engine reports completion
+        // (NULL test case), running and marking each.
+        while (true) {
+            hegel_test_case_t* tc = impl::next_test_case(ctx, run);
+            if (tc == nullptr) {
+                break;
+            }
+            impl::test_case::TestCaseData data{ctx, tc, /*is_final=*/false,
+                                               settings.verbosity};
+            TestCase tc_obj(&data);
+            BodyOutcome outcome = run_body(test_fn, tc_obj);
+            mark_complete(ctx, tc, outcome);
         }
 
-        pid_t pid = fork();
-        if (pid < 0) {
-            throw std::runtime_error("Failed to fork");
+        const hegel_run_result_t* result = impl::run_result(ctx, run);
+        hegel_run_status_t run_status = impl::run_result_status(ctx, result);
+
+        if (run_status == HEGEL_RUN_STATUS_PASSED) {
+            return;
         }
 
-        if (pid == 0) {
-            // Child: close unused pipe ends
-            ::close(parent_to_child[1]);
-            ::close(child_to_parent[0]);
-            hegel_child(parent_to_child[0], child_to_parent[1], settings,
-                        std::move(command));
-        } else {
-            // Parent: close unused pipe ends
-            ::close(parent_to_child[0]);
-            ::close(child_to_parent[1]);
-            hegel_parent(test_fn, pid, child_to_parent[0], parent_to_child[1],
-                         settings);
+        if (run_status == HEGEL_RUN_STATUS_ERROR) {
+            // The run itself failed (health check, nondeterminism, engine
+            // panic) and produced no verdict on the property.
+            const char* run_err = impl::run_result_error(ctx, result);
+            throw std::runtime_error(std::string("Hegel run error: ") +
+                                     (run_err ? run_err : "unknown error"));
         }
+
+        // Failed: replay each distinct counterexample to surface its notes and
+        // exception message, then raise.
+        size_t failure_count = impl::run_result_failure_count(ctx, result);
+
+        std::string message;
+        for (size_t i = 0; i < failure_count; i++) {
+            const hegel_failure_t* failure =
+                impl::run_result_failure(ctx, result, i);
+            const char* blob = impl::failure_reproduction_blob(ctx, failure);
+            if (blob == nullptr) {
+                // GCOVR_EXCL_START
+                throw std::runtime_error(
+                    "internal error: failure has no reproduction blob");
+                // GCOVR_EXCL_STOP
+            }
+            BodyOutcome outcome =
+                replay_failure(ctx, s, blob, settings.verbosity, test_fn);
+            if (outcome.status != HEGEL_STATUS_INTERESTING) {
+                // Replay non-determinism (flaky); cannot be reproduced
+                // deterministically from a test.
+                // GCOVR_EXCL_START
+                throw std::runtime_error(flaky_diagnostic);
+                // GCOVR_EXCL_STOP
+            }
+            // temporary - only report one failure
+            if (message.empty() && !outcome.message.empty()) {
+                message = outcome.message;
+            }
+        }
+
+        throw std::runtime_error("\nHegel test failed" +
+                                 (message.empty() ? "" : ": " + message));
     }
+
 } // namespace hegel

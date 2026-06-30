@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <cstdlib>
+#include <map>
 #include <string>
 #include <type_traits>
 
@@ -134,4 +136,104 @@ TEST(NonSerializable, SampledFromWorksWithOpaqueType) {
         EXPECT_TRUE(drawn == OpaqueHandle{1} || drawn == OpaqueHandle{2} ||
                     drawn == OpaqueHandle{3});
     });
+}
+
+// Generated floats travel back from the engine as CBOR, which encodes IEEE-754
+// values natively. NaN and +/-infinity must therefore survive the round-trip
+// rather than being flattened (a JSON-text hop would lose them). Drawing an
+// unbounded float (allow_nan / allow_infinity default to true) and observing
+// each special value across the run pins this property down.
+TEST(Floats, NanAndInfinitySurviveGeneration) {
+    bool saw_nan = false;
+    bool saw_pos_inf = false;
+    bool saw_neg_inf = false;
+
+    auto gen = gs::floats<double>();
+    hegel::test(
+        [&](hegel::TestCase& tc) {
+            double x = tc.draw(gen);
+            if (std::isnan(x)) {
+                saw_nan = true;
+            } else if (std::isinf(x)) {
+                (x > 0 ? saw_pos_inf : saw_neg_inf) = true;
+            }
+        },
+        hegel::Settings{.test_cases = 2000,
+                        .seed = 1,
+                        .database = hegel::Database::disabled()});
+
+    EXPECT_TRUE(saw_nan) << "NaN never generated; CBOR round-trip may drop it";
+    EXPECT_TRUE(saw_pos_inf) << "+infinity never generated";
+    EXPECT_TRUE(saw_neg_inf) << "-infinity never generated";
+}
+
+TEST(Settings, VerbosityToString) {
+    using hegel::Verbosity;
+    EXPECT_STREQ(hegel::verbosity_to_string(Verbosity::Quiet), "quiet");
+    EXPECT_STREQ(hegel::verbosity_to_string(Verbosity::Verbose), "verbose");
+    EXPECT_STREQ(hegel::verbosity_to_string(Verbosity::Debug), "debug");
+    EXPECT_STREQ(hegel::verbosity_to_string(Verbosity::Normal), "normal");
+}
+
+TEST(Settings, HealthCheckToString) {
+    using hegel::HealthCheck;
+    EXPECT_STREQ(hegel::health_check_to_string(HealthCheck::FilterTooMuch),
+                 "filter_too_much");
+    EXPECT_STREQ(hegel::health_check_to_string(HealthCheck::TooSlow),
+                 "too_slow");
+    EXPECT_STREQ(hegel::health_check_to_string(HealthCheck::TestCasesTooLarge),
+                 "test_cases_too_large");
+    EXPECT_STREQ(
+        hegel::health_check_to_string(HealthCheck::LargeInitialTestCase),
+        "large_initial_test_case");
+    // An out-of-range value falls through the switch to the empty string.
+    EXPECT_STREQ(hegel::health_check_to_string(static_cast<HealthCheck>(999)),
+                 "");
+}
+
+// in_ci() scans known CI environment variables. Drive it with a controlled
+// environment so the result doesn't depend on where the suite runs.
+TEST(Settings, InCiDetection) {
+    static const char* kCiVars[] = {"CI",
+                                    "TF_BUILD",
+                                    "BUILDKITE",
+                                    "CIRCLECI",
+                                    "CIRRUS_CI",
+                                    "CODEBUILD_BUILD_ID",
+                                    "GITHUB_ACTIONS",
+                                    "GITLAB_CI",
+                                    "HEROKU_TEST_RUN_ID",
+                                    "TEAMCITY_VERSION"};
+
+    // Save and clear the ambient CI variables so the test is deterministic.
+    std::map<std::string, std::string> saved;
+    for (const char* name : kCiVars) {
+        if (const char* v = std::getenv(name)) {
+            saved.emplace(name, v);
+        }
+        unsetenv(name);
+    }
+
+    // Nothing set: not in CI.
+    EXPECT_FALSE(hegel::internal::in_ci());
+
+    // A presence-only variable (expected == nullptr) satisfies the check.
+    setenv("CI", "anything", 1);
+    EXPECT_TRUE(hegel::internal::in_ci());
+    unsetenv("CI");
+
+    // A variable with an expected value matches only when it is equal.
+    setenv("GITHUB_ACTIONS", "true", 1);
+    EXPECT_TRUE(hegel::internal::in_ci());
+    setenv("GITHUB_ACTIONS", "false", 1);
+    EXPECT_FALSE(hegel::internal::in_ci());
+    unsetenv("GITHUB_ACTIONS");
+
+    // Restore the original environment.
+    for (const char* name : kCiVars) {
+        unsetenv(name);
+    }
+    for (const auto& [name, value] : saved) {
+        setenv(name.c_str(), value.c_str(), 1);
+    }
 }

@@ -54,14 +54,9 @@ namespace hegel::generators {
             if (params_.max_size && params_.min_size > *params_.max_size) {
                 throw std::invalid_argument("Cannot have max_size < min_size");
             }
-        }
-
-        std::optional<BasicGenerator<std::vector<T>>>
-        as_basic() const override {
-            auto basic = elements_.as_basic();
+            const auto& basic = elements_.basic();
             if (!basic)
-                return std::nullopt;
-
+                return;
             hegel::internal::json::json schema = {
                 {"type", "list"},
                 {"elements", basic->schema},
@@ -69,9 +64,8 @@ namespace hegel::generators {
                 {"unique", params_.unique}};
             if (params_.max_size)
                 schema["max_size"] = *params_.max_size;
-
             auto parse = basic->parse;
-            return BasicGenerator<std::vector<T>>{
+            this->basic_.emplace(BasicGenerator<std::vector<T>>{
                 std::move(schema),
                 [parse = std::move(parse)](
                     const hegel::internal::json::json_raw_ref& raw)
@@ -83,11 +77,11 @@ namespace hegel::generators {
                         result.push_back(parse(item));
                     }
                     return result;
-                }};
+                }});
         }
 
         std::vector<T> do_draw(const TestCase& tc) const override {
-            if (auto basic = as_basic()) {
+            if (const auto& basic = this->basic()) {
                 return basic->do_draw(tc);
             }
             size_t max_size = params_.max_size.value_or(100);
@@ -137,13 +131,9 @@ namespace hegel::generators {
             if (params_.max_size && params_.min_size > *params_.max_size) {
                 throw std::invalid_argument("Cannot have max_size < min_size");
             }
-        }
-
-        std::optional<BasicGenerator<std::set<T>>> as_basic() const override {
-            auto basic = elements_.as_basic();
+            const auto& basic = elements_.basic();
             if (!basic)
-                return std::nullopt;
-
+                return;
             hegel::internal::json::json schema = {
                 {"type", "list"},
                 {"elements", basic->schema},
@@ -151,9 +141,8 @@ namespace hegel::generators {
                 {"unique", true}};
             if (params_.max_size)
                 schema["max_size"] = *params_.max_size;
-
             auto parse = basic->parse;
-            return BasicGenerator<std::set<T>>{
+            this->basic_.emplace(BasicGenerator<std::set<T>>{
                 std::move(schema),
                 [parse = std::move(parse)](
                     const hegel::internal::json::json_raw_ref& raw)
@@ -163,11 +152,11 @@ namespace hegel::generators {
                         result.insert(parse(item));
                     }
                     return result;
-                }};
+                }});
         }
 
         std::set<T> do_draw(const TestCase& tc) const override {
-            if (auto basic = as_basic()) {
+            if (const auto& basic = this->basic()) {
                 return basic->do_draw(tc);
             }
             size_t max_size = params_.max_size.value_or(20);
@@ -201,15 +190,10 @@ namespace hegel::generators {
             if (params_.max_size && params_.min_size > *params_.max_size) {
                 throw std::invalid_argument("Cannot have max_size < min_size");
             }
-        }
-
-        std::optional<BasicGenerator<std::map<K, V>>>
-        as_basic() const override {
-            auto k_basic = keys_.as_basic();
-            auto v_basic = values_.as_basic();
+            const auto& k_basic = keys_.basic();
+            const auto& v_basic = values_.basic();
             if (!k_basic || !v_basic)
-                return std::nullopt;
-
+                return;
             hegel::internal::json::json schema = {
                 {"type", "dict"},
                 {"keys", k_basic->schema},
@@ -217,11 +201,10 @@ namespace hegel::generators {
                 {"min_size", params_.min_size}};
             if (params_.max_size)
                 schema["max_size"] = *params_.max_size;
-
             auto kp = k_basic->parse;
             auto vp = v_basic->parse;
             // Wire format is [[key, value], ...]
-            return BasicGenerator<std::map<K, V>>{
+            this->basic_.emplace(BasicGenerator<std::map<K, V>>{
                 std::move(schema),
                 [kp = std::move(kp), vp = std::move(vp)](
                     const hegel::internal::json::json_raw_ref& raw)
@@ -231,11 +214,11 @@ namespace hegel::generators {
                         result.emplace(kp(pair[0]), vp(pair[1]));
                     }
                     return result;
-                }};
+                }});
         }
 
         std::map<K, V> do_draw(const TestCase& tc) const override {
-            if (auto basic = as_basic()) {
+            if (const auto& basic = this->basic()) {
                 return basic->do_draw(tc);
             }
             size_t max_size = params_.max_size.value_or(20);
@@ -349,6 +332,13 @@ namespace hegel::generators {
             return Tuple{std::get<Is>(gens).do_draw(tc)...};
         }
 
+        template <typename Tuple, typename ParserTuple, size_t... Is>
+        Tuple parse_tuple_impl(const ParserTuple& parsers,
+                               const hegel::internal::json::json_raw_ref& raw,
+                               std::index_sequence<Is...>) {
+            return Tuple{std::get<Is>(parsers)(raw[Is])...};
+        }
+
     } // namespace detail
 
     // Concrete IGenerator for tuples(). Schema path requires every element
@@ -359,19 +349,15 @@ namespace hegel::generators {
         using ResultTuple = std::tuple<Ts...>;
 
         explicit TuplesGenerator(Generator<Ts>... gens)
-            : gens_(std::move(gens)...) {}
-
-        std::optional<BasicGenerator<ResultTuple>> as_basic() const override {
+            : gens_(std::move(gens)...) {
             auto basics = std::apply(
-                [](const auto&... g) {
-                    return std::make_tuple(g.as_basic()...);
-                },
+                [](const auto&... g) { return std::make_tuple(g.basic()...); },
                 gens_);
             bool all_basic = std::apply(
                 [](const auto&... b) { return (b.has_value() && ...); },
                 basics);
             if (!all_basic)
-                return std::nullopt;
+                return;
 
             hegel::internal::json::json elements =
                 hegel::internal::json::json::array();
@@ -388,19 +374,18 @@ namespace hegel::generators {
                 [](const auto&... b) { return std::make_tuple(b->parse...); },
                 basics);
 
-            return BasicGenerator<ResultTuple>{
+            this->basic_.emplace(BasicGenerator<ResultTuple>{
                 std::move(schema),
                 [parsers = std::move(parsers)](
                     const hegel::internal::json::json_raw_ref& raw)
                     -> ResultTuple {
-                    return [&]<size_t... Is>(std::index_sequence<Is...>) {
-                        return ResultTuple{std::get<Is>(parsers)(raw[Is])...};
-                    }(std::index_sequence_for<Ts...>{});
-                }};
+                    return detail::parse_tuple_impl<ResultTuple>(
+                        parsers, raw, std::index_sequence_for<Ts...>{});
+                }});
         }
 
         ResultTuple do_draw(const TestCase& tc) const override {
-            if (auto basic = as_basic()) {
+            if (const auto& basic = this->basic()) {
                 return basic->do_draw(tc);
             }
             return detail::draw_tuple_impl<ResultTuple>(

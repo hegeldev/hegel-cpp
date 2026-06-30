@@ -69,3 +69,12 @@ ALIASES += "Settings=@ref hegel::Settings \"Settings\""
 # Parameterized alias for TestCase members: @tc{draw} renders as "TestCase::draw"
 # linked to the method. Use for draw, note, assume, etc.
 ALIASES += "tc{1}=@ref hegel::TestCase::\1 \"TestCase::\1\""
+
+# Document the reflect-cpp powered features (default_generator) unconditionally:
+# define HEGEL_HAS_REFLECTION so the preprocessor keeps that code, and drop the
+# HEGEL_REQUIRES constraint macro so signatures parse cleanly.
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = HEGEL_HAS_REFLECTION=1 \
+                         "HEGEL_REQUIRES(x)="

@@ -177,7 +177,7 @@ TEST(FlakyReporting, FlakyGeneration) {
 // minimal counterexample should be replayed first on the next run that points
 // at the same database directory.
 //
-// XFAIL: Settings does not yet expose a `database_key`. The server treats
+// XFAIL: Settings does not yet expose a `database_key`. The engine treats
 // a null database_key as "don't persist", so the replay never happens. The
 // replay assertion below is wrapped in EXPECT_NONFATAL_FAILURE so that this
 // test passes today and will start failing (i.e. notice us) once database_key
@@ -226,4 +226,30 @@ TEST(Settings, DatabaseReplaysFailure) {
     EXPECT_NONFATAL_FAILURE(EXPECT_EQ(values.front(), shrunk_value), "");
 
     fs::remove_all(db_path);
+}
+
+// With Database::unset() the engine falls back to its own default `.hegel`
+// directory. Run inside a temporary working directory so the database
+// artifacts don't leak into the build tree.
+TEST(Settings, UnsetDatabaseUsesEngineDefault) {
+    namespace fs = std::filesystem;
+
+    fs::path work = fs::temp_directory_path() /
+                    ("hegel_unset_db_test_" + std::to_string(::getpid()));
+    fs::remove_all(work);
+    fs::create_directories(work);
+    fs::path prev = fs::current_path();
+    fs::current_path(work);
+
+    int count = 0;
+    hegel::test(
+        [&count](hegel::TestCase& tc) {
+            tc.draw(gs::integers<int>());
+            count++;
+        },
+        Settings{.test_cases = 5, .database = Database::unset()});
+
+    fs::current_path(prev);
+    fs::remove_all(work);
+    EXPECT_EQ(count, 5);
 }

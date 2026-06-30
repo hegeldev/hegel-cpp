@@ -66,199 +66,151 @@ namespace hegel::generators {
 
         class BooleansGenerator : public IGenerator<bool> {
           public:
-            std::optional<BasicGenerator<bool>> as_basic() const override {
-                return BasicGenerator<bool>{{{"type", "boolean"}},
-                                            &default_parse_raw<bool>};
+            BooleansGenerator() {
+                this->basic_.emplace(BasicGenerator<bool>{
+                    {{"type", "boolean"}}, &default_parse_raw<bool>});
             }
         };
 
         class TextGenerator : public IGenerator<std::string> {
           public:
-            explicit TextGenerator(TextParams params)
-                : params_(std::move(params)) {
-                if (params_.max_size && params_.min_size > *params_.max_size) {
+            explicit TextGenerator(const TextParams& params) {
+                if (params.max_size && params.min_size > *params.max_size) {
                     throw std::invalid_argument(
                         "Cannot have max_size < min_size");
                 }
-                if (params_.alphabet && has_char_params(params_)) {
+                if (params.alphabet && has_char_params(params)) {
                     throw std::invalid_argument(
                         "Cannot combine alphabet with individual character "
                         "filtering options");
                 }
-            }
-
-            std::optional<BasicGenerator<std::string>>
-            as_basic() const override {
                 nlohmann::json raw_schema = {{"type", "string"},
-                                             {"min_size", params_.min_size}};
-                if (params_.max_size)
-                    raw_schema["max_size"] = *params_.max_size;
+                                             {"min_size", params.min_size}};
+                if (params.max_size)
+                    raw_schema["max_size"] = *params.max_size;
 
-                if (params_.alphabet) {
+                if (params.alphabet) {
                     raw_schema["categories"] = nlohmann::json::array();
-                    raw_schema["include_characters"] = *params_.alphabet;
+                    raw_schema["include_characters"] = *params.alphabet;
                 } else {
                     apply_char_fields(
-                        raw_schema, params_.codec, params_.min_codepoint,
-                        params_.max_codepoint, params_.categories,
-                        params_.exclude_categories, params_.include_characters,
-                        params_.exclude_characters);
+                        raw_schema, params.codec, params.min_codepoint,
+                        params.max_codepoint, params.categories,
+                        params.exclude_categories, params.include_characters,
+                        params.exclude_characters);
                 }
-                return BasicGenerator<std::string>{
+                this->basic_.emplace(BasicGenerator<std::string>{
                     ImplUtil::create(raw_schema),
-                    &default_parse_raw<std::string>};
+                    &default_parse_raw<std::string>});
             }
-
-          private:
-            TextParams params_;
         };
 
         class CharactersGenerator : public IGenerator<std::string> {
           public:
-            explicit CharactersGenerator(CharactersParams params)
-                : params_(std::move(params)) {}
-
-            std::optional<BasicGenerator<std::string>>
-            as_basic() const override {
+            explicit CharactersGenerator(const CharactersParams& params) {
                 nlohmann::json raw_schema = {
                     {"type", "string"}, {"min_size", 1}, {"max_size", 1}};
-                apply_char_fields(
-                    raw_schema, params_.codec, params_.min_codepoint,
-                    params_.max_codepoint, params_.categories,
-                    params_.exclude_categories, params_.include_characters,
-                    params_.exclude_characters);
-                return BasicGenerator<std::string>{
+                apply_char_fields(raw_schema, params.codec,
+                                  params.min_codepoint, params.max_codepoint,
+                                  params.categories, params.exclude_categories,
+                                  params.include_characters,
+                                  params.exclude_characters);
+                this->basic_.emplace(BasicGenerator<std::string>{
                     ImplUtil::create(raw_schema),
-                    &default_parse_raw<std::string>};
+                    &default_parse_raw<std::string>});
             }
-
-          private:
-            CharactersParams params_;
         };
 
         class BinaryGenerator : public IGenerator<std::vector<uint8_t>> {
           public:
-            explicit BinaryGenerator(BinaryParams params) : params_(params) {
-                if (params_.max_size && params_.min_size > *params_.max_size) {
+            explicit BinaryGenerator(const BinaryParams& params) {
+                if (params.max_size && params.min_size > *params.max_size) {
                     throw std::invalid_argument(
                         "Cannot have max_size < min_size");
                 }
-            }
-
-            std::optional<BasicGenerator<std::vector<uint8_t>>>
-            as_basic() const override {
                 hegel::internal::json::json schema = {
-                    {"type", "binary"}, {"min_size", params_.min_size}};
-                if (params_.max_size)
-                    schema["max_size"] = *params_.max_size;
-                return BasicGenerator<std::vector<uint8_t>>{
+                    {"type", "binary"}, {"min_size", params.min_size}};
+                if (params.max_size)
+                    schema["max_size"] = *params.max_size;
+                this->basic_.emplace(BasicGenerator<std::vector<uint8_t>>{
                     std::move(schema),
                     [](const hegel::internal::json::json_raw_ref& raw)
                         -> std::vector<uint8_t> {
                         return ImplUtil::raw(raw).get_binary();
-                    }};
+                    }});
             }
-
-          private:
-            BinaryParams params_;
         };
 
         class RegexGenerator : public IGenerator<std::string> {
           public:
-            RegexGenerator(std::string pattern, bool fullmatch)
-                : pattern_(std::move(pattern)), fullmatch_(fullmatch) {}
-
-            std::optional<BasicGenerator<std::string>>
-            as_basic() const override {
-                return BasicGenerator<std::string>{
+            RegexGenerator(std::string pattern, bool fullmatch) {
+                this->basic_.emplace(BasicGenerator<std::string>{
                     {{"type", "regex"},
-                     {"pattern", pattern_},
-                     {"fullmatch", fullmatch_}},
-                    &default_parse_raw<std::string>};
+                     {"pattern", std::move(pattern)},
+                     {"fullmatch", fullmatch}},
+                    &default_parse_raw<std::string>});
             }
-
-          private:
-            std::string pattern_;
-            bool fullmatch_;
         };
 
         class EmailsGenerator : public IGenerator<std::string> {
           public:
-            std::optional<BasicGenerator<std::string>>
-            as_basic() const override {
-                return BasicGenerator<std::string>{
-                    {{"type", "email"}}, &default_parse_raw<std::string>};
+            EmailsGenerator() {
+                this->basic_.emplace(BasicGenerator<std::string>{
+                    {{"type", "email"}}, &default_parse_raw<std::string>});
             }
         };
 
         class DomainsGenerator : public IGenerator<std::string> {
           public:
-            explicit DomainsGenerator(DomainsParams params) : params_(params) {
-                if (params_.max_length < 4 || params_.max_length > 255) {
+            explicit DomainsGenerator(const DomainsParams& params) {
+                if (params.max_length < 4 || params.max_length > 255) {
                     throw std::invalid_argument(
                         "max_length must be between 4 and 255");
                 }
+                this->basic_.emplace(BasicGenerator<std::string>{
+                    {{"type", "domain"}, {"max_length", params.max_length}},
+                    &default_parse_raw<std::string>});
             }
-
-            std::optional<BasicGenerator<std::string>>
-            as_basic() const override {
-                return BasicGenerator<std::string>{
-                    {{"type", "domain"}, {"max_length", params_.max_length}},
-                    &default_parse_raw<std::string>};
-            }
-
-          private:
-            DomainsParams params_;
         };
 
         class UrlsGenerator : public IGenerator<std::string> {
           public:
-            std::optional<BasicGenerator<std::string>>
-            as_basic() const override {
-                return BasicGenerator<std::string>{
-                    {{"type", "url"}}, &default_parse_raw<std::string>};
+            UrlsGenerator() {
+                this->basic_.emplace(BasicGenerator<std::string>{
+                    {{"type", "url"}}, &default_parse_raw<std::string>});
             }
         };
 
         class IpGenerator : public IGenerator<std::string> {
           public:
-            explicit IpGenerator(int version) : version_(version) {}
-
-            std::optional<BasicGenerator<std::string>>
-            as_basic() const override {
-                return BasicGenerator<std::string>{
-                    {{"type", version_ == 4 ? "ipv4" : "ipv6"}},
-                    &default_parse_raw<std::string>};
+            explicit IpGenerator(int version) {
+                this->basic_.emplace(BasicGenerator<std::string>{
+                    {{"type", "ip_address"}, {"version", version}},
+                    &default_parse_raw<std::string>});
             }
-
-          private:
-            int version_;
         };
 
         class DatesGenerator : public IGenerator<std::string> {
           public:
-            std::optional<BasicGenerator<std::string>>
-            as_basic() const override {
-                return BasicGenerator<std::string>{
-                    {{"type", "date"}}, &default_parse_raw<std::string>};
+            DatesGenerator() {
+                this->basic_.emplace(BasicGenerator<std::string>{
+                    {{"type", "date"}}, &default_parse_raw<std::string>});
             }
         };
 
         class TimesGenerator : public IGenerator<std::string> {
           public:
-            std::optional<BasicGenerator<std::string>>
-            as_basic() const override {
-                return BasicGenerator<std::string>{
-                    {{"type", "time"}}, &default_parse_raw<std::string>};
+            TimesGenerator() {
+                this->basic_.emplace(BasicGenerator<std::string>{
+                    {{"type", "time"}}, &default_parse_raw<std::string>});
             }
         };
 
         class DatetimesGenerator : public IGenerator<std::string> {
           public:
-            std::optional<BasicGenerator<std::string>>
-            as_basic() const override {
-                return BasicGenerator<std::string>{
-                    {{"type", "datetime"}}, &default_parse_raw<std::string>};
+            DatetimesGenerator() {
+                this->basic_.emplace(BasicGenerator<std::string>{
+                    {{"type", "datetime"}}, &default_parse_raw<std::string>});
             }
         };
 
@@ -268,8 +220,8 @@ namespace hegel::generators {
         return Generator<bool>(new BooleansGenerator());
     }
 
-    Generator<std::string> text(TextParams params) {
-        return Generator<std::string>(new TextGenerator(std::move(params)));
+    Generator<std::string> text(const TextParams& params) {
+        return Generator<std::string>(new TextGenerator(params));
     }
 
     Generator<std::string> characters(const CharactersParams& params) {
@@ -341,9 +293,13 @@ namespace hegel::generators {
             {"max_value", std::numeric_limits<uint32_t>::max()}};
 
         hegel::internal::json::json response =
-            internal::communicate_with_core(schema, *tc_);
+            internal::generate_from_schema(schema, *tc_);
         if (!response.contains("result")) {
-            throw std::runtime_error("Server response missing 'result' field");
+            // The engine always returns a "result"; a miss would be an engine
+            // bug, not reachable from a test.
+            // GCOVR_EXCL_START
+            throw std::runtime_error("Engine response missing 'result' field");
+            // GCOVR_EXCL_STOP
         }
         return ImplUtil::raw(response["result"]).get<uint32_t>();
     }

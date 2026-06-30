@@ -23,15 +23,19 @@ include(FetchContent)
 FetchContent_Declare(
     hegel
     GIT_REPOSITORY https://github.com/hegeldev/hegel-cpp.git
-    GIT_TAG v0.3.5
+    GIT_TAG v0.4.0
 )
 FetchContent_MakeAvailable(hegel)
 
 target_link_libraries(your_target PRIVATE hegel)
 ```
 
-Hegel will use uv to install the required [hegel-core](https://github.com/hegeldev/hegel-core) server component.
-If `uv` is already on your path, it will use that, otherwise it will download a private copy of it to ~/.cache/hegel and not put it on your path. See https://hegel.dev/reference/installation for details.
+At configure time the build downloads a small prebuilt shared library
+([libhegel](https://github.com/hegeldev/hegel-rust/tree/main/hegel-c),
+Hegel's native engine) for your platform and verifies it against its published
+SHA-256, then links it. To link a locally built engine instead, pass 
+`-DHEGEL_LIBHEGEL_LIBRARY=/path/to/libhegel_c.<ext>`. 
+See https://hegel.dev/reference/installation for details.
 
 ## Quickstart
 

@@ -4,9 +4,14 @@ project(hegel-cpp-nix-test VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Consume the installed package: hegel::hegel pulls in the libhegel shared
+# engine (which resolves the hegel_* symbols in the static archive) and its
+# runtime RPATH via hegelConfig.cmake.
+find_package(hegel REQUIRED)
+
 # Test executable
 add_executable(nix_test main.cpp)
-target_link_libraries(nix_test PRIVATE hegel)
+target_link_libraries(nix_test PRIVATE hegel::hegel)
 
 # Enable testing
 enable_testing()

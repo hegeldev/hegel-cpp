@@ -4,24 +4,80 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-compat.url = "https://flakehub.com/f/edolstra/flake-compat/1.tar.gz";
-    hegel.url = "git+https://github.com/hegeldev/hegel-core?dir=nix&ref=refs/tags/v0.4.0";
   };
 
   outputs =
     {
       self,
       nixpkgs,
-      hegel,
       ...
     }:
     let
+      # darwin/amd64 is intentionally absent: no prebuilt libhegel is published
+      # for it (build from source and pass HEGEL_LIBHEGEL_LIBRARY).
       supportedSystems = [
         "x86_64-linux"
         "aarch64-linux"
-        "x86_64-darwin"
         "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+
+      # Prebuilt libhegel (Hegel's native engine) release. Keep the version and
+      # hashes in sync with cmake/libhegel.cmake and libhegel/hegel.h. Hashes
+      # are the SHA-256 sidecars published next to each release asset.
+      libhegelVersion = "0.23.2";
+      libhegelAssets = {
+        "x86_64-linux" = {
+          asset = "libhegel-linux-amd64.so";
+          sha256 = "7facb737e45fb210f47a70a51b86b6d58f2367f911aea81c2b75e8e58189e818";
+        };
+        "aarch64-linux" = {
+          asset = "libhegel-linux-arm64.so";
+          sha256 = "648089d0083ae78ecad948a499003ada38c8f25df5dc52b94e17bc9863739f8a";
+        };
+        "aarch64-darwin" = {
+          asset = "libhegel-darwin-arm64.dylib";
+          sha256 = "6ee369bb06eabf98affd2bfd9ef7d69f2502cdad4b66ad8be757edfddfd35292";
+        };
+      };
+
+      # Fetch the prebuilt shared library for this platform as a fixed-output
+      # derivation (the only network access; everything downstream is offline)
+      # and normalize it to the Rust output stem libhegel_c.<ext>.
+      mkLibhegel =
+        pkgs:
+        let
+          lib = pkgs.lib;
+          system = pkgs.system;
+          info = libhegelAssets.${system} or (throw "libhegel: no prebuilt release for ${system}");
+          ext = lib.last (lib.splitString "." info.asset);
+        in
+        pkgs.stdenvNoCC.mkDerivation {
+          pname = "libhegel";
+          version = libhegelVersion;
+
+          src = pkgs.fetchurl {
+            url = "https://github.com/hegeldev/hegel-rust/releases/download/v${libhegelVersion}/${info.asset}";
+            inherit (info) sha256;
+          };
+          dontUnpack = true;
+
+          # Linux: patch the .so's NEEDED system libs to the nix store. macOS:
+          # rewrite the dylib id (the released one is an absolute CI path).
+          nativeBuildInputs =
+            lib.optionals pkgs.stdenv.isLinux [ pkgs.autoPatchelfHook ]
+            ++ lib.optionals pkgs.stdenv.isDarwin [ pkgs.fixDarwinDylibNames ];
+          buildInputs = lib.optionals pkgs.stdenv.isLinux [ (lib.getLib pkgs.stdenv.cc.cc) ];
+
+          installPhase = ''
+            runHook preInstall
+            mkdir -p $out/lib
+            cp "$src" "$out/lib/libhegel_c.${ext}"
+            runHook postInstall
+          '';
+
+          passthru = { inherit ext; };
+        };
 
       fetchDeps = pkgs: {
         reflectcpp = pkgs.fetchFromGitHub {
@@ -54,7 +110,8 @@
         }@args:
         let
           lib = pkgs.lib;
-          system = pkgs.system;
+
+          libhegel = mkLibhegel pkgs;
 
           fs = pkgs.lib.fileset;
           baseSrc = fs.unions [
@@ -62,6 +119,7 @@
             ./../CMakeLists.txt
             ./../src
             ./../include
+            ./../libhegel
             ./../tests
             ./../docs
           ];
@@ -81,18 +139,20 @@
           ];
 
           buildInputs = [
-            hegel.packages.${system}.default
+            libhegel
           ];
 
           cmakeFlags = (mkFetchContentFlags pkgs) ++ [
             (lib.cmakeFeature "HEGEL_BUILD_EXAMPLES" "OFF")
+            # Use the prebuilt engine fetched above instead of downloading one
+            # (the build sandbox has no network).
+            (lib.cmakeFeature "HEGEL_LIBHEGEL_LIBRARY" "${libhegel}/lib/libhegel_c.${libhegel.ext}")
           ];
 
           doCheck = true;
           checkPhase = ''
             runHook preCheck
-            export HEGEL_SERVER_COMMAND=${hegel.packages.${system}.default}/bin/hegel
-            ctest --output-on-failure --verbose
+            ctest --output-on-failure --verbose 
             runHook postCheck
           '';
         };
@@ -107,11 +167,10 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          lib = pkgs.lib;
-          deps = fetchDeps pkgs;
         in
         {
           default = mkHegelCppProject { inherit pkgs; };
+          libhegel = mkLibhegel pkgs;
         }
       );
 

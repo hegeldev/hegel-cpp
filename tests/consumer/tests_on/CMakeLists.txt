@@ -8,7 +8,6 @@ endif()
 # Explicitly force hegel's own tests ON to verify consumers who opt in aren't
 # broken (regression test for the tests/CMakeLists.txt CMAKE_SOURCE_DIR bug).
 set(HEGEL_BUILD_TESTS ON CACHE BOOL "" FORCE)
-set(HEGEL_BUILD_CONFORMANCE OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(${HEGEL_ROOT} ${CMAKE_BINARY_DIR}/hegel)
 

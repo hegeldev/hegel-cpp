@@ -1,30 +1,12 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <hegel/settings.h>
 #include <nlohmann/json.hpp>
 #include <vector>
 
 namespace hegel::impl::protocol {
-
-    inline constexpr uint32_t MAGIC = 0x4845474C; // "HEGL"
-    inline constexpr uint32_t REPLY_BIT = 1U << 31;
-    inline constexpr uint32_t HEADER_SIZE = 20;
-    inline constexpr uint8_t TERMINATOR = 0x0A;
-    inline constexpr uint8_t CLOSE_PAYLOAD = 0xFE;
-    inline constexpr uint32_t CLOSE_MESSAGE_ID = (1U << 31) - 1;
-
-    struct Packet {
-        uint32_t stream;
-        uint32_t message_id;
-        bool is_reply;
-        std::vector<uint8_t> payload;
-    };
-
-    void write_packet(int fd, uint32_t stream, uint32_t message_id,
-                      bool is_reply, const std::vector<uint8_t>& payload);
-
-    Packet read_packet(int fd);
 
     inline constexpr uint64_t HEGEL_STRING_TAG = 91;
 
@@ -42,21 +24,10 @@ namespace hegel::impl::protocol {
                 convert_tagged_strings(el);
             return;
         }
-        if (v.is_object()) {
-            for (auto& [key, val] : v.items())
-                convert_tagged_strings(val);
-        }
     }
 
     inline std::vector<uint8_t> cbor_encode(const nlohmann::json& v) {
         return nlohmann::json::to_cbor(v);
-    }
-
-    inline nlohmann::json cbor_decode(const std::vector<uint8_t>& bytes) {
-        auto result = nlohmann::json::from_cbor(
-            bytes, true, true, nlohmann::json::cbor_tag_handler_t::store);
-        convert_tagged_strings(result);
-        return result;
     }
 
     inline nlohmann::json cbor_decode(const uint8_t* data, size_t len) {

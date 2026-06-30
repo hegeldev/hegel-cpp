@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <optional>
 #include <string>
 #include <vector>
@@ -110,6 +112,44 @@ namespace hegel {
         std::string path_;
     };
 
+    /// @cond INTERNAL
+    namespace internal {
+        // True if a CI environment is detected, by probing the variables the
+        // common CI providers set. Used as the default for
+        // Settings::derandomize so runs are reproducible under CI.
+        inline bool in_ci() {
+            // expected == nullptr means "any value present satisfies it".
+            struct CiVar {
+                const char* name;
+                const char* expected;
+            };
+            static constexpr CiVar ci_vars[] = {
+                {"CI", nullptr},
+                {"TF_BUILD", "true"},
+                {"BUILDKITE", "true"},
+                {"CIRCLECI", "true"},
+                {"CIRRUS_CI", "true"},
+                {"CODEBUILD_BUILD_ID", nullptr},
+                {"GITHUB_ACTIONS", "true"},
+                {"GITLAB_CI", nullptr},
+                {"HEROKU_TEST_RUN_ID", nullptr},
+                {"TEAMCITY_VERSION", nullptr},
+            };
+            for (const CiVar& v : ci_vars) {
+                const char* value = std::getenv(v.name);
+                if (value == nullptr) {
+                    continue;
+                }
+                if (v.expected == nullptr ||
+                    std::strcmp(value, v.expected) == 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    } // namespace internal
+    /// @endcond
+
     /**
      * @brief Configuration options for hegel::test().
      */
@@ -124,12 +164,14 @@ namespace hegel {
         std::optional<uint64_t> seed;
 
         /// If true, use a deterministic RNG, making the test deterministic
-        /// across executions.
-        bool derandomize = false;
+        /// across executions. Defaults to true when a CI environment is
+        /// detected, false otherwise.
+        bool derandomize = internal::in_ci();
 
         /// Configure the Hegel database. See Database. Defaults to a database
-        /// at `.hegel`.
-        Database database = Database::unset();
+        /// at `.hegel`, or disabled when a CI environment is detected.
+        Database database =
+            internal::in_ci() ? Database::disabled() : Database::unset();
 
         /// Health checks to suppress for this test.
         std::vector<HealthCheck> suppress_health_check;

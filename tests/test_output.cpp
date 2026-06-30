@@ -1,152 +1,62 @@
 #include <gtest/gtest.h>
 
-#include "common/temp_project.h"
+#include <string>
+
+#include "common/subprocess.h"
 #include "common/utils.h"
 
-#include <string>
-
 using hegel::tests::common::assert_matches_regex;
+using hegel::tests::common::run_subject;
 using hegel::tests::common::SubprocessResult;
-using hegel::tests::common::TempCppProject;
 
-constexpr const char* FAILING_TEST_CODE = R"cpp(
-#include <cstdint>
-#include <hegel/hegel.h>
-#include <stdexcept>
-#include <string>
+#ifndef HEGEL_SUBJECT_BIN
+#error "HEGEL_SUBJECT_BIN must be defined at build time"
+#endif
 
-namespace gs = hegel::generators;
-
-int main() {
-    hegel::test(
-        [](hegel::TestCase& tc) {
-            int32_t x = tc.draw(gs::integers<int32_t>());
-            throw std::runtime_error("intentional failure: " +
-                                     std::to_string(x));
-        },
-        {.database = hegel::Database::disabled()});
-    return 0;
-}
-)cpp";
+namespace {
+    // Run the prebuilt subject binary for one scenario (see subject_main.cpp).
+    // No per-test recompile, so these tests run fast and in parallel.
+    SubprocessResult run_scenario(const std::string& name) {
+        return run_subject(HEGEL_SUBJECT_BIN, {name});
+    }
+} // namespace
 
 TEST(Output, FailingTest) {
-    SubprocessResult r = TempCppProject().main_file(FAILING_TEST_CODE).run();
+    SubprocessResult r = run_scenario("failing");
     EXPECT_NE(r.exit_code, 0);
     assert_matches_regex(r.stderr_data, R"(Generated: 0\b)");
     assert_matches_regex(r.stderr_data, R"(Hegel test failed)");
 }
 
-constexpr const char* STABLE_ORIGIN_TEST_CODE = R"cpp(
-#include <cstdint>
-#include <hegel/hegel.h>
-#include <stdexcept>
-#include <string>
-
-namespace gs = hegel::generators;
-
-int main() {
-    hegel::test(
-        [](hegel::TestCase& tc) {
-            int32_t x = tc.draw(gs::integers<int32_t>());
-            if (x >= 10) {
-                throw std::runtime_error("failure with x=" +
-                                         std::to_string(x));
-            }
-        },
-        {.database = hegel::Database::disabled()});
-    return 0;
-}
-)cpp";
-
 TEST(Output, OriginStableAcrossDrawnValues) {
-    SubprocessResult r =
-        TempCppProject().main_file(STABLE_ORIGIN_TEST_CODE).run();
+    SubprocessResult r = run_scenario("stable_origin");
     EXPECT_NE(r.exit_code, 0);
     assert_matches_regex(r.stderr_data, R"(Generated: 10\b)");
     assert_matches_regex(r.stderr_data, R"(Hegel test failed)");
 }
 
-constexpr const char* THROW_INT_TEST_CODE = R"cpp(
-#include <cstdint>
-#include <hegel/hegel.h>
-
-namespace gs = hegel::generators;
-
-int main() {
-    hegel::test(
-        [](hegel::TestCase& tc) {
-            int32_t x = tc.draw(gs::integers<int32_t>());
-            if (x >= 5) {
-                throw 42;
-            }
-        },
-        {.database = hegel::Database::disabled()});
-    return 0;
-}
-)cpp";
-
 TEST(Output, NonStdExceptionIsHandled) {
-    SubprocessResult r = TempCppProject().main_file(THROW_INT_TEST_CODE).run();
+    SubprocessResult r = run_scenario("throw_int");
     EXPECT_NE(r.exit_code, 0);
     assert_matches_regex(r.stderr_data, R"(Hegel test failed)");
     assert_matches_regex(r.stderr_data, R"(Generated: 5\b)");
 }
-
-constexpr const char* THROW_CUSTOM_TEST_CODE = R"cpp(
-#include <cstdint>
-#include <hegel/hegel.h>
-
-struct MyError {};
-
-namespace gs = hegel::generators;
-
-int main() {
-    hegel::test(
-        [](hegel::TestCase& tc) {
-            int32_t x = tc.draw(gs::integers<int32_t>());
-            if (x >= 5) {
-                throw MyError{};
-            }
-        },
-        {.database = hegel::Database::disabled()});
-    return 0;
-}
-)cpp";
 
 TEST(Output, CustomNonStdExceptionIsHandled) {
-    SubprocessResult r =
-        TempCppProject().main_file(THROW_CUSTOM_TEST_CODE).run();
+    SubprocessResult r = run_scenario("throw_custom");
     EXPECT_NE(r.exit_code, 0);
     assert_matches_regex(r.stderr_data, R"(Hegel test failed)");
     assert_matches_regex(r.stderr_data, R"(Generated: 5\b)");
 }
 
-constexpr const char* EXCEPTION_MESSAGE_TEST_CODE = R"cpp(
-#include <cstdint>
-#include <hegel/hegel.h>
-#include <stdexcept>
-#include <string>
-
-namespace gs = hegel::generators;
-
-int main() {
-    hegel::test(
-        [](hegel::TestCase& tc) {
-            int32_t x = tc.draw(gs::integers<int32_t>());
-            if (x >= 7) {
-                throw std::runtime_error("custom exception for x=" +
-                                         std::to_string(x));
-            }
-        },
-        {.database = hegel::Database::disabled()});
-    return 0;
-}
-)cpp";
-
 TEST(Output, ExceptionMessageIsShown) {
-    SubprocessResult r =
-        TempCppProject().main_file(EXCEPTION_MESSAGE_TEST_CODE).run();
+    SubprocessResult r = run_scenario("exception_message");
     EXPECT_NE(r.exit_code, 0);
     assert_matches_regex(r.stderr_data,
                          R"(Hegel test failed: custom exception for x=7)");
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

@@ -31,7 +31,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y clang-tidy-18
 
       - name: Install zizmor
-        run: pip install zizmor
+        run: pip install zizmor==1.23.1
       - name: Run zizmor
         run: zizmor --format plain .github/
 
@@ -98,14 +98,6 @@ jobs:
         with:
           tools: just
 
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.13'
-
-      - name: Install hegel
-        run: pip install hegel-core
-
       - name: Run tests
         env:
           CC: ${{ matrix.cc }}
@@ -129,22 +121,15 @@ jobs:
         with:
           tools: just
 
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.13'
-
-      - name: Install hegel
-        run: pip install hegel-core
-
       - name: Run consumer tests
         run: just check-consumer-all
 
-  conformance:
-    name: conformance
-    runs-on: ubuntu-24.04
+  cxx17:
+    name: cxx17
+    runs-on: ubuntu-latest
     permissions:
       contents: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -153,19 +138,37 @@ jobs:
 
       - uses: ./.github/actions/install-tools
         with:
+          tools: just
+
+      - name: Build and run the C++17 consumer (HEGEL_REFLECTION=OFF)
+        run: just check-cxx17
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install clang + llvm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 llvm-18
+
+      - uses: ./.github/actions/install-tools
+        with:
           tools: just uv
 
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.13'
-
-      - name: Install hegel
-        run: pip install hegel-core==0.4.1
-
-      - name: Run conformance tests
-        timeout-minutes: 10
-        run: just check-conformance
+      - name: Enforce coverage floor
+        env:
+          CC: clang-18
+          CXX: clang++-18
+        run: just check-coverage
 
   nix:
     name: nix
@@ -209,7 +212,7 @@ jobs:
   release:
     name: release
     if: github.event_name == 'push' && github.repository == 'hegeldev/hegel-cpp'
-    needs: [lint, build-and-test, consumer, conformance, docs]
+    needs: [lint, build-and-test, consumer, cxx17, coverage, docs]
     runs-on: ubuntu-latest
     permissions:
       contents: write
