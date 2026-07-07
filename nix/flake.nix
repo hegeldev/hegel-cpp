@@ -25,19 +25,19 @@
       # Prebuilt libhegel (Hegel's native engine) release. Keep the version and
       # hashes in sync with cmake/libhegel.cmake and libhegel/hegel.h. Hashes
       # are the SHA-256 sidecars published next to each release asset.
-      libhegelVersion = "0.23.2";
+      libhegelVersion = "0.27.0";
       libhegelAssets = {
         "x86_64-linux" = {
           asset = "libhegel-linux-amd64.so";
-          sha256 = "7facb737e45fb210f47a70a51b86b6d58f2367f911aea81c2b75e8e58189e818";
+          sha256 = "bc7c1d210f980a4abff76435fbb490cd42a04f0703a15f2abf3622b04d0024e0";
         };
         "aarch64-linux" = {
           asset = "libhegel-linux-arm64.so";
-          sha256 = "648089d0083ae78ecad948a499003ada38c8f25df5dc52b94e17bc9863739f8a";
+          sha256 = "a0ff4b2af9e584fa2c882eb280861fc0f9279d01bd5230440930afc1f057ba23";
         };
         "aarch64-darwin" = {
           asset = "libhegel-darwin-arm64.dylib";
-          sha256 = "6ee369bb06eabf98affd2bfd9ef7d69f2502cdad4b66ad8be757edfddfd35292";
+          sha256 = "95fe60500a6edbed6e654290bf564e37e49e77bcb371cf5017c4f3a4c4cd7dc9";
         };
       };
 
@@ -97,7 +97,6 @@
         in
         lib.mapAttrsToList (k: v: lib.cmakeFeature k (toString v)) {
           FETCHCONTENT_SOURCE_DIR_REFLECTCPP = deps.reflectcpp;
-          FETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON = pkgs.nlohmann_json.src;
           FETCHCONTENT_SOURCE_DIR_GOOGLETEST = pkgs.gtest.src;
           FETCHCONTENT_FULLY_DISCONNECTED = "ON";
         };

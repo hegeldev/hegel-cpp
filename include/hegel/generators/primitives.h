@@ -14,19 +14,17 @@ namespace hegel::generators {
     Generator<bool> booleans();
 
     /// @cond INTERNAL
-    // Concrete IGenerator<T> subclass produced by just(). The schema's
-    // "value" field is a placeholder — the engine draws zero entropy for a
-    // constant, so the client parser returns the locally captured value
-    // regardless of what the engine echoes back. This means just() works
-    // for any T without requiring T to be JSON-serializable.
+    // Concrete IGenerator<T> subclass produced by just(). A constant draws
+    // zero entropy, so it returns the captured value without touching the
+    // engine at all.
     template <typename T> class JustGenerator : public IGenerator<T> {
       public:
-        explicit JustGenerator(T value) {
-            this->basic_.emplace(BasicGenerator<T>{
-                {{"type", "constant"}, {"value", nullptr}},
-                [v = std::move(value)](
-                    const hegel::internal::json::json_raw_ref&) { return v; }});
-        }
+        explicit JustGenerator(T value) : value_(std::move(value)) {}
+
+        T do_draw(const TestCase&) const override { return value_; }
+
+      private:
+        T value_;
     };
     /// @endcond
 

@@ -14,7 +14,7 @@ namespace hegel::generators {
     struct TextParams {
         size_t min_size = 0; ///< Minimum string length
         std::optional<size_t>
-            max_size; ///< Maximum string length. Default: no limit
+            max_size; ///< Maximum string length. Default: max(min_size, 100)
 
         // Character filtering options
         std::optional<std::string> codec;      ///< Restrict to this codec
@@ -58,7 +58,7 @@ namespace hegel::generators {
     struct BinaryParams {
         size_t min_size = 0; ///< Minimum size in bytes
         std::optional<size_t>
-            max_size; ///< Maximum size in bytes. Default: no limit
+            max_size; ///< Maximum size in bytes. Default: max(min_size, 100)
     };
 
     /// @name Strings

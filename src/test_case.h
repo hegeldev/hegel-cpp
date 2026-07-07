@@ -9,11 +9,11 @@
 
 namespace hegel::impl::test_case {
 
-    // Per-iteration runtime state. `ctx` and `tc` are borrowed libhegel
-    // handles owned by the run loop (src/hegel.cpp); generators reach them
-    // through TestCase::data() to drive `hegel_generate`.
+    // Per-iteration runtime state. `tc` is a borrowed libhegel handle owned
+    // by the run loop (src/hegel.cpp); generators reach it through
+    // TestCase::data() to drive the typed draw primitives. (The
+    // error-reporting context is per-thread: impl::thread_context().)
     struct TestCaseData {
-        hegel_context_t* ctx;
         hegel_test_case_t* tc;
         bool is_final;
         Verbosity verbosity;

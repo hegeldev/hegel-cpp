@@ -120,8 +120,6 @@ check-coverage:
     export LLVM_PROFILE_FILE="$prof_dir/cov-%p-%m.profraw"
     ctest --test-dir build/coverage/tests --output-on-failure -j{{ jobs }}
 
-    "$llvm_profdata" merge -sparse "$prof_dir"/*.profraw \
-        -o build/coverage/cov.profdata
     # Collect the instrumented test executables. `file ... executable` matches
     # both Mach-O and ELF (PIE) executables and excludes shared libraries,
     # without relying on a non-portable `find -perm` mode.
@@ -131,12 +129,41 @@ check-coverage:
     if [ "${#objs[@]}" -eq 0 ]; then
         echo "error: no instrumented test binaries found" >&2; exit 1
     fi
-    obj_args=(); for o in "${objs[@]:1}"; do obj_args+=(-object "$o"); done
-    "$llvm_cov" export -format=lcov \
-        -instr-profile=build/coverage/cov.profdata \
-        "${objs[0]}" "${obj_args[@]}" \
-        "$PWD/src" "$PWD/include/hegel" \
-        > build/coverage/coverage.lcov
+    # Export each object against only its own profile data. Profiles merged
+    # across binaries make llvm-cov report benign hash differences between
+    # binaries as "N functions have mismatched data" (and drop those counts).
+    # The %m component of each profraw filename (cov-<pid>-<%m>.profraw) is
+    # the emitting binary's instrumentation signature; a short probe run
+    # recovers each binary's signature to pair it with its group of profiles.
+    # The checker maxes counts per line across the concatenated traces.
+    lcov_dir="$PWD/build/coverage/lcov"
+    probe_dir="$PWD/build/coverage/probe"
+    rm -rf "$lcov_dir"; mkdir -p "$lcov_dir"
+    for o in "${objs[@]}"; do
+        rm -rf "$probe_dir"; mkdir -p "$probe_dir"
+        # gtest binaries list tests and exit; non-gtest ones (subject) print
+        # usage and exit. Either way the exit path writes a probe profile,
+        # which is used only for the signature — never merged into coverage.
+        LLVM_PROFILE_FILE="$probe_dir/p-%m.profraw" "$o" --gtest_list_tests \
+            > /dev/null 2>&1 || true
+        probe=("$probe_dir"/p-*.profraw)
+        if [ "${#probe[@]}" -ne 1 ] || [ ! -f "${probe[0]}" ]; then
+            echo "error: probe run of $o produced no profile" >&2; exit 1
+        fi
+        sig=$(basename "${probe[0]}" .profraw); sig=${sig#p-}
+        group=("$prof_dir"/cov-*-"$sig".profraw)
+        if [ ! -f "${group[0]}" ]; then
+            echo "error: no test profiles for $o (signature $sig)" >&2; exit 1
+        fi
+        name=$(basename "$o")
+        "$llvm_profdata" merge -sparse "${group[@]}" \
+            -o "$lcov_dir/$name.profdata"
+        "$llvm_cov" export -format=lcov \
+            -instr-profile="$lcov_dir/$name.profdata" \
+            "$o" "$PWD/src" "$PWD/include/hegel" \
+            > "$lcov_dir/$name.lcov"
+    done
+    cat "$lcov_dir"/*.lcov > build/coverage/coverage.lcov
     python3 scripts/check-coverage.py build/coverage/coverage.lcov
 
 check-lint: check-format check-tidy

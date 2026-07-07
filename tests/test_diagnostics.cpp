@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <cstdlib>
-#include <stdexcept>
 #include <string>
 
 #include <hegel/hegel.h>
@@ -40,7 +38,6 @@ TEST(Diagnostics, QuietSuppressesEverything) {
         run_capturing_stderr(with_verbosity(hegel::Verbosity::Quiet));
     EXPECT_FALSE(contains(out, kNote));
     EXPECT_FALSE(contains(out, "Generated:"));
-    EXPECT_FALSE(contains(out, "REQUEST:"));
 }
 
 // Normal does not print per-case notes while the property is passing (notes are
@@ -51,56 +48,30 @@ TEST(Diagnostics, NormalSuppressesNotesWhilePassing) {
     EXPECT_FALSE(contains(out, kNote));
 }
 
-// Verbose prints notes and drawn values on every case, but does NOT enable the
-// protocol REQUEST/RESPONSE dump (that is Debug-only).
-TEST(Diagnostics, VerbosePrintsNotesbutNotProtocol) {
+// Verbose prints notes and drawn values on every case.
+TEST(Diagnostics, VerbosePrintsNotesAndValues) {
     std::string out =
         run_capturing_stderr(with_verbosity(hegel::Verbosity::Verbose));
     EXPECT_TRUE(contains(out, kNote));
     EXPECT_TRUE(contains(out, "Generated:"));
-    EXPECT_FALSE(contains(out, "REQUEST:"));
 }
 
-// Debug prints everything Verbose does, plus the protocol REQUEST/RESPONSE
-// dump.
-TEST(Diagnostics, DebugDumpsProtocol) {
+// Debug prints everything Verbose does (engine-side shrinker tracing is the
+// engine's own output and not asserted on here).
+TEST(Diagnostics, DebugPrintsNotesAndValues) {
     std::string out =
         run_capturing_stderr(with_verbosity(hegel::Verbosity::Debug));
     EXPECT_TRUE(contains(out, kNote));
     EXPECT_TRUE(contains(out, "Generated:"));
-    EXPECT_TRUE(contains(out, "REQUEST:"));
-    EXPECT_TRUE(contains(out, "RESPONSE:"));
-}
-
-// HEGEL_PROTOCOL_DEBUG turns on the protocol dump independently of verbosity:
-// at Normal it would otherwise be off, but the env var enables it.
-TEST(Diagnostics, ProtocolDebugFromEnv) {
-    const char* prev = std::getenv("HEGEL_PROTOCOL_DEBUG");
-    std::string saved = prev ? prev : "";
-    bool had = prev != nullptr;
-
-    setenv("HEGEL_PROTOCOL_DEBUG", "TRUE", 1); // case-insensitive "true"/"1"
-    std::string out =
-        run_capturing_stderr(with_verbosity(hegel::Verbosity::Normal));
-
-    if (had) {
-        setenv("HEGEL_PROTOCOL_DEBUG", saved.c_str(), 1);
-    } else {
-        unsetenv("HEGEL_PROTOCOL_DEBUG");
-    }
-
-    EXPECT_TRUE(contains(out, "REQUEST:"))
-        << "HEGEL_PROTOCOL_DEBUG should enable the protocol dump at Normal";
-    EXPECT_TRUE(contains(out, "RESPONSE:"))
-        << "HEGEL_PROTOCOL_DEBUG should enable the protocol dump at Normal";
 }
 
 // A throw that isn't a std::exception exercises the catch(...) fallback, which
-// records the exception's type name as the failure origin.
+// records the exception's type name as the failure origin; the single-failure
+// re-raise then surfaces the original exception, not a wrapper.
 TEST(Diagnostics, NonStandardExceptionOrigin) {
     EXPECT_THROW(hegel::test([](hegel::TestCase&) { throw 42; },
                              with_verbosity(hegel::Verbosity::Quiet)),
-                 std::runtime_error);
+                 int);
 }
 
 TEST(Diagnostics, InternalExceptionMessages) {

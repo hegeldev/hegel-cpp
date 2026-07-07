@@ -31,8 +31,8 @@ target_link_libraries(hegel_tests_common
 #   SOURCE       - relative path to the .cpp file
 #   USE_UTILS    - if set, link against hegel_tests_common (adds tests/ to
 #                  the include path). If not set, link against hegel directly.
-#   INTERNAL     - if set, also add src/ and nlohmann_json to the include
-#                  path (for unit tests against private headers).
+#   INTERNAL     - if set, also add src/ to the include path (for unit
+#                  tests against private headers).
 # -----------------------------------------------------------------------------
 function(hegel_add_test)
     cmake_parse_arguments(HAT
@@ -54,7 +54,6 @@ function(hegel_add_test)
         target_include_directories(${HAT_NAME}
             PRIVATE
                 ${PROJECT_SOURCE_DIR}/src
-                $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>
         )
     endif()
 
@@ -78,7 +77,6 @@ hegel_add_test(NAME property_tests SOURCE property_tests.cpp)
 hegel_add_test(NAME test_settings SOURCE test_settings.cpp)
 hegel_add_test(NAME test_hegel SOURCE test_hegel.cpp)
 hegel_add_test(NAME test_random SOURCE test_random.cpp)
-hegel_add_test(NAME test_no_nlohmann_include SOURCE test_no_nlohmann_include.cpp)
 hegel_add_test(NAME test_compose SOURCE test_compose.cpp)
 hegel_add_test(NAME test_composite_fallback SOURCE test_composite_fallback.cpp)
 hegel_add_test(NAME test_diagnostics SOURCE test_diagnostics.cpp)

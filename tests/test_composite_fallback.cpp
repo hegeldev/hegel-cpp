@@ -82,6 +82,16 @@ TEST(CompositeFallback, SampledFromEmptyThrows) {
     EXPECT_THROW(gs::sampled_from(std::vector<int>{}), std::invalid_argument);
 }
 
+TEST(CompositeFallback, UniqueVectorsRequireEqualityComparable) {
+    struct NoEq {
+        int value;
+    };
+    auto elements = gs::compose(
+        [](const hegel::TestCase& tc) { return NoEq{tc.draw(always_even())}; });
+    EXPECT_THROW(gs::vectors(elements, {.unique = true}),
+                 std::invalid_argument);
+}
+
 TEST(CompositeFallback, SampledFromStringLiterals) {
     hegel::test(
         [](hegel::TestCase& tc) {

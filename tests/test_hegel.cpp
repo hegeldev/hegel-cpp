@@ -100,10 +100,10 @@ TEST(JustOverload, ExplicitCharPtrKeepsCharPtr) {
 }
 
 namespace {
-    // A type with no to_json/from_json, no public fields for reflect-cpp,
-    // and no default constructor - unambiguously non-serializable. just()
-    // and sampled_from() never send T over the wire, so this must still
-    // work.
+    // A type with no public fields for reflect-cpp and no default
+    // constructor - unambiguously non-serializable. just() and
+    // sampled_from() never hand T to the engine (they only draw an index,
+    // if anything), so this must still work.
     class OpaqueHandle {
       public:
         explicit OpaqueHandle(int id) : id_(id) {}
@@ -138,11 +138,10 @@ TEST(NonSerializable, SampledFromWorksWithOpaqueType) {
     });
 }
 
-// Generated floats travel back from the engine as CBOR, which encodes IEEE-754
-// values natively. NaN and +/-infinity must therefore survive the round-trip
-// rather than being flattened (a JSON-text hop would lose them). Drawing an
-// unbounded float (allow_nan / allow_infinity default to true) and observing
-// each special value across the run pins this property down.
+// An unbounded float draw (allow_nan / allow_infinity default to true) must
+// actually produce the IEEE-754 special values, not flatten them somewhere
+// between the engine and the caller. Observing each special value across the
+// run pins this property down.
 TEST(Floats, NanAndInfinitySurviveGeneration) {
     bool saw_nan = false;
     bool saw_pos_inf = false;
@@ -162,7 +161,7 @@ TEST(Floats, NanAndInfinitySurviveGeneration) {
                         .seed = 1,
                         .database = hegel::Database::disabled()});
 
-    EXPECT_TRUE(saw_nan) << "NaN never generated; CBOR round-trip may drop it";
+    EXPECT_TRUE(saw_nan) << "NaN never generated";
     EXPECT_TRUE(saw_pos_inf) << "+infinity never generated";
     EXPECT_TRUE(saw_neg_inf) << "-infinity never generated";
 }

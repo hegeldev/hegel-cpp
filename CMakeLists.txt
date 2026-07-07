@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(hegel-cpp VERSION 0.4.0 LANGUAGES CXX)
+project(hegel-cpp VERSION 0.6.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -28,6 +28,9 @@ set(CMAKE_CXX_STANDARD 20)
 if(HEGEL_COVERAGE)
     add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
     add_link_options(-fprofile-instr-generate)
+    # Lets test binaries that die via abort() (uncaught exceptions) flush
+    # their profile data manually; see tests/subject_main.cpp.
+    add_compile_definitions(HEGEL_COVERAGE_BUILD)
 endif()
 
 # Acquire libhegel (Hegel's native engine, called in-process via its C ABI)
@@ -56,17 +59,8 @@ if(HEGEL_REFLECTION)
     set(REFLECTCPP_INSTALL ON)
 endif()
 
-set(NLOHMANN_JSON_VERSION "3.12.0" CACHE STRING "nlohmann/json version tag")
-FetchContent_Declare(
-    nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v${NLOHMANN_JSON_VERSION}
-)
-
 if(HEGEL_REFLECTION)
-    FetchContent_MakeAvailable(reflectcpp nlohmann_json)
-else()
-    FetchContent_MakeAvailable(nlohmann_json)
+    FetchContent_MakeAvailable(reflectcpp)
 endif()
 
 add_library(hegel
@@ -74,9 +68,7 @@ add_library(hegel
     src/hegel.cpp
     src/generators.cpp
     src/test_case.cpp
-    src/protocol.cpp
     src/engine.cpp
-    src/json.cpp
 )
 target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -85,7 +77,6 @@ target_include_directories(hegel PUBLIC
     PRIVATE
         src
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libhegel>
-        $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>
 )
 target_link_libraries(hegel
   PUBLIC

@@ -5,9 +5,12 @@ Checks over the library sources (src/, include/hegel/):
 
 1. Coverage gate: every line that is NOT excluded from coverage must be
    covered. Lines that carry no testable behaviour are tolerated without a
-   marker — purely structural lines (lone braces / punctuation and 
-   unreachability statements (std::unreachable, __builtin_unreachable, 
-   assert(false), abort()).
+   marker — purely structural lines (lone braces / punctuation, optionally
+   with a trailing // comment), comment-only lines, and unreachability
+   statements (std::unreachable, __builtin_unreachable, assert(false),
+   abort()). Comment-only lines matter because clang's coverage regions span
+   source ranges: a comment inside an uninstantiated header function gets a
+   zero-count DA record.
 
 2. Stale-exclusion check: an inline `// GCOVR_EXCL_LINE` on a line that is in
    fact covered is a failure — the marker should be removed (and the ratchet
@@ -43,7 +46,7 @@ SOURCE_GLOBS = ("*.cpp", "*.h")
 EXCL_LINE = re.compile(r"//\s*GCOVR_EXCL_LINE\b")
 EXCL_START = re.compile(r"//\s*GCOVR_EXCL_START\b")
 EXCL_STOP = re.compile(r"//\s*GCOVR_EXCL_STOP\b")
-STRUCTURAL = re.compile(r"^[{}()\[\];,\s]*$")
+STRUCTURAL = re.compile(r"^[{}()\[\];,\s]*(//.*)?$")
 # An unreachability statement: by construction it is never executed, so it is
 # allowed uncovered without a marker (C++ analog of unreachable!()/todo!()).
 UNREACHABLE = re.compile(

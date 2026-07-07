@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <limits>
 
 #include "hegel/config.h"
@@ -48,23 +49,34 @@ namespace hegel::generators {
                       "integers<T> requires an integral type T");
 
       public:
-        explicit IntegerGenerator(const IntegersParams<T>& params = {}) {
-            T min_val =
-                params.min_value.value_or(std::numeric_limits<T>::min());
-            T max_val =
-                params.max_value.value_or(std::numeric_limits<T>::max());
-            if (min_val > max_val) {
+        explicit IntegerGenerator(const IntegersParams<T>& params = {})
+            : min_(params.min_value.value_or(std::numeric_limits<T>::min())),
+              max_(params.max_value.value_or(std::numeric_limits<T>::max())) {
+            if (min_ > max_) {
                 throw std::invalid_argument(
                     "Cannot have max_value < min_value");
             }
-            this->basic_.emplace(BasicGenerator<T>{{{"type", "integer"},
-                                                    {"min_value", min_val},
-                                                    {"max_value", max_val}},
-                                                   &default_parse_raw<T>});
         }
+
+        T do_draw(const TestCase& tc) const override {
+            if constexpr (std::is_signed_v<T>) {
+                return static_cast<T>(hegel::internal::draw_integer(
+                    tc, static_cast<int64_t>(min_),
+                    static_cast<int64_t>(max_)));
+            } else {
+                return static_cast<T>(hegel::internal::draw_integer_unsigned(
+                    tc, static_cast<uint64_t>(min_),
+                    static_cast<uint64_t>(max_)));
+            }
+        }
+
+      private:
+        T min_;
+        T max_;
     };
 
-    // Concrete IGenerator<T> subclass produced by floats().
+    // Concrete IGenerator<T> subclass produced by floats(). Resolves the
+    // engine draw parameters once at construction.
     template <typename T>
     HEGEL_REQUIRES(std::is_floating_point_v<T>)
     class FloatGenerator : public IGenerator<T> {
@@ -73,12 +85,12 @@ namespace hegel::generators {
 
       public:
         explicit FloatGenerator(const FloatsParams<T>& params = {}) {
-            constexpr int width = sizeof(T) * 8;
             bool has_min = params.min_value.has_value();
             bool has_max = params.max_value.has_value();
-            bool nan = params.allow_nan.value_or(!has_min && !has_max);
-            bool inf = params.allow_infinity.value_or(!has_min || !has_max);
-            if (nan && (has_min || has_max)) {
+            allow_nan_ = params.allow_nan.value_or(!has_min && !has_max);
+            allow_infinity_ =
+                params.allow_infinity.value_or(!has_min || !has_max);
+            if (allow_nan_ && (has_min || has_max)) {
                 throw std::invalid_argument(
                     "Cannot have allow_nan=true with min_value or max_value");
             }
@@ -86,26 +98,41 @@ namespace hegel::generators {
                 throw std::invalid_argument(
                     "Cannot have max_value < min_value");
             }
-            if (inf && has_min && has_max) {
+            if (allow_infinity_ && has_min && has_max) {
                 throw std::invalid_argument(
                     "Cannot have allow_infinity=true with both min_value and "
                     "max_value");
             }
 
-            hegel::internal::json::json schema = {
-                {"type", "float"},
-                {"exclude_min", params.exclude_min},
-                {"exclude_max", params.exclude_max},
-                {"allow_nan", nan},
-                {"allow_infinity", inf},
-                {"width", width}};
-            if (params.min_value)
-                schema["min_value"] = *params.min_value;
-            if (params.max_value)
-                schema["max_value"] = *params.max_value;
-            this->basic_.emplace(
-                BasicGenerator<T>{std::move(schema), &default_parse_raw<T>});
+            // An unset bound is the widest the draw allows: infinite when
+            // infinities may be drawn, else the type's finite extreme.
+            min_ = has_min ? static_cast<double>(*params.min_value)
+                   : allow_infinity_
+                       ? -std::numeric_limits<double>::infinity()
+                       : static_cast<double>(std::numeric_limits<T>::lowest());
+            max_ = has_max ? static_cast<double>(*params.max_value)
+                   : allow_infinity_
+                       ? std::numeric_limits<double>::infinity()
+                       : static_cast<double>(std::numeric_limits<T>::max());
+            exclude_min_ = params.exclude_min;
+            exclude_max_ = params.exclude_max;
         }
+
+        T do_draw(const TestCase& tc) const override {
+            constexpr uint32_t width = sizeof(T) * 8;
+            return static_cast<T>(hegel::internal::draw_float(
+                tc, width, min_, max_, allow_nan_, allow_infinity_,
+                exclude_min_, exclude_max_,
+                static_cast<double>(std::numeric_limits<T>::denorm_min())));
+        }
+
+      private:
+        double min_;
+        double max_;
+        bool allow_nan_;
+        bool allow_infinity_;
+        bool exclude_min_;
+        bool exclude_max_;
     };
     /// @endcond
 

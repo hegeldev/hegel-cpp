@@ -19,6 +19,7 @@ TEST(Compose, DeducesTypeFromLambdaReturn) {
         return Point{x, y};
     });
     static_assert(std::is_same_v<decltype(gen), gs::Generator<Point>>);
+    static_assert(std::is_same_v<decltype(gen)::value_type, Point>);
 
     hegel::test([&gen](hegel::TestCase& tc) { tc.draw(gen); });
 }

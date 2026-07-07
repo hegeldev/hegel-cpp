@@ -15,7 +15,7 @@ namespace hegel {
         Quiet,   ///< Minimal output (used by TUI)
         Normal,  ///< Default - standard test output
         Verbose, ///< More detailed output
-        Debug    ///< Maximum verbosity + request/response logging
+        Debug    ///< Maximum verbosity + engine-side shrinker tracing
     };
 
     /**
@@ -167,6 +167,11 @@ namespace hegel {
         /// across executions. Defaults to true when a CI environment is
         /// detected, false otherwise.
         bool derandomize = internal::in_ci();
+
+        /// If true, keep generating after the first failure to surface
+        /// additional distinct bugs, and report all of them. If false (the
+        /// default), stop the run at the first failing example.
+        bool report_multiple_failures = false;
 
         /// Configure the Hegel database. See Database. Defaults to a database
         /// at `.hegel`, or disabled when a CI environment is detected.

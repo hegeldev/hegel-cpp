@@ -7,9 +7,10 @@
 namespace gs = hegel::generators;
 
 // Draw every format/string generator end-to-end. The draw is the assertion: if
-// libhegel rejects a schema it returns an error and draw() throws, failing the
-// property (and the test). The *distribution* of values is libhegel's concern;
-// here we only confirm each schema is accepted.
+// libhegel rejects a generator's parameters it returns an error and the
+// construction or draw throws, failing the property (and the test). The
+// *distribution* of values is libhegel's concern; here we only confirm each
+// parameterization is accepted.
 TEST(Formats, DrawAll) {
     hegel::test(
         [](hegel::TestCase& tc) {
@@ -28,8 +29,8 @@ TEST(Formats, DrawAll) {
             (void)tc.draw(gs::ip_addresses());
 
             // characters() with each filtering field. Values are ones the
-            // engine's schema parser accepts; categories and exclude_categories
-            // are mutually exclusive, so they go in separate draws.
+            // engine accepts; categories and exclude_categories are mutually
+            // exclusive, so they go in separate draws.
             (void)tc.draw(gs::characters({.codec = "ascii",
                                           .min_codepoint = 97,
                                           .max_codepoint = 122,
@@ -55,6 +56,16 @@ TEST(Formats, DrawAll) {
 TEST(Formats, AlphabetWithCharFilteringThrows) {
     EXPECT_THROW(gs::text({.codec = "ascii", .alphabet = "abc"}),
                  std::invalid_argument);
+}
+
+// The engine validates string-generator parameters at construction; its
+// rejections surface as std::invalid_argument.
+TEST(Formats, InvalidRegexThrows) {
+    EXPECT_THROW(gs::from_regex("("), std::invalid_argument);
+}
+
+TEST(Formats, UnknownCodecThrows) {
+    EXPECT_THROW(gs::text({.codec = "no-such-codec"}), std::invalid_argument);
 }
 
 int main(int argc, char** argv) {

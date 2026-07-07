@@ -1,39 +1,42 @@
 #pragma once
 
+#include <cstdint>
+#include <initializer_list>
+#include <optional>
+#include <string>
+#include <tuple>
 #include <variant>
+#include <vector>
 
 #include "hegel/core.h"
-#include "hegel/generators/numeric.h"
-#include "hegel/generators/primitives.h"
 
 namespace hegel::generators {
 
     /// @cond INTERNAL
-    // Concrete IGenerator for sampled_from(). Schema asks the engine for an
-    // integer index into the captured `elements_` vector; the client parser
-    // does the lookup.
+    // Concrete IGenerator for sampled_from(). Draws an index into the
+    // captured `elements_` vector and returns that element.
     template <typename T> class SampledFromGenerator : public IGenerator<T> {
       public:
-        explicit SampledFromGenerator(std::vector<T> elements) {
-            if (elements.empty()) {
+        explicit SampledFromGenerator(std::vector<T> elements)
+            : elements_(std::move(elements)) {
+            if (elements_.empty()) {
                 throw std::invalid_argument(
                     "sampled_from requires a non-empty vector");
             }
-            hegel::internal::json::json schema = {
-                {"type", "integer"},
-                {"min_value", 0},
-                {"max_value", static_cast<int64_t>(elements.size() - 1)}};
-            this->basic_.emplace(BasicGenerator<T>{
-                std::move(schema),
-                [elements = std::move(elements)](
-                    const hegel::internal::json::json_raw_ref& raw) {
-                    return elements[static_cast<size_t>(raw.get_int64_t())];
-                }});
         }
+
+        T do_draw(const TestCase& tc) const override {
+            int64_t index = hegel::internal::draw_integer(
+                tc, 0, static_cast<int64_t>(elements_.size() - 1));
+            return elements_[static_cast<size_t>(index)];
+        }
+
+      private:
+        std::vector<T> elements_;
     };
 
-    // Concrete IGenerator for one_of(). Schema path requires every branch
-    // to be basic; fallback draws an index and delegates to that branch.
+    // Concrete IGenerator for one_of(). Draws a branch index inside a
+    // one_of span, then delegates to that branch.
     template <typename T> class OneOfGenerator : public IGenerator<T> {
       public:
         explicit OneOfGenerator(std::vector<Generator<T>> gens)
@@ -42,42 +45,16 @@ namespace hegel::generators {
                 throw std::invalid_argument(
                     "one_of requires a non-empty vector of generators");
             }
-            std::vector<BasicGenerator<T>> basics;
-            basics.reserve(gens_.size());
-            for (const auto& gen : gens_) {
-                const auto& b = gen.basic();
-                if (!b)
-                    return;
-                basics.push_back(*b);
-            }
-
-            // `one_of` responses arrive as `[index, value]`; the index selects
-            // which branch's parser to apply.
-            hegel::internal::json::json children =
-                hegel::internal::json::json::array();
-            for (const auto& b : basics) {
-                children.push_back(b.schema);
-            }
-            hegel::internal::json::json schema = {{"type", "one_of"},
-                                                  {"generators", children}};
-
-            this->basic_.emplace(BasicGenerator<T>{
-                std::move(schema),
-                [basics = std::move(basics)](
-                    const hegel::internal::json::json_raw_ref& raw) -> T {
-                    size_t idx = static_cast<size_t>(raw[0].get_int64_t());
-                    return basics[idx].parse_raw(raw[1]);
-                }});
         }
 
         T do_draw(const TestCase& tc) const override {
-            if (const auto& basic = this->basic()) {
-                return basic->do_draw(tc);
-            }
-            auto idx = integers<size_t>(
-                           {.min_value = 0, .max_value = gens_.size() - 1})
-                           .do_draw(tc);
-            return gens_[idx].do_draw(tc);
+            namespace hi = hegel::internal;
+            hi::start_span(tc, hi::SpanLabel::OneOf);
+            int64_t index =
+                hi::draw_integer(tc, 0, static_cast<int64_t>(gens_.size() - 1));
+            T result = gens_[static_cast<size_t>(index)].do_draw(tc);
+            hi::stop_span(tc);
+            return result;
         }
 
       private:
@@ -175,7 +152,8 @@ namespace hegel::generators {
                                   const TestCase& tc) {
             if constexpr (I < std::tuple_size_v<GenTuple>) {
                 if (idx == I) {
-                    return std::get<I>(gens).do_draw(tc);
+                    return Variant{std::in_place_index<I>,
+                                   std::get<I>(gens).do_draw(tc)};
                 }
                 return draw_variant_impl<Variant, GenTuple, I + 1>(gens, idx,
                                                                    tc);
@@ -186,130 +164,50 @@ namespace hegel::generators {
             }
         }
 
-        template <typename Variant, typename Parsers, size_t I = 0>
-        Variant
-        parse_variant_impl(const Parsers& parsers, size_t idx,
-                           const hegel::internal::json::json_raw_ref& raw) {
-            if constexpr (I < std::tuple_size_v<Parsers>) {
-                if (idx == I) {
-                    return Variant{std::in_place_index<I>,
-                                   std::get<I>(parsers)(raw)};
-                }
-                return parse_variant_impl<Variant, Parsers, I + 1>(parsers, idx,
-                                                                   raw);
-            } else {
-                // Unreachable: idx comes from the engine's [index, value] pair
-                // and is always a valid branch index in [0, N).
-                return Variant{}; // GCOVR_EXCL_LINE
-            }
-        }
-
     } // namespace detail
 
-    // Concrete IGenerator for variant(). Schema path requires every branch
-    // to be basic; uses the same one_of protocol as OneOfGenerator, but
-    // branches can have heterogeneous types so each branch has its own
-    // typed parser.
+    // Concrete IGenerator for variant(). Draws a branch index inside a
+    // one_of span; branches can have heterogeneous types.
     template <typename... Ts>
     class VariantGenerator : public IGenerator<std::variant<Ts...>> {
       public:
         using Result = std::variant<Ts...>;
 
         explicit VariantGenerator(Generator<Ts>... gens)
-            : gens_(std::move(gens)...) {
-            auto basics = std::apply(
-                [](const auto&... g) { return std::make_tuple(g.basic()...); },
-                gens_);
-            bool all_basic = std::apply(
-                [](const auto&... b) { return (b.has_value() && ...); },
-                basics);
-            if (!all_basic)
-                return;
-
-            hegel::internal::json::json children =
-                hegel::internal::json::json::array();
-            std::apply(
-                [&children](const auto&... b) {
-                    (children.push_back(b->schema), ...);
-                },
-                basics);
-
-            hegel::internal::json::json schema = {{"type", "one_of"},
-                                                  {"generators", children}};
-
-            auto parsers = std::apply(
-                [](const auto&... b) { return std::make_tuple(b->parse...); },
-                basics);
-
-            this->basic_.emplace(BasicGenerator<Result>{
-                std::move(schema),
-                [parsers = std::move(parsers)](
-                    const hegel::internal::json::json_raw_ref& raw) -> Result {
-                    size_t idx = static_cast<size_t>(raw[0].get_int64_t());
-                    return detail::parse_variant_impl<Result,
-                                                      decltype(parsers)>(
-                        parsers, idx, raw[1]);
-                }});
-        }
+            : gens_(std::move(gens)...) {}
 
         Result do_draw(const TestCase& tc) const override {
-            if (const auto& basic = this->basic()) {
-                return basic->do_draw(tc);
-            }
+            namespace hi = hegel::internal;
             constexpr size_t N = sizeof...(Ts);
-            auto index_gen =
-                integers<size_t>({.min_value = 0, .max_value = N - 1});
-            size_t idx = index_gen.do_draw(tc);
-            return detail::draw_variant_impl<Result, decltype(gens_)>(gens_,
-                                                                      idx, tc);
+            hi::start_span(tc, hi::SpanLabel::OneOf);
+            int64_t index =
+                hi::draw_integer(tc, 0, static_cast<int64_t>(N - 1));
+            Result result = detail::draw_variant_impl<Result, decltype(gens_)>(
+                gens_, static_cast<size_t>(index), tc);
+            hi::stop_span(tc);
+            return result;
         }
 
       private:
         std::tuple<Generator<Ts>...> gens_;
     };
 
-    // Concrete IGenerator for optional(). Schema path wraps the inner's
-    // schema in a one_of with a null branch; fallback uses booleans() to
-    // gate presence.
+    // Concrete IGenerator for optional(). A boolean draw inside an
+    // optional span gates presence; false shrinks toward nullopt.
     template <typename T>
     class OptionalGenerator : public IGenerator<std::optional<T>> {
       public:
-        explicit OptionalGenerator(Generator<T> gen) : gen_(std::move(gen)) {
-            const auto& basic = gen_.basic();
-            if (!basic)
-                return;
-
-            hegel::internal::json::json generators =
-                hegel::internal::json::json::array();
-            generators.push_back(hegel::internal::json::json{
-                {"type", "constant"}, {"value", nullptr}});
-            generators.push_back(basic->schema);
-            hegel::internal::json::json schema = {{"type", "one_of"},
-                                                  {"generators", generators}};
-
-            auto parse = basic->parse;
-            this->basic_.emplace(BasicGenerator<std::optional<T>>{
-                std::move(schema),
-                [parse = std::move(parse)](
-                    const hegel::internal::json::json_raw_ref& raw)
-                    -> std::optional<T> {
-                    size_t idx = static_cast<size_t>(raw[0].get_int64_t());
-                    if (idx == 0) {
-                        return std::nullopt;
-                    }
-                    return parse(raw[1]);
-                }});
-        }
+        explicit OptionalGenerator(Generator<T> gen) : gen_(std::move(gen)) {}
 
         std::optional<T> do_draw(const TestCase& tc) const override {
-            if (const auto& basic = this->basic()) {
-                return basic->do_draw(tc);
+            namespace hi = hegel::internal;
+            hi::start_span(tc, hi::SpanLabel::Optional);
+            std::optional<T> result;
+            if (hi::draw_boolean(tc, 0.5)) {
+                result = gen_.do_draw(tc);
             }
-            bool is_none = booleans().do_draw(tc);
-            if (is_none) {
-                return std::nullopt;
-            }
-            return gen_.do_draw(tc);
+            hi::stop_span(tc);
+            return result;
         }
 
       private:

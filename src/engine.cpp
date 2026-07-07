@@ -1,24 +1,35 @@
 #include <engine.h>
 
 #include <hegel/internal.h>
-#include <hegel/json.h>
 #include <hegel/test_case.h>
 
-#include "json_impl.h"
-
 #include <hegel.h>
-#include <protocol.h>
 #include <test_case.h>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
-#include <utility>
 #include <vector>
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+
 namespace hegel::impl {
+
+    hegel_context_t* thread_context() {
+        struct ThreadContext {
+            hegel_context_t* ctx = hegel_context_new();
+            ~ThreadContext() { hegel_context_free(ctx); }
+        };
+        thread_local ThreadContext context;
+        return context.ctx;
+    }
+
     // GCOVR_EXCL_START
 
     std::string last_error(hegel_context_t* ctx) {
@@ -28,6 +39,31 @@ namespace hegel::impl {
 
     namespace {
 
+        const char* rc_label(hegel_result_t rc) {
+            switch (rc) {
+            case HEGEL_E_STOP_TEST:
+                return "engine stopped test";
+            case HEGEL_E_ASSUME:
+                return "assumption rejected";
+            case HEGEL_E_BACKEND:
+                return "backend error";
+            case HEGEL_E_INVALID_HANDLE:
+                return "invalid handle";
+            case HEGEL_E_INVALID_ARG:
+                return "invalid argument";
+            case HEGEL_E_ALREADY_COMPLETE:
+                return "test case already complete";
+            case HEGEL_E_NOT_COMPLETE:
+                return "previous test case not complete";
+            case HEGEL_E_INTERNAL:
+                return "internal error";
+            case HEGEL_E_CONCURRENT_USE:
+                return "concurrent use of test case handle";
+            default:
+                return "unknown error";
+            }
+        }
+
         // Translate a libhegel return code into success or a thrown
         // diagnostic, deriving the label from the code and appending the
         // context's last-error message.
@@ -35,38 +71,8 @@ namespace hegel::impl {
             if (rc == HEGEL_OK) {
                 return;
             }
-            const char* label;
-            switch (rc) {
-            case HEGEL_E_STOP_TEST:
-                label = "engine stopped test";
-                break;
-            case HEGEL_E_ASSUME:
-                label = "assumption rejected";
-                break;
-            case HEGEL_E_BACKEND:
-                label = "backend error";
-                break;
-            case HEGEL_E_INVALID_HANDLE:
-                label = "invalid handle";
-                break;
-            case HEGEL_E_INVALID_ARG:
-                label = "invalid argument";
-                break;
-            case HEGEL_E_ALREADY_COMPLETE:
-                label = "test case already complete";
-                break;
-            case HEGEL_E_NOT_COMPLETE:
-                label = "previous test case not complete";
-                break;
-            case HEGEL_E_INTERNAL:
-                label = "internal error";
-                break;
-            default:
-                label = "unknown error";
-                break;
-            }
             std::string msg = last_error(ctx);
-            throw std::runtime_error(std::string(label) +
+            throw std::runtime_error(std::string(rc_label(rc)) +
                                      (msg.empty() ? "" : ": " + msg));
         }
 
@@ -90,6 +96,11 @@ namespace hegel::impl {
     void settings_set_derandomize(hegel_context_t* ctx, hegel_settings_t* s,
                                   bool derandomize) {
         check_rc(ctx, hegel_settings_set_derandomize(ctx, s, derandomize));
+    }
+
+    void settings_set_report_multiple_failures(hegel_context_t* ctx,
+                                               hegel_settings_t* s, bool yes) {
+        check_rc(ctx, hegel_settings_set_report_multiple_failures(ctx, s, yes));
     }
 
     void settings_set_database(hegel_context_t* ctx, hegel_settings_t* s,
@@ -134,9 +145,8 @@ namespace hegel::impl {
         check_rc(ctx, hegel_mark_complete(ctx, tc, status, origin));
     }
 
-    const hegel_run_result_t* run_result(hegel_context_t* ctx,
-                                         hegel_run_t* run) {
-        const hegel_run_result_t* result = nullptr;
+    hegel_run_result_t* run_result(hegel_context_t* ctx, hegel_run_t* run) {
+        hegel_run_result_t* result = nullptr;
         check_rc(ctx, hegel_run_result(ctx, run, &result));
         return result;
     }
@@ -162,10 +172,10 @@ namespace hegel::impl {
         return count;
     }
 
-    const hegel_failure_t* run_result_failure(hegel_context_t* ctx,
-                                              const hegel_run_result_t* result,
-                                              size_t index) {
-        const hegel_failure_t* failure = nullptr;
+    hegel_failure_t* run_result_failure(hegel_context_t* ctx,
+                                        const hegel_run_result_t* result,
+                                        size_t index) {
+        hegel_failure_t* failure = nullptr;
         check_rc(ctx, hegel_run_result_failure(ctx, result, index, &failure));
         return failure;
     }
@@ -177,67 +187,435 @@ namespace hegel::impl {
         return blob;
     }
 
+    const char* failure_origin(hegel_context_t* ctx,
+                               const hegel_failure_t* failure) {
+        const char* origin = nullptr;
+        check_rc(ctx, hegel_failure_origin(ctx, failure, &origin));
+        return origin;
+    }
+
     // GCOVR_EXCL_STOP
+
+    namespace {
+
+        // The thread's context, the borrowed test-case handle, and the
+        // verbosity flags for one draw call; every primitive below funnels
+        // through here.
+        struct DrawScope {
+            hegel_context_t* ctx;
+            hegel_test_case_t* tc;
+            bool log;
+
+            explicit DrawScope(const TestCase& tc_obj) {
+                auto* data = tc_obj.data();
+                ctx = thread_context();
+                tc = data->tc;
+                log = data->should_log();
+            }
+
+            // Route a draw's return code: OK falls through, budget
+            // exhaustion and rejection unwind the test body via their
+            // dedicated exceptions, anything else is an engine failure.
+            void check_draw(hegel_result_t rc, const char* what) const {
+                if (rc == HEGEL_OK) {
+                    return;
+                }
+                if (rc == HEGEL_E_STOP_TEST) {
+                    throw internal::HegelStopTest();
+                }
+                if (rc == HEGEL_E_ASSUME) {
+                    throw internal::HegelReject();
+                }
+                // Engine-level failure; not reachable without fault
+                // injection into the C ABI.
+                // GCOVR_EXCL_START
+                std::string msg = last_error(ctx);
+                throw std::runtime_error(std::string(what) + " failed (" +
+                                         rc_label(rc) +
+                                         (msg.empty() ? ")" : "): " + msg));
+                // GCOVR_EXCL_STOP
+            }
+
+            // Surface the drawn value per the verbosity policy: on the
+            // final replay of a failure at Normal, on every case at
+            // Verbose and above.
+            void log_generated(const std::string& value) const {
+                if (log) {
+                    std::cerr << "Generated: " << value << "\n";
+                }
+            }
+        };
+
+        // RAII for the engine-allocated draw buffers.
+        struct BytesResultGuard {
+            hegel_context_t* ctx;
+            hegel_generate_bytes_result_t result{nullptr, 0};
+            ~BytesResultGuard() {
+                hegel_generate_bytes_result_free(ctx, &result);
+            }
+        };
+
+        struct StringResultGuard {
+            hegel_context_t* ctx;
+            hegel_generate_string_result_t result{nullptr, 0};
+            ~StringResultGuard() {
+                hegel_generate_string_result_free(ctx, &result);
+            }
+        };
+
+        // Raw field dumps for the draw trace; presentation (ISO 8601) is
+        // the generators' concern.
+        std::string raw_fields(const hegel_date_t& d) {
+            return "{year=" + std::to_string(d.year) +
+                   ", month=" + std::to_string(d.month) +
+                   ", day=" + std::to_string(d.day) + "}";
+        }
+
+        std::string raw_fields(const hegel_time_t& t) {
+            return "{hour=" + std::to_string(t.hour) +
+                   ", minute=" + std::to_string(t.minute) +
+                   ", second=" + std::to_string(t.second) +
+                   ", microsecond=" + std::to_string(t.microsecond) + "}";
+        }
+
+        // Construct a string generator, converting an engine rejection into
+        // std::invalid_argument at generator-construction time.
+        template <typename F>
+        hegel_string_generator_t* make_string_generator(const char* what,
+                                                        F&& build) {
+            hegel_context_t* ctx = thread_context();
+            hegel_string_generator_t* generator = nullptr;
+            hegel_result_t rc = build(ctx, &generator);
+            if (rc != HEGEL_OK) {
+                std::string msg = last_error(ctx);
+                throw std::invalid_argument(
+                    std::string(what) +
+                    (msg.empty() ? ": invalid arguments" : ": " + msg));
+            }
+            return generator;
+        }
+
+    } // namespace
+
+    hegel_string_generator_t*
+    string_generator_text(const TextGeneratorParams& params) {
+        std::vector<const char*> categories;
+        std::vector<const char*> exclude_categories;
+        if (params.categories) {
+            for (const auto& c : *params.categories) {
+                categories.push_back(c.c_str());
+            }
+        }
+        if (params.exclude_categories) {
+            for (const auto& c : *params.exclude_categories) {
+                exclude_categories.push_back(c.c_str());
+            }
+        }
+        auto chars = [](const std::string* s) {
+            return s ? reinterpret_cast<const uint8_t*>(s->data()) : nullptr;
+        };
+        return make_string_generator(
+            "text", [&](hegel_context_t* ctx, hegel_string_generator_t** out) {
+                return hegel_string_generator_text(
+                    ctx, params.min_size, params.max_size, params.codec,
+                    params.min_codepoint, params.max_codepoint,
+                    params.categories ? categories.data() : nullptr,
+                    categories.size(),
+                    params.exclude_categories ? exclude_categories.data()
+                                              : nullptr,
+                    exclude_categories.size(), chars(params.include_characters),
+                    params.include_characters
+                        ? params.include_characters->size()
+                        : 0,
+                    chars(params.exclude_characters),
+                    params.exclude_characters
+                        ? params.exclude_characters->size()
+                        : 0,
+                    out);
+            });
+    }
+
+    hegel_string_generator_t* string_generator_regex(const char* pattern,
+                                                     bool fullmatch) {
+        return make_string_generator(
+            "from_regex",
+            [&](hegel_context_t* ctx, hegel_string_generator_t** out) {
+                return hegel_string_generator_regex(ctx, pattern, fullmatch,
+                                                    nullptr, out);
+            });
+    }
+
+    hegel_string_generator_t* string_generator_email() {
+        return make_string_generator(
+            "emails", [](hegel_context_t* ctx, hegel_string_generator_t** out) {
+                return hegel_string_generator_email(ctx, out);
+            });
+    }
+
+    hegel_string_generator_t* string_generator_url() {
+        return make_string_generator(
+            "urls", [](hegel_context_t* ctx, hegel_string_generator_t** out) {
+                return hegel_string_generator_url(ctx, out);
+            });
+    }
+
+    hegel_string_generator_t* string_generator_domain(uint64_t max_length) {
+        return make_string_generator(
+            "domains",
+            [&](hegel_context_t* ctx, hegel_string_generator_t** out) {
+                return hegel_string_generator_domain(ctx, max_length, out);
+            });
+    }
+
+    void string_generator_free(hegel_string_generator_t* generator) {
+        hegel_string_generator_free(thread_context(), generator);
+    }
+
+    std::string draw_string(const TestCase& tc,
+                            const hegel_string_generator_t* generator) {
+        DrawScope scope(tc);
+        StringResultGuard guard{scope.ctx};
+        scope.check_draw(hegel_generate_string(scope.ctx, scope.tc, generator,
+                                               &guard.result),
+                         "hegel_generate_string");
+        std::string value(guard.result.data, guard.result.len);
+        scope.log_generated("\"" + value + "\"");
+        return value;
+    }
+
+    std::vector<uint8_t> draw_bytes(const TestCase& tc, uint64_t min_size,
+                                    uint64_t max_size) {
+        DrawScope scope(tc);
+        BytesResultGuard guard{scope.ctx};
+        scope.check_draw(hegel_generate_bytes(scope.ctx, scope.tc, min_size,
+                                              max_size, &guard.result),
+                         "hegel_generate_bytes");
+        std::vector<uint8_t> value(guard.result.data,
+                                   guard.result.data + guard.result.len);
+        scope.log_generated("<" + std::to_string(value.size()) + " bytes>");
+        return value;
+    }
+
+    hegel_date_t draw_date(const TestCase& tc) {
+        DrawScope scope(tc);
+        hegel_date_t value{};
+        scope.check_draw(
+            hegel_generate_date(scope.ctx, scope.tc, hegel_date_t{1, 1, 1},
+                                hegel_date_t{9999, 12, 31}, &value),
+            "hegel_generate_date");
+        scope.log_generated(raw_fields(value));
+        return value;
+    }
+
+    hegel_time_t draw_time(const TestCase& tc) {
+        DrawScope scope(tc);
+        hegel_time_t value{};
+        scope.check_draw(
+            hegel_generate_time(scope.ctx, scope.tc, hegel_time_t{0, 0, 0, 0},
+                                hegel_time_t{23, 59, 59, 999999}, &value),
+            "hegel_generate_time");
+        scope.log_generated(raw_fields(value));
+        return value;
+    }
+
+    hegel_datetime_t draw_datetime(const TestCase& tc) {
+        DrawScope scope(tc);
+        hegel_datetime_t value{};
+        hegel_datetime_t min_value{{1, 1, 1}, {0, 0, 0, 0}};
+        hegel_datetime_t max_value{{9999, 12, 31}, {23, 59, 59, 999999}};
+        scope.check_draw(hegel_generate_datetime(scope.ctx, scope.tc, min_value,
+                                                 max_value, &value),
+                         "hegel_generate_datetime");
+        scope.log_generated("{date=" + raw_fields(value.date) +
+                            ", time=" + raw_fields(value.time) + "}");
+        return value;
+    }
+
+    std::string draw_ipv4(const TestCase& tc) {
+        DrawScope scope(tc);
+        std::array<uint8_t, 4> bytes{};
+        scope.check_draw(hegel_generate_ipv4(scope.ctx, scope.tc, bytes.data()),
+                         "hegel_generate_ipv4");
+        char buf[INET_ADDRSTRLEN];
+        if (inet_ntop(AF_INET, bytes.data(), buf, sizeof(buf)) == nullptr) {
+            // 4 bytes always format; not reachable.
+            // GCOVR_EXCL_START
+            throw std::runtime_error("failed to format IPv4 address");
+            // GCOVR_EXCL_STOP
+        }
+        scope.log_generated(buf);
+        return buf;
+    }
+
+    std::string draw_ipv6(const TestCase& tc) {
+        DrawScope scope(tc);
+        std::array<uint8_t, 16> bytes{};
+        scope.check_draw(hegel_generate_ipv6(scope.ctx, scope.tc, bytes.data()),
+                         "hegel_generate_ipv6");
+        char buf[INET6_ADDRSTRLEN];
+        if (inet_ntop(AF_INET6, bytes.data(), buf, sizeof(buf)) == nullptr) {
+            // 16 bytes always format; not reachable.
+            // GCOVR_EXCL_START
+            throw std::runtime_error("failed to format IPv6 address");
+            // GCOVR_EXCL_STOP
+        }
+        scope.log_generated(buf);
+        return buf;
+    }
 
 } // namespace hegel::impl
 
 namespace hegel::internal {
 
-    // Draw a single value: hand the CBOR schema to libhegel's in-process
-    // engine via `hegel_generate` and decode the CBOR value it returns.
-    // Returns `{"result": <value>}` so callers (BasicGenerator::do_draw,
-    // HegelRandom) can keep reading `response["result"]`.
-    hegel::internal::json::json
-    generate_from_schema(const hegel::internal::json::json& schema,
-                         const hegel::TestCase& tc) {
-        auto* data = tc.data();
-        hegel_context_t* ctx = data->ctx;
-        hegel_test_case_t* htc = data->tc;
+    namespace {
 
-        const nlohmann::json& schema_raw = json::ImplUtil::raw(schema);
-        std::vector<uint8_t> schema_cbor =
-            impl::protocol::cbor_encode(schema_raw);
+        // The public SpanLabel enum mirrors the C ABI's label values so the
+        // public headers don't need the C header.
+        static_assert(static_cast<uint64_t>(SpanLabel::List) ==
+                      HEGEL_LABEL_LIST);
+        static_assert(static_cast<uint64_t>(SpanLabel::ListElement) ==
+                      HEGEL_LABEL_LIST_ELEMENT);
+        static_assert(static_cast<uint64_t>(SpanLabel::Set) == HEGEL_LABEL_SET);
+        static_assert(static_cast<uint64_t>(SpanLabel::SetElement) ==
+                      HEGEL_LABEL_SET_ELEMENT);
+        static_assert(static_cast<uint64_t>(SpanLabel::Map) == HEGEL_LABEL_MAP);
+        static_assert(static_cast<uint64_t>(SpanLabel::MapEntry) ==
+                      HEGEL_LABEL_MAP_ENTRY);
+        static_assert(static_cast<uint64_t>(SpanLabel::Tuple) ==
+                      HEGEL_LABEL_TUPLE);
+        static_assert(static_cast<uint64_t>(SpanLabel::OneOf) ==
+                      HEGEL_LABEL_ONE_OF);
+        static_assert(static_cast<uint64_t>(SpanLabel::Optional) ==
+                      HEGEL_LABEL_OPTIONAL);
+        static_assert(static_cast<uint64_t>(SpanLabel::FlatMap) ==
+                      HEGEL_LABEL_FLAT_MAP);
+        static_assert(static_cast<uint64_t>(SpanLabel::Filter) ==
+                      HEGEL_LABEL_FILTER);
+        static_assert(static_cast<uint64_t>(SpanLabel::Mapped) ==
+                      HEGEL_LABEL_MAPPED);
 
-        if (impl::protocol::protocol_debug_enabled()) {
-            std::cerr << "REQUEST: " << schema_raw.dump() << "\n";
+        // Two's-complement little-endian encoding of a uint64_t for the
+        // engine's big-integer draw: 9 bytes so the top bit is never read
+        // as a sign.
+        constexpr size_t big_u64_len = 9;
+
+        void encode_u64_le(uint64_t value, uint8_t* out) {
+            for (size_t i = 0; i < 8; ++i) {
+                out[i] = static_cast<uint8_t>(value >> (8 * i));
+            }
+            out[8] = 0;
         }
 
-        const uint8_t* out_value = nullptr;
+        uint64_t decode_u64_le(const uint8_t* in) {
+            uint64_t value = 0;
+            for (size_t i = 0; i < 8; ++i) {
+                value |= static_cast<uint64_t>(in[i]) << (8 * i);
+            }
+            return value;
+        }
+
+    } // namespace
+
+    void start_span(const TestCase& tc, SpanLabel label) {
+        impl::DrawScope scope(tc);
+        scope.check_draw(
+            hegel_start_span(scope.ctx, scope.tc, static_cast<uint64_t>(label)),
+            "hegel_start_span");
+    }
+
+    void stop_span(const TestCase& tc, bool discard) {
+        impl::DrawScope scope(tc);
+        scope.check_draw(hegel_stop_span(scope.ctx, scope.tc, discard),
+                         "hegel_stop_span");
+    }
+
+    int64_t draw_integer(const TestCase& tc, int64_t min_value,
+                         int64_t max_value) {
+        impl::DrawScope scope(tc);
+        int64_t value = 0;
+        scope.check_draw(hegel_generate_integer(scope.ctx, scope.tc, min_value,
+                                                max_value, &value),
+                         "hegel_generate_integer");
+        scope.log_generated(std::to_string(value));
+        return value;
+    }
+
+    uint64_t draw_integer_unsigned(const TestCase& tc, uint64_t min_value,
+                                   uint64_t max_value) {
+        if (max_value <=
+            static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+            return static_cast<uint64_t>(
+                draw_integer(tc, static_cast<int64_t>(min_value),
+                             static_cast<int64_t>(max_value)));
+        }
+        impl::DrawScope scope(tc);
+        uint8_t min_bytes[big_u64_len];
+        uint8_t max_bytes[big_u64_len];
+        uint8_t out_bytes[big_u64_len];
+        encode_u64_le(min_value, min_bytes);
+        encode_u64_le(max_value, max_bytes);
         size_t out_len = 0;
-        hegel_result_t rc =
-            hegel_generate(ctx, htc, schema_cbor.data(), schema_cbor.size(),
-                           &out_value, &out_len);
+        scope.check_draw(
+            hegel_generate_integer_big(scope.ctx, scope.tc, min_bytes,
+                                       big_u64_len, max_bytes, big_u64_len,
+                                       out_bytes, big_u64_len, &out_len),
+            "hegel_generate_integer_big");
+        uint64_t value = decode_u64_le(out_bytes);
+        scope.log_generated(std::to_string(value));
+        return value;
+    }
 
-        // Engine ran out of choice budget for this case: abandon the body.
-        // The runner marks the case OVERRUN.
-        if (rc == HEGEL_E_STOP_TEST) {
-            throw HegelStopTest();
-        }
-        // A precondition (engine-side filter / assume) rejected this draw.
-        if (rc == HEGEL_E_ASSUME) {
-            throw HegelReject();
-        }
-        if (rc != HEGEL_OK) {
-            // Engine-level failure; not reachable without fault injection into
-            // the C ABI.
-            // GCOVR_EXCL_START
-            throw std::runtime_error("hegel_generate failed: " +
-                                     impl::last_error(ctx));
-            // GCOVR_EXCL_STOP
-        }
+    bool draw_boolean(const TestCase& tc, double p) {
+        impl::DrawScope scope(tc);
+        bool value = false;
+        scope.check_draw(hegel_generate_boolean(scope.ctx, scope.tc, p,
+                                                /*forced=*/false,
+                                                /*has_forced=*/false, &value),
+                         "hegel_generate_boolean");
+        scope.log_generated(value ? "true" : "false");
+        return value;
+    }
 
-        nlohmann::json value = impl::protocol::cbor_decode(out_value, out_len);
+    double draw_float(const TestCase& tc, uint32_t width, double min_value,
+                      double max_value, bool allow_nan, bool allow_infinity,
+                      bool exclude_min, bool exclude_max,
+                      double smallest_nonzero_magnitude) {
+        impl::DrawScope scope(tc);
+        double value = 0.0;
+        scope.check_draw(hegel_generate_float(
+                             scope.ctx, scope.tc, width, min_value, max_value,
+                             allow_nan, allow_infinity, exclude_min,
+                             exclude_max, smallest_nonzero_magnitude, &value),
+                         "hegel_generate_float");
+        scope.log_generated(std::to_string(value));
+        return value;
+    }
 
-        if (impl::protocol::protocol_debug_enabled()) {
-            std::cerr << "RESPONSE: " << value.dump() << "\n";
-        }
-        if (data->should_log()) {
-            std::cerr << "Generated: " << value.dump() << "\n";
-        }
+    int64_t new_collection(const TestCase& tc, uint64_t min_size,
+                           uint64_t max_size) {
+        impl::DrawScope scope(tc);
+        int64_t collection_id = 0;
+        scope.check_draw(hegel_new_collection(scope.ctx, scope.tc, min_size,
+                                              max_size, &collection_id),
+                         "hegel_new_collection");
+        return collection_id;
+    }
 
-        nlohmann::json response;
-        response["result"] = std::move(value);
-        return json::ImplUtil::create(response);
+    bool collection_more(const TestCase& tc, int64_t collection_id) {
+        impl::DrawScope scope(tc);
+        bool more = false;
+        scope.check_draw(
+            hegel_collection_more(scope.ctx, scope.tc, collection_id, &more),
+            "hegel_collection_more");
+        return more;
+    }
+
+    void collection_reject(const TestCase& tc, int64_t collection_id,
+                           const char* why) {
+        impl::DrawScope scope(tc);
+        scope.check_draw(
+            hegel_collection_reject(scope.ctx, scope.tc, collection_id, why),
+            "hegel_collection_reject");
     }
 
 } // namespace hegel::internal

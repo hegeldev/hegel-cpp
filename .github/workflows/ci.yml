@@ -69,12 +69,6 @@ jobs:
             packages: clang-18 libc++-18-dev libc++abi-18-dev
             cmake_flags: -DCMAKE_CXX_FLAGS="-stdlib=libc++"
 
-          - compiler: g++-13
-            cc: gcc-13
-            cxx: g++-13
-            extra_label: (nlohmann 3.11)
-            cmake_flags: -DNLOHMANN_JSON_VERSION=3.10.0
-
           - compiler: macos
             cc: cc
             cxx: c++

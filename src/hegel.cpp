@@ -12,13 +12,14 @@
 #include <hegel/test_case.h>
 
 #include <engine.h>
-#include <protocol.h>
 #include <test_case.h>
 
 #include <hegel.h>
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <cxxabi.h>
 #include <exception>
 #include <functional>
@@ -37,15 +38,8 @@ namespace hegel {
             "variables, system time, or external random number generators.";
 
         // RAII guards for the libhegel handles. Each `*_free` is a no-op on
-        // NULL and never throws.
-        struct ContextGuard {
-            hegel_context_t* ctx = hegel_context_new();
-            ContextGuard() = default;
-            ~ContextGuard() { hegel_context_free(ctx); }
-            ContextGuard(const ContextGuard&) = delete;
-            ContextGuard& operator=(const ContextGuard&) = delete;
-        };
-
+        // NULL and never throws. (The error-reporting context is not guarded
+        // here: impl::thread_context() owns one per thread.)
         struct SettingsGuard {
             hegel_context_t* ctx;
             hegel_settings_t* s = nullptr;
@@ -58,14 +52,52 @@ namespace hegel {
             ~RunGuard() { hegel_run_free(ctx, run); }
         };
 
+        // Every test-case handle is caller-owned, whatever produced it.
+        struct TestCaseGuard {
+            hegel_context_t* ctx;
+            hegel_test_case_t* tc = nullptr;
+            ~TestCaseGuard() { hegel_test_case_free(ctx, tc); }
+        };
+
+        // Caller-owned snapshot of a finished run's result.
+        struct ResultGuard {
+            hegel_context_t* ctx;
+            hegel_run_result_t* result = nullptr;
+            ~ResultGuard() { hegel_run_result_free(ctx, result); }
+        };
+
+        // Caller-owned snapshot of one distinct failure.
+        struct FailureGuard {
+            hegel_context_t* ctx;
+            hegel_failure_t* failure = nullptr;
+            ~FailureGuard() { hegel_failure_free(ctx, failure); }
+        };
+
         struct BodyOutcome {
             hegel_status_t status;
             std::string origin;
             std::string message;
+            std::exception_ptr exception;
         };
 
+        // Demangle a typeid name, owning the malloc'd result. The fallback
+        // covers unparseable input and the demangler's allocation failure.
+        std::string demangle(const char* name) {
+            int status = 0;
+            char* demangled =
+                abi::__cxa_demangle(name, nullptr, nullptr, &status);
+            if (demangled == nullptr) {
+                return name; // GCOVR_EXCL_LINE
+            }
+            std::string out = demangled;
+            std::free(demangled);
+            return out;
+        }
+
         // Run the user's test body once and classify the outcome into the
-        // libhegel status the caller passes to hegel_mark_complete.
+        // libhegel status the caller passes to hegel_mark_complete. The
+        // origin is demangled here, before it reaches the engine, so the
+        // engine's failure origins are readable as reported.
         BodyOutcome run_body(const std::function<void(TestCase&)>& test_fn,
                              TestCase& tc) {
             try {
@@ -76,14 +108,27 @@ namespace hegel {
             } catch (const internal::HegelReject&) {
                 return {HEGEL_STATUS_INVALID, "", ""};
             } catch (const std::exception& e) {
-                return {HEGEL_STATUS_INTERESTING, typeid(e).name(), e.what()};
+                return {HEGEL_STATUS_INTERESTING, demangle(typeid(e).name()),
+                        e.what(), std::current_exception()};
             } catch (...) {
-                const char* origin = "unknown_exception";
+                // Only user code runs inside the try, so anything caught
+                // here is a test failure — including a foreign (non-C++)
+                // exception, for which the ABI can supply neither a
+                // type_info nor an exception_ptr. Substitute a described
+                // exception so the re-raise path stays valid.
+                std::string origin = "unknown_exception";
                 if (const std::type_info* tinfo =
                         abi::__cxa_current_exception_type()) {
-                    origin = tinfo->name();
+                    origin = demangle(tinfo->name());
                 }
-                return {HEGEL_STATUS_INTERESTING, origin, ""};
+                std::exception_ptr exception = std::current_exception();
+                if (exception == nullptr) {
+                    // GCOVR_EXCL_START
+                    exception = std::make_exception_ptr(std::runtime_error(
+                        "test body raised a foreign (non-C++) exception"));
+                    // GCOVR_EXCL_STOP
+                }
+                return {HEGEL_STATUS_INTERESTING, origin, "", exception};
             }
         }
 
@@ -97,15 +142,15 @@ namespace hegel {
         BodyOutcome replay_failure(hegel_context_t* ctx, hegel_settings_t* s,
                                    const char* blob, Verbosity verbosity,
                                    const std::function<void(TestCase&)>& fn) {
-            hegel_test_case_t* tc = impl::test_case_from_blob(ctx, s, blob);
-            // Positional init (fields: ctx, tc, is_final, verbosity) so this
+            TestCaseGuard tc_guard{ctx};
+            tc_guard.tc = impl::test_case_from_blob(ctx, s, blob);
+            // Positional init (fields: tc, is_final, verbosity) so this
             // TU stays clean under a C++17 (HEGEL_REFLECTION=OFF) build.
-            impl::test_case::TestCaseData data{ctx, tc, /*is_final=*/true,
-                                               verbosity};
+            impl::test_case::TestCaseData data{tc_guard.tc,
+                                               /*is_final=*/true, verbosity};
             TestCase tc_obj(&data);
             BodyOutcome outcome = run_body(fn, tc_obj);
-            mark_complete(ctx, tc, outcome);
-            hegel_test_case_free(ctx, tc);
+            mark_complete(ctx, tc_guard.tc, outcome);
             return outcome;
         }
 
@@ -135,6 +180,8 @@ namespace hegel {
             impl::settings_set_seed(ctx, s, settings.seed.value_or(0),
                                     settings.seed.has_value());
             impl::settings_set_derandomize(ctx, s, settings.derandomize);
+            impl::settings_set_report_multiple_failures(
+                ctx, s, settings.report_multiple_failures);
 
             switch (settings.database.kind()) {
             case Database::Kind::Unset:
@@ -174,10 +221,7 @@ namespace hegel {
 
     void test(const std::function<void(TestCase&)>& test_fn,
               const Settings& settings) {
-        impl::protocol::init_protocol_debug(settings.verbosity);
-
-        ContextGuard ctx_guard;
-        hegel_context_t* ctx = ctx_guard.ctx;
+        hegel_context_t* ctx = impl::thread_context();
 
         SettingsGuard settings_guard{ctx};
         settings_guard.s = impl::settings_new(ctx);
@@ -189,20 +233,24 @@ namespace hegel {
         hegel_run_t* run = run_guard.run;
 
         // Generation loop: pull cases until the engine reports completion
-        // (NULL test case), running and marking each.
+        // (NULL test case), running, marking, and releasing each.
         while (true) {
-            hegel_test_case_t* tc = impl::next_test_case(ctx, run);
-            if (tc == nullptr) {
+            TestCaseGuard tc_guard{ctx};
+            tc_guard.tc = impl::next_test_case(ctx, run);
+            if (tc_guard.tc == nullptr) {
                 break;
             }
-            impl::test_case::TestCaseData data{ctx, tc, /*is_final=*/false,
+            impl::test_case::TestCaseData data{tc_guard.tc,
+                                               /*is_final=*/false,
                                                settings.verbosity};
             TestCase tc_obj(&data);
             BodyOutcome outcome = run_body(test_fn, tc_obj);
-            mark_complete(ctx, tc, outcome);
+            mark_complete(ctx, tc_guard.tc, outcome);
         }
 
-        const hegel_run_result_t* result = impl::run_result(ctx, run);
+        ResultGuard result_guard{ctx};
+        result_guard.result = impl::run_result(ctx, run);
+        hegel_run_result_t* result = result_guard.result;
         hegel_run_status_t run_status = impl::run_result_status(ctx, result);
 
         if (run_status == HEGEL_RUN_STATUS_PASSED) {
@@ -217,14 +265,12 @@ namespace hegel {
                                      (run_err ? run_err : "unknown error"));
         }
 
-        // Failed: replay each distinct counterexample to surface its notes and
-        // exception message, then raise.
+        // Failed: replay each distinct counterexample as its own block — a
+        // "Failure N:" header, then its notes, then its exception.
         size_t failure_count = impl::run_result_failure_count(ctx, result);
+        bool quiet = settings.verbosity == Verbosity::Quiet;
 
-        std::string message;
-        for (size_t i = 0; i < failure_count; i++) {
-            const hegel_failure_t* failure =
-                impl::run_result_failure(ctx, result, i);
+        auto handle_failure = [&](const hegel_failure_t* failure) {
             const char* blob = impl::failure_reproduction_blob(ctx, failure);
             if (blob == nullptr) {
                 // GCOVR_EXCL_START
@@ -235,20 +281,36 @@ namespace hegel {
             BodyOutcome outcome =
                 replay_failure(ctx, s, blob, settings.verbosity, test_fn);
             if (outcome.status != HEGEL_STATUS_INTERESTING) {
-                // Replay non-determinism (flaky); cannot be reproduced
-                // deterministically from a test.
                 // GCOVR_EXCL_START
                 throw std::runtime_error(flaky_diagnostic);
                 // GCOVR_EXCL_STOP
             }
-            // temporary - only report one failure
-            if (message.empty() && !outcome.message.empty()) {
-                message = outcome.message;
-            }
+            return outcome;
+        };
+
+        if (failure_count == 1) {
+            FailureGuard failure_guard{ctx};
+            failure_guard.failure = impl::run_result_failure(ctx, result, 0);
+            std::rethrow_exception(
+                handle_failure(failure_guard.failure).exception);
         }
 
-        throw std::runtime_error("\nHegel test failed" +
-                                 (message.empty() ? "" : ": " + message));
+        for (size_t i = 0; i < failure_count; i++) {
+            FailureGuard failure_guard{ctx};
+            failure_guard.failure = impl::run_result_failure(ctx, result, i);
+            if (!quiet) {
+                std::fprintf(stderr, "Failure %zu:\n", i + 1);
+            }
+            BodyOutcome outcome = handle_failure(failure_guard.failure);
+            if (!quiet && !outcome.message.empty()) {
+                std::fprintf(stderr, "Exception %s: %s\n",
+                             impl::failure_origin(ctx, failure_guard.failure),
+                             outcome.message.c_str());
+            }
+        }
+        throw std::runtime_error("\nHegel test failed with " +
+                                 std::to_string(failure_count) +
+                                 " distinct failures");
     }
 
 } // namespace hegel
