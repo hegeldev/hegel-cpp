@@ -215,7 +215,8 @@ TEST(Datetime, StreamInsertionMatchesToString) {
 TEST(Datetime, DrawnValuesSerializeToCanonicalShape) {
     const std::regex date_re(R"(^\d{4}-\d{2}-\d{2}$)");
     const std::regex time_re(R"(^\d{2}:\d{2}:\d{2}\.\d{6}$)");
-    const std::regex datetime_re(R"(^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}$)");
+    const std::regex datetime_re(
+        R"(^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}$)");
     hegel::test(
         [&](hegel::TestCase& tc) {
             std::string d = tc.draw(gs::dates()).to_string();

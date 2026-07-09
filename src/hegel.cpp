@@ -416,8 +416,7 @@ namespace hegel {
             }
 
             std::map<std::string, std::vector<std::string>>& blob_registry() {
-                static std::map<std::string, std::vector<std::string>>
-                    registry;
+                static std::map<std::string, std::vector<std::string>> registry;
                 return registry;
             }
         } // namespace

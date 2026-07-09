@@ -226,8 +226,7 @@ TEST(FailureBlobs, BlobReproduceFailure) {
 TEST(FailureBlobs, RegistryKeepsAllBlobs) {
     std::vector<std::string> blobs = hegel::internal::reproduce_blobs_for(
         (std::string(__FILE__) + "::obvious_fail").c_str());
-    EXPECT_EQ(blobs,
-              (std::vector<std::string>{"AAEAAAAACgEAAAAA", "invalid"}));
+    EXPECT_EQ(blobs, (std::vector<std::string>{"AAEAAAAACgEAAAAA", "invalid"}));
 }
 
 // Registering a second HEGEL_REPRODUCE_FAILURE for the same test must be a

@@ -27,8 +27,7 @@ namespace hegel {
          */
         std::string to_string() const {
             char buf[32];
-            std::snprintf(buf, sizeof(buf), "%04d-%02d-%02d", year, month,
-                          day);
+            std::snprintf(buf, sizeof(buf), "%04d-%02d-%02d", year, month, day);
             return buf;
         }
     };
@@ -78,8 +77,8 @@ namespace hegel {
          */
         std::string to_string() const {
             char buf[32];
-            std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d.%06d", hour,
-                          minute, second, microsecond);
+            std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d.%06d", hour, minute,
+                          second, microsecond);
             return buf;
         }
     };

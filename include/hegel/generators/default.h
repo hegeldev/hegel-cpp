@@ -236,27 +236,26 @@ namespace hegel::generators {
         template <typename T>
         Generator<T>
         derived_struct_generator(std::vector<FieldOverride<T>> overrides) {
-            return compose(
-                [overrides = std::move(overrides)](const TestCase& tc) -> T {
-                    T result{};
-                    auto view = rfl::to_view(result);
-                    view.apply([&](const auto& field) {
-                        using PtrType = typename std::remove_cvref_t<
-                            decltype(field)>::Type;
-                        using FieldType = std::remove_pointer_t<PtrType>;
-                        // Later overrides shadow earlier ones for the same
-                        // field, so search newest-first.
-                        for (auto it = overrides.rbegin();
-                             it != overrides.rend(); ++it) {
-                            if (it->apply(result, field.value(), tc)) {
-                                return;
-                            }
+            return compose([overrides =
+                                std::move(overrides)](const TestCase& tc) -> T {
+                T result{};
+                auto view = rfl::to_view(result);
+                view.apply([&](const auto& field) {
+                    using PtrType =
+                        typename std::remove_cvref_t<decltype(field)>::Type;
+                    using FieldType = std::remove_pointer_t<PtrType>;
+                    // Later overrides shadow earlier ones for the same
+                    // field, so search newest-first.
+                    for (auto it = overrides.rbegin(); it != overrides.rend();
+                         ++it) {
+                        if (it->apply(result, field.value(), tc)) {
+                            return;
                         }
-                        *field.value() =
-                            default_generator<FieldType>().do_draw(tc);
-                    });
-                    return result;
+                    }
+                    *field.value() = default_generator<FieldType>().do_draw(tc);
                 });
+                return result;
+            });
         }
 
     } // namespace detail
