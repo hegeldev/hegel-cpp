@@ -7,6 +7,7 @@
 // library can be consumed from C++17.
 #if HEGEL_HAS_REFLECTION
 
+#include <functional>
 #include <map>
 #include <optional>
 #include <set>
@@ -200,6 +201,64 @@ namespace hegel::generators {
             }
         };
 
+        // =================================================================
+        // Per-field overrides for DerivedGenerator::override()
+        // =================================================================
+
+        // Type-erased per-field override. apply() returns true — after
+        // drawing the replacement value directly into the object — iff this
+        // override targets the field at field_addr within obj.
+        template <typename T> struct FieldOverride {
+            std::function<bool(T& obj, const void* field_addr,
+                               const TestCase& tc)>
+                apply;
+        };
+
+        template <typename T, typename FieldSpec>
+        FieldOverride<T> make_field_override(FieldSpec spec) {
+            return FieldOverride<T>{[spec = std::move(spec)](
+                                        T& obj, const void* field_addr,
+                                        const TestCase& tc) {
+                if (static_cast<const void*>(&(obj.*FieldSpec::member_ptr)) !=
+                    field_addr) {
+                    return false;
+                }
+                obj.*FieldSpec::member_ptr = spec.generator.do_draw(tc);
+                return true;
+            }};
+        }
+
+        // Struct generator that draws every field in declaration order,
+        // consulting the overrides first: an overridden field draws only
+        // from its override generator — the default draw is skipped
+        // entirely, so it consumes no entropy and adds nothing to the
+        // choice sequence.
+        template <typename T>
+        Generator<T>
+        derived_struct_generator(std::vector<FieldOverride<T>> overrides) {
+            return compose(
+                [overrides = std::move(overrides)](const TestCase& tc) -> T {
+                    T result{};
+                    auto view = rfl::to_view(result);
+                    view.apply([&](const auto& field) {
+                        using PtrType = typename std::remove_cvref_t<
+                            decltype(field)>::Type;
+                        using FieldType = std::remove_pointer_t<PtrType>;
+                        // Later overrides shadow earlier ones for the same
+                        // field, so search newest-first.
+                        for (auto it = overrides.rbegin();
+                             it != overrides.rend(); ++it) {
+                            if (it->apply(result, field.value(), tc)) {
+                                return;
+                            }
+                        }
+                        *field.value() =
+                            default_generator<FieldType>().do_draw(tc);
+                    });
+                    return result;
+                });
+        }
+
     } // namespace detail
     /// @endcond
 
@@ -231,8 +290,15 @@ namespace hegel::generators {
          * @brief Override default per-field generators.
          *
          * Each field specification (from `field<&T::member>(gen)`) replaces
-         * the default generator for that member. Other fields keep the
-         * defaults from default_generator<T>().
+         * the default generator for that member: the overridden member is
+         * drawn only from the supplied generator, and the default draw is
+         * skipped entirely (it consumes no entropy and adds nothing to the
+         * choice sequence, so shrinking is unaffected). Other fields keep
+         * the defaults from default_generator<T>().
+         *
+         * Chained override() calls accumulate. If the same field is
+         * overridden more than once, the most recent override wins and is
+         * the only one drawn from.
          *
          * @code{.cpp}
          * auto gen = default_generator<Person>()
@@ -246,22 +312,21 @@ namespace hegel::generators {
          */
         template <typename... Fields>
         DerivedGenerator<T> override(Fields... fields) const {
-            Generator<T> base = *this;
-            auto fields_tuple = std::make_tuple(std::move(fields)...);
-            return DerivedGenerator<T>(
-                compose([base, fields_tuple](const TestCase& tc) mutable -> T {
-                    T result = base.do_draw(tc);
-                    std::apply(
-                        [&result, &tc](auto&... fs) {
-                            ((result.*(std::remove_reference_t<
-                                          decltype(fs)>::member_ptr) =
-                                  fs.generator.do_draw(tc)),
-                             ...);
-                        },
-                        fields_tuple);
-                    return result;
-                }));
+            std::vector<detail::FieldOverride<T>> overrides = overrides_;
+            (overrides.push_back(
+                 detail::make_field_override<T>(std::move(fields))),
+             ...);
+            DerivedGenerator<T> result(
+                detail::derived_struct_generator<T>(overrides));
+            result.overrides_ = std::move(overrides);
+            return result;
         }
+
+      private:
+        // The overrides this generator was built with, carried so chained
+        // override() calls extend the set instead of stacking draws on top
+        // of a fully drawn base.
+        std::vector<detail::FieldOverride<T>> overrides_;
     };
 
     /**

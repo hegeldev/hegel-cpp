@@ -164,6 +164,62 @@ TEST(DefaultGeneratorProperty, PartialOverride) {
     });
 }
 
+// override() must SKIP the default draw for overridden fields, not draw the
+// default and assign over it. Observable through the Verbose draw trace:
+// every engine draw logs one "Generated:" line, so drawing Person with
+// `name` overridden by a draw-free just() must log exactly one line (the
+// remaining `age` int). The old draw-then-overwrite behavior logged two —
+// the dead default draw for `name` still consumed entropy and choices.
+TEST(DefaultGeneratorProperty, OverrideSkipsDefaultDraw) {
+    testing::internal::CaptureStderr();
+    hegel::test(
+        [](hegel::TestCase& tc) {
+            auto gen = gs::default_generator<Person>().override(
+                gs::field<&Person::name>(gs::just(std::string("fixed"))));
+            Person p = tc.draw(gen);
+            EXPECT_EQ(p.name, "fixed");
+        },
+        hegel::Settings{.test_cases = 1,
+                        .verbosity = hegel::Verbosity::Verbose,
+                        .derandomize = true,
+                        .database = hegel::Database::disabled()});
+    std::string log = testing::internal::GetCapturedStderr();
+
+    size_t draws = 0;
+    for (size_t pos = log.find("Generated:"); pos != std::string::npos;
+         pos = log.find("Generated:", pos + 1)) {
+        draws++;
+    }
+    EXPECT_EQ(draws, 1u)
+        << "expected exactly one engine draw (the non-overridden age "
+           "field); the overridden field's default draw must be skipped. "
+           "Draw trace:\n"
+        << log;
+}
+
+// Chained override() calls accumulate instead of stacking draws.
+TEST(DefaultGeneratorProperty, ChainedOverridesAccumulate) {
+    hegel::test([](hegel::TestCase& tc) {
+        auto gen = gs::default_generator<Point>()
+                       .override(gs::field<&Point::x>(gs::just(1.0)))
+                       .override(gs::field<&Point::y>(gs::just(2.0)));
+        Point p = tc.draw(gen);
+        EXPECT_EQ(p.x, 1.0);
+        EXPECT_EQ(p.y, 2.0);
+    });
+}
+
+// Overriding the same field again replaces the earlier override.
+TEST(DefaultGeneratorProperty, LastOverrideOfSameFieldWins) {
+    hegel::test([](hegel::TestCase& tc) {
+        auto gen = gs::default_generator<Point>()
+                       .override(gs::field<&Point::x>(gs::just(1.0)))
+                       .override(gs::field<&Point::x>(gs::just(3.0)));
+        Point p = tc.draw(gen);
+        EXPECT_EQ(p.x, 3.0);
+    });
+}
+
 TEST(DefaultGeneratorProperty, VectorOfStructs) {
     hegel::test([](hegel::TestCase& tc) {
         auto vec = tc.draw(gs::vectors(gs::default_generator<Point>(),
