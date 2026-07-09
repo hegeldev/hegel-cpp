@@ -146,15 +146,20 @@ namespace hegel::generators {
          * Creates a Generator that only produces values satisfying the
          * predicate. The new Generator has the same type as this Generator.
          *
-         * So for example, if you want sorted lists of length N, you should
-         * generate sorted lists of length N, not generate random lists and
-         * filter by a predicate of 'length == N && is_sorted'. (Although the
-         * latter is logically correct, it would be a performance nightmare, so
-         * Hegel doesn't let you do it that way.)
+         * Each draw makes up to three attempts to generate a value that
+         * satisfies @p pred (rejected attempts are discarded so they don't
+         * pollute shrinking). If all three attempts fail, the *whole test
+         * case* is rejected — as if `tc.assume(false)` had been called — and
+         * the engine moves on to a fresh one. Rejected test cases don't count
+         * toward Settings::test_cases, and a predicate that rejects too often
+         * fails the HealthCheck::FilterTooMuch health check.
          *
-         * For example, if you want sorted lists of length N, you should
-         * generate lists of length N and sort them, not generate random lists
-         * and filter by a predicate of 'length == N && is_sorted'.
+         * This makes filter suitable only for predicates that accept most
+         * values. Prefer constructing the values you want over filtering
+         * out the ones you don't: for sorted lists of length N, generate
+         * lists of length N and sort them, rather than filtering arbitrary
+         * lists on `length == N && is_sorted` (which would reject almost
+         * everything).
          *
          * @code{.cpp}
          * auto even = integers<int>({.min_value = 0, .max_value = 100})
