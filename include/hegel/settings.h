@@ -12,7 +12,9 @@ namespace hegel {
      * @brief Verbosity levels.
      */
     enum class Verbosity {
-        Quiet,   ///< Minimal output (used by TUI)
+        Quiet,   ///< Suppress Hegel's diagnostic output: no notes or drawn
+                 ///< values on the failing replay, and no failure headers or
+                 ///< reproduction blobs. Failures still throw as usual.
         Normal,  ///< Default - standard test output
         Verbose, ///< More detailed output
         Debug    ///< Maximum verbosity + engine-side shrinker tracing
