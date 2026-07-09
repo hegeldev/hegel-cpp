@@ -1,6 +1,8 @@
-// Standalone check for hegel::run_all_tests(): both HEGEL_TESTs below must
-// run (the failure must not stop the sweep), and the return value must
-// report the failure. Exits 0 on success.
+// Standalone check for hegel::run_all_tests(): every HEGEL_TEST below must
+// run (the failures must not stop the sweep), and the return value must
+// report the failures. A test body that throws a value that is not a
+// std::exception (here: an int) must be counted as a failure like any other,
+// not escape and kill the process. Exits 0 on success.
 
 #include <cstdio>
 #include <hegel/hegel.h>
@@ -14,6 +16,12 @@ HEGEL_TEST(always_fails,
            {.database = hegel::Database::disabled()})(hegel::TestCase& tc) {
     tc.draw(gs::integers<int>());
     throw std::runtime_error("always fails");
+}
+
+HEGEL_TEST(throws_non_std_exception,
+           {.database = hegel::Database::disabled()})(hegel::TestCase& tc) {
+    tc.draw(gs::integers<int>());
+    throw 42; // not derived from std::exception
 }
 
 HEGEL_TEST(always_passes,

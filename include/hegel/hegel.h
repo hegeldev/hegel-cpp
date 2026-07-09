@@ -332,7 +332,10 @@ namespace hegel {
     /**
      * @brief Run every test defined with @ref HEGEL_TEST in this binary.
      *
-     * Each test runs with its inline settings.
+     * Each test runs with its inline settings. Every failure is caught and
+     * reported to stderr — including test bodies that throw values not
+     * derived from std::exception — so one failing test never stops the
+     * sweep or the process.
      *
      * @code{.cpp}
      * int main() {

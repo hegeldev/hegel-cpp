@@ -465,6 +465,21 @@ namespace hegel {
                 failed++;
                 std::fprintf(stderr, "[ FAILED ] %s\n%s\n", test.name,
                              e.what());
+            } catch (...) {
+                // hegel::test rethrows the failing body's own exception,
+                // which need not derive from std::exception. Count it as a
+                // failure like any other instead of letting it escape and
+                // terminate the process.
+                failed++;
+                std::string origin = "unknown exception type";
+                if (const std::type_info* tinfo =
+                        abi::__cxa_current_exception_type()) {
+                    origin = demangle(tinfo->name());
+                }
+                std::fprintf(stderr,
+                             "[ FAILED ] %s\ntest threw a non-standard "
+                             "exception of type %s\n",
+                             test.name, origin.c_str());
             }
         }
         std::fprintf(stderr, "Ran %zu Hegel tests: %zu failed\n",
