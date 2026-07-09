@@ -3,6 +3,7 @@
 #include <string>
 
 #include "hegel/core.h"
+#include "hegel/datetime.h"
 
 namespace hegel::generators {
 
@@ -88,37 +89,46 @@ namespace hegel::generators {
     /**
      * @brief Generate calendar dates.
      *
-     * Generates a date between January 01, 0001 through December 31, 9999 in
-     * the proleptic Gregorian calendar) and returns the ISO 8601 serialization
-     * (`YYYY-MM-DD`). Values shrink towards January 1st, 2000.
+     * Generates a hegel::Date between January 01, 0001 and December 31, 9999
+     * in the proleptic Gregorian calendar. Values shrink towards January 1st,
+     * 2000.
      *
-     * @return Generator producing ISO 8601 date strings.
+     * For the ISO 8601 string form (`YYYY-MM-DD`), call Date::to_string() on
+     * the drawn value, or map the generator:
+     * `dates().map([](hegel::Date d) { return d.to_string(); })`.
+     *
+     * @return Generator producing hegel::Date values.
      */
-    Generator<std::string> dates();
+    Generator<Date> dates();
 
     /**
      * @brief Generate times of day.
      *
-     * Generates a time between 00:00:00 and 23:59:59.999999 and returns the
-     * ISO 8601 serialization (`HH:MM:SS[.ffffff]`). Values shrink towards
-     * midnight. No timezone component is requested; generated values are naive.
+     * Generates a hegel::Time between 00:00:00 and 23:59:59.999999. Values
+     * shrink towards midnight. No timezone component is requested; generated
+     * values are naive.
      *
-     * @return Generator producing ISO 8601 time strings.
+     * For the ISO 8601 string form (`HH:MM:SS.ffffff`, fractional seconds
+     * always present), call Time::to_string() on the drawn value.
+     *
+     * @return Generator producing hegel::Time values.
      */
-    Generator<std::string> times();
+    Generator<Time> times();
 
     /**
      * @brief Generate datetimes.
      *
-     * Generates datetimes between January 01, 0001 at 00:00:00 and December 31,
-     * 9999 at 23:59:59.999999 and returns the ISO 8601 serialization
-     * (`YYYY-MM-DDTHH:MM:SS[.ffffff]`).
-     * No timezone is requested; generated values are naive. Examples from this
-     * strategy shrink towards midnight on January 1st 2000.
+     * Generates a hegel::DateTime between January 01, 0001 at 00:00:00 and
+     * December 31, 9999 at 23:59:59.999999. No timezone is requested;
+     * generated values are naive. Values shrink towards midnight on January
+     * 1st, 2000.
      *
-     * @return Generator producing ISO 8601 datetime strings.
+     * For the ISO 8601 string form (`YYYY-MM-DDTHH:MM:SS.ffffff`, fractional
+     * seconds always present), call DateTime::to_string() on the drawn value.
+     *
+     * @return Generator producing hegel::DateTime values.
      */
-    Generator<std::string> datetimes();
+    Generator<DateTime> datetimes();
 
     /// @}
 

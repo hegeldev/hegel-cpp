@@ -181,48 +181,37 @@ namespace hegel::generators {
             }
         };
 
-        /// ISO 8601 `YYYY-MM-DD`.
-        std::string format_date(const hegel_date_t& d) {
-            char buf[16];
-            std::snprintf(buf, sizeof(buf), "%04d-%02u-%02u",
-                          static_cast<int>(d.year), d.month, d.day);
-            return buf;
+        // Widen the engine's packed field types into the public structs.
+        Date to_date(const hegel_date_t& d) {
+            return Date{static_cast<int>(d.year), static_cast<int>(d.month),
+                        static_cast<int>(d.day)};
         }
 
-        /// ISO 8601 `HH:MM:SS[.ffffff]` — the fractional part is present
-        /// iff the microsecond is nonzero, matching `isoformat()`.
-        std::string format_time(const hegel_time_t& t) {
-            char buf[24];
-            if (t.microsecond != 0) {
-                std::snprintf(buf, sizeof(buf), "%02u:%02u:%02u.%06u", t.hour,
-                              t.minute, t.second,
-                              static_cast<unsigned>(t.microsecond));
-            } else {
-                std::snprintf(buf, sizeof(buf), "%02u:%02u:%02u", t.hour,
-                              t.minute, t.second);
-            }
-            return buf;
+        Time to_time(const hegel_time_t& t) {
+            return Time{static_cast<int>(t.hour), static_cast<int>(t.minute),
+                        static_cast<int>(t.second),
+                        static_cast<int>(t.microsecond)};
         }
 
-        class DatesGenerator : public IGenerator<std::string> {
+        class DatesGenerator : public IGenerator<Date> {
           public:
-            std::string do_draw(const TestCase& tc) const override {
-                return format_date(impl::draw_date(tc));
+            Date do_draw(const TestCase& tc) const override {
+                return to_date(impl::draw_date(tc));
             }
         };
 
-        class TimesGenerator : public IGenerator<std::string> {
+        class TimesGenerator : public IGenerator<Time> {
           public:
-            std::string do_draw(const TestCase& tc) const override {
-                return format_time(impl::draw_time(tc));
+            Time do_draw(const TestCase& tc) const override {
+                return to_time(impl::draw_time(tc));
             }
         };
 
-        class DatetimesGenerator : public IGenerator<std::string> {
+        class DatetimesGenerator : public IGenerator<DateTime> {
           public:
-            std::string do_draw(const TestCase& tc) const override {
+            DateTime do_draw(const TestCase& tc) const override {
                 hegel_datetime_t dt = impl::draw_datetime(tc);
-                return format_date(dt.date) + "T" + format_time(dt.time);
+                return DateTime{to_date(dt.date), to_time(dt.time)};
             }
         };
 
@@ -296,16 +285,12 @@ namespace hegel::generators {
              Generator<std::string>(new IpGenerator(6))});
     }
 
-    Generator<std::string> dates() {
-        return Generator<std::string>(new DatesGenerator());
-    }
+    Generator<Date> dates() { return Generator<Date>(new DatesGenerator()); }
 
-    Generator<std::string> times() {
-        return Generator<std::string>(new TimesGenerator());
-    }
+    Generator<Time> times() { return Generator<Time>(new TimesGenerator()); }
 
-    Generator<std::string> datetimes() {
-        return Generator<std::string>(new DatetimesGenerator());
+    Generator<DateTime> datetimes() {
+        return Generator<DateTime>(new DatetimesGenerator());
     }
 
     HegelRandom::HegelRandom(const TestCase& tc)
