@@ -78,9 +78,14 @@ failures found in one run are replayed first in the next. (You can also call
 This test will fail! Hegel will produce a minimal failing test case for us:
 
 ```
-Generated: [0,0]
-libc++abi: terminating due to uncaught exception of type std::runtime_error:
-Hegel test failed: sort mismatch
+Generated: 0
+Generated: 0
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  sort mismatch
 ```
 
-Hegel reports the minimal example showing that our sort is incorrectly dropping duplicates.
+Each `Generated:` line is one primitive value drawn while replaying the
+minimal failing example — here the two elements of the shrunken input vector
+`[0, 0]`, showing that our sort incorrectly drops duplicates. (The final two
+lines come from the C++ runtime reporting the uncaught exception, so their
+exact wording varies by platform; the output above is from Linux/libstdc++.)
