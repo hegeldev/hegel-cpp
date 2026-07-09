@@ -220,6 +220,28 @@ TEST(FailureBlobs, BlobReproduceFailure) {
     }
 }
 
+// Every blob given to HEGEL_REPRODUCE_FAILURE is kept in the registry (the
+// annotation above registers two), even though hegel::test replays only the
+// first. Losing the extras silently would defeat their bookkeeping purpose.
+TEST(FailureBlobs, RegistryKeepsAllBlobs) {
+    std::vector<std::string> blobs = hegel::internal::reproduce_blobs_for(
+        (std::string(__FILE__) + "::obvious_fail").c_str());
+    EXPECT_EQ(blobs,
+              (std::vector<std::string>{"AAEAAAAACgEAAAAA", "invalid"}));
+}
+
+// Registering a second HEGEL_REPRODUCE_FAILURE for the same test must be a
+// loud error, not a silent drop of the new blobs.
+TEST(FailureBlobs, DuplicateRegistrationThrows) {
+    const char* key = "test_hegel.cpp::duplicate_registration_probe";
+    EXPECT_TRUE(hegel::internal::register_blob(key, {"blob-one"}));
+    EXPECT_THROW(hegel::internal::register_blob(key, {"blob-two"}),
+                 std::logic_error);
+    // The original registration is untouched by the failed one.
+    EXPECT_EQ(hegel::internal::reproduce_blobs_for(key),
+              std::vector<std::string>{"blob-one"});
+}
+
 TEST(Settings, VerbosityToString) {
     using hegel::Verbosity;
     EXPECT_STREQ(hegel::verbosity_to_string(Verbosity::Quiet), "quiet");

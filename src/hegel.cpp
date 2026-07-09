@@ -415,8 +415,9 @@ namespace hegel {
                 return registry;
             }
 
-            std::map<std::string, std::string>& blob_registry() {
-                static std::map<std::string, std::string> registry;
+            std::map<std::string, std::vector<std::string>>& blob_registry() {
+                static std::map<std::string, std::vector<std::string>>
+                    registry;
                 return registry;
             }
         } // namespace
@@ -427,7 +428,21 @@ namespace hegel {
         }
 
         bool register_blob(const char* name, std::vector<const char*> blobs) {
-            blob_registry().insert({name, blobs.front()});
+            auto [it, inserted] = blob_registry().insert(
+                {name, std::vector<std::string>(blobs.begin(), blobs.end())});
+            if (!inserted) {
+                // Registration runs during static initialization, so this
+                // throw terminates the program — loudly, with this message —
+                // rather than silently dropping the new blobs.
+                throw std::logic_error(
+                    std::string("duplicate HEGEL_REPRODUCE_FAILURE "
+                                "registration for test '") +
+                    name +
+                    "': each test may have at most one "
+                    "HEGEL_REPRODUCE_FAILURE annotation. To track several "
+                    "blobs, list them all in that one annotation (only the "
+                    "first is replayed).");
+            }
             return true;
         }
 
@@ -436,7 +451,7 @@ namespace hegel {
             if (blob == blob_registry().end()) {
                 return {};
             }
-            return {blob->second};
+            return blob->second;
         }
     } // namespace internal
 

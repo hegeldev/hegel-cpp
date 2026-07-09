@@ -308,9 +308,21 @@ namespace hegel {
      *                assumptions, and record notes.
      * @param settings Configuration settings (test count, debug mode, etc.)
      * @param failure_blobs The base64 blobs encoding the engine choices that
-     led to failures. Multiple blobs can be passed in for bookkeeping, but only
-     the first one is run.
-     * @throws std::runtime_error if any test case fails
+     *                      led to failures. When non-empty, generation is
+     *                      skipped and **only the first blob is replayed** —
+     *                      this matches the other Hegel implementations, where
+     *                      stacked reproduce-failure annotations are
+     *                      first-wins. Any further blobs are carried for
+     *                      bookkeeping only and are never run.
+     * @throws The test body's own exception when a single failing example is
+     *         found: after shrinking, the failure is replayed and the
+     *         exception the body threw on the minimal example is rethrown
+     *         as-is.
+     * @throws std::runtime_error if the run itself fails (engine error,
+     *                            health-check failure, flaky test), if a
+     *                            failure blob does not reproduce an error, or
+     *                            if multiple distinct failures are reported
+     *                            (Settings::report_multiple_failures)
      * @see Settings for configuration settings
      */
     void test(const std::function<void(TestCase&)>& test_fn,
@@ -410,8 +422,14 @@ namespace hegel {
  * instead of generating new cases. Delete the annotation to return to a normal
  * run.
  *
- * At least one blob is required. Additional blobs are accepted for bookkeeping,
- * but only the first is replayed.
+ * At least one blob is required. Additional blobs may be listed to keep track
+ * of several failures, but **only the first is replayed** — the rest are
+ * bookkeeping, to be deleted one by one as the failures are fixed. This
+ * first-wins rule matches the other Hegel implementations.
+ *
+ * Each test may have at most one HEGEL_REPRODUCE_FAILURE annotation.
+ * Registering a second one for the same test is an error: the program
+ * terminates during static initialization with a message naming the test.
  *
  * @code{.cpp}
  * HEGEL_REPRODUCE_FAILURE(addition_commutes, "AAEAAAAACgEAAAAA")
