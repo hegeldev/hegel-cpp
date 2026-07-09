@@ -1,0 +1,12 @@
+RELEASE_TYPE: minor
+
+This release makes the date/time generators return structured values, eliminates several silent failure modes, and corrects a number of inaccurate API docs.
+
+**Breaking change**: `dates()`, `times()`, and `datetimes()` now return the new `hegel::Date`, `hegel::Time`, and `hegel::DateTime` aggregates instead of ISO 8601 strings. The structs expose the drawn fields (`year`/`month`/`day`, `hour`/`minute`/`second`/`microsecond`), compare chronologically, and serialize via `to_string()` or `operator<<`. Serialization always includes the six-digit fractional-seconds field (`HH:MM:SS.ffffff`), so every value has a single canonical string shape; previously the fraction appeared only when the microsecond was nonzero. To recover the old string-valued generators, map the typed ones, e.g. `gs::dates().map([](hegel::Date d) { return d.to_string(); })`.
+
+Other improvements:
+
+- `DerivedGenerator::override` now *replaces* the overridden field's generator, as documented, instead of drawing the default value and assigning over it. The dead draw no longer consumes entropy or leaves a junk entry in the choice sequence, which improves shrinking. Chained `override(...)` calls accumulate, and the most recent override of a field wins.
+- `hegel::run_all_tests()` now counts a test body that throws a value not derived from `std::exception` (e.g. `throw 42;`) as a failure and continues the sweep, instead of letting the exception escape and terminate the process.
+- Every blob passed to `HEGEL_REPRODUCE_FAILURE` is now retained for bookkeeping (only the first is replayed, matching the other Hegel implementations, which the docs now state unambiguously), and registering a second `HEGEL_REPRODUCE_FAILURE` for the same test is a loud error instead of a silent no-op.
+- Documentation fixes: `hegel::test()` documents that a failing body's own exception is rethrown (not `std::runtime_error`); `filter()` documents its real semantics — three attempts per draw, then the whole test case is rejected as if by `assume(false)` — plus the advice to prefer construction over filtration; `randoms()`/`HegelRandom` docs now describe this library's two modes accurately, recommend true-random mode for `<random>` distributions, and warn that a default-mode `HegelRandom` must not outlive the test-case callback; `Verbosity::Quiet` describes what it actually suppresses; the README quickstart shows the example's real failing output.
