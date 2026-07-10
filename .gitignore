@@ -16,4 +16,7 @@ result
 # which we gitignore at the top level.
 .claude/*
 !.claude/CLAUDE.md
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/changelog/
 CLAUDE.local.md

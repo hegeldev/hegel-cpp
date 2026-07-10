@@ -239,6 +239,19 @@ namespace hegel::generators {
             int version_;
         };
 
+        class UuidGenerator : public IGenerator<std::string> {
+          public:
+            explicit UuidGenerator(std::optional<uint8_t> version)
+                : version_(version) {}
+
+            std::string do_draw(const TestCase& tc) const override {
+                return impl::draw_uuid(tc, version_);
+            }
+
+          private:
+            std::optional<uint8_t> version_;
+        };
+
     } // namespace
 
     Generator<bool> booleans() {
@@ -294,6 +307,18 @@ namespace hegel::generators {
         return one_of<std::string>(
             {Generator<std::string>(new IpGenerator(4)),
              Generator<std::string>(new IpGenerator(6))});
+    }
+
+    Generator<std::string> uuids(UuidsParams params) {
+        std::optional<uint8_t> version;
+        if (params.version) {
+            if (*params.version < 1 || *params.version > 5) {
+                throw std::invalid_argument(
+                    "uuids version must be between 1 and 5");
+            }
+            version = static_cast<uint8_t>(*params.version);
+        }
+        return Generator<std::string>(new UuidGenerator(version));
     }
 
     Generator<std::string> dates() {

@@ -23,7 +23,7 @@ include(FetchContent)
 FetchContent_Declare(
     hegel
     GIT_REPOSITORY https://github.com/hegeldev/hegel-cpp.git
-    GIT_TAG v0.6.0
+    GIT_TAG v0.7.1
 )
 FetchContent_MakeAvailable(hegel)
 
@@ -55,19 +55,25 @@ std::vector<int> my_sort(std::vector<int> ls) {
     return ls;
 }
 
-int main() {
-    hegel::test([](hegel::TestCase& tc) {
-        auto vec1 = tc.draw(gs::vectors(gs::integers<int>()));
-        auto vec2 = my_sort(vec1);
-        std::sort(vec1.begin(), vec1.end());
-        if (vec1 != vec2) {
-            throw std::runtime_error("sort mismatch");
-        }
-    });
+HEGEL_TEST(sort_agrees_with_std_sort)(hegel::TestCase& tc) {
+    auto vec1 = tc.draw(gs::vectors(gs::integers<int>()));
+    auto vec2 = my_sort(vec1);
+    std::sort(vec1.begin(), vec1.end());
+    if (vec1 != vec2) {
+        throw std::runtime_error("sort mismatch");
+    }
+}
 
+int main() {
+    sort_agrees_with_std_sort();
     return 0;
 }
 ```
+
+`HEGEL_TEST` defines the test as a plain function you can invoke from `main()`
+or from any test framework, and names the test in Hegel's example database so
+failures found in one run are replayed first in the next. (You can also call
+`hegel::test(callback, settings)` directly.)
 
 This test will fail! Hegel will produce a minimal failing test case for us:
 

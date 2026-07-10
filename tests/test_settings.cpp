@@ -2,8 +2,11 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <hegel/hegel.h>
+#include <hegel/internal.h>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -173,16 +176,16 @@ TEST(FlakyReporting, FlakyGeneration) {
     }
 }
 
-// Mirrors rust/tests/test_database_key.rs. After a failing test is shrunk, the
-// minimal counterexample should be replayed first on the next run that points
-// at the same database directory.
-//
-// XFAIL: Settings does not yet expose a `database_key`. The engine treats
-// a null database_key as "don't persist", so the replay never happens. The
-// replay assertion below is wrapped in EXPECT_NONFATAL_FAILURE so that this
-// test passes today and will start failing (i.e. notice us) once database_key
-// support lands — at which point the wrapper should be removed and the Rust
-// test's isolation check (different key → no replay) should be ported too.
+std::optional<int> failed_value = std::nullopt;
+
+HEGEL_TEST(check_database)(hegel::TestCase& tc) {
+    int64_t n = tc.draw(gs::integers<int64_t>());
+    if (!(n < 1'000'000)) {
+        failed_value = {n};
+        throw std::runtime_error("n >= 1_000_000");
+    }
+}
+
 TEST(Settings, DatabaseReplaysFailure) {
     namespace fs = std::filesystem;
 
@@ -191,41 +194,113 @@ TEST(Settings, DatabaseReplaysFailure) {
     fs::remove_all(db_path);
     fs::create_directories(db_path);
 
-    Settings settings{
-        .database = Database::from_path(db_path.string()),
-    };
-
-    std::vector<int64_t> values;
-    auto run_once = [&] {
-        values.clear();
+    auto run_once = [&](const std::string& key,
+                        const std::vector<hegel::Phase> phases) {
         try {
-            hegel::test(
-                [&](hegel::TestCase& tc) {
-                    int64_t n = tc.draw(gs::integers<int64_t>());
-                    values.push_back(n);
-                    if (!(n < 1'000'000)) {
-                        throw std::runtime_error("n >= 1_000_000");
-                    }
-                },
-                settings);
+            check_database(Settings{
+                .database = Database::from_path(db_path.string()),
+                .database_key = key,
+                .phases = phases,
+            });
         } catch (const std::runtime_error&) { // NOLINT(bugprone-empty-catch)
             // expected: the property fails and hegel::test() rethrows
         }
     };
 
     // First run fails and shrinks to the minimal failing value.
-    run_once();
-    ASSERT_FALSE(values.empty());
-    int64_t shrunk_value = values.back();
+    run_once("replay-key", hegel::all_phases());
+    int64_t shrunk_value = failed_value.value();
     EXPECT_EQ(shrunk_value, 1'000'000);
 
-    // Second run should replay the shrunk failure first. Without database_key
-    // support this doesn't happen, so we expect the assertion to fail.
-    run_once();
-    ASSERT_FALSE(values.empty());
-    EXPECT_NONFATAL_FAILURE(EXPECT_EQ(values.front(), shrunk_value), "");
+    failed_value = std::nullopt;
+
+    // Second run with the same key replays the shrunk failure first.
+    run_once("replay-key", {hegel::Phase::Reuse});
+    int64_t replayed_value = failed_value.value();
+    EXPECT_EQ(shrunk_value, replayed_value);
 
     fs::remove_all(db_path);
+}
+
+static int macro_inline_count = 0;
+
+HEGEL_TEST(macro_inline_settings,
+           {.test_cases = 17,
+            .database = Database::disabled()})(hegel::TestCase& tc) {
+    tc.draw(gs::integers<int>());
+    macro_inline_count++;
+}
+
+TEST(Settings, HegelTestMacroInlineSettings) {
+    macro_inline_count = 0;
+    macro_inline_settings();
+    EXPECT_EQ(macro_inline_count, 17);
+
+    // A Settings passed at the call site replaces the inline default.
+    macro_inline_count = 0;
+    macro_inline_settings({.test_cases = 5, .database = Database::disabled()});
+    EXPECT_EQ(macro_inline_count, 5);
+}
+
+TEST(Settings, EmptyPhasesRunNothing) {
+    int count = 0;
+    hegel::test(
+        [&count](hegel::TestCase& tc) {
+            tc.draw(gs::integers<int>());
+            count++;
+        },
+        Settings{.database = Database::disabled(), .phases = {}});
+    EXPECT_EQ(count, 0);
+}
+
+TEST(Settings, GenerateOnlyPhaseRunsFullBudget) {
+    int count = 0;
+    hegel::test(
+        [&count](hegel::TestCase& tc) {
+            tc.draw(gs::integers<int>());
+            count++;
+        },
+        Settings{.database = Database::disabled(),
+                 .phases = {hegel::Phase::Generate}});
+    EXPECT_EQ(count, 100);
+}
+
+TEST(Settings, SingleTestCaseModeRunsOneCase) {
+    int count = 0;
+    hegel::test(
+        [&count](hegel::TestCase& tc) {
+            tc.draw(gs::integers<int>());
+            count++;
+        },
+        Settings{.database = Database::disabled(),
+                 .mode = hegel::Mode::SingleTestCase});
+    EXPECT_EQ(count, 1);
+}
+
+TEST(Settings, UrandomBackendRuns) {
+    int count = 0;
+    hegel::test(
+        [&count](hegel::TestCase& tc) {
+            tc.draw(gs::integers<int>());
+            count++;
+        },
+        Settings{.test_cases = 10,
+                 .database = Database::disabled(),
+                 .backend = hegel::Backend::Urandom});
+    EXPECT_EQ(count, 10);
+}
+
+TEST(Settings, DefaultBackendRuns) {
+    int count = 0;
+    hegel::test(
+        [&count](hegel::TestCase& tc) {
+            tc.draw(gs::integers<int>());
+            count++;
+        },
+        Settings{.test_cases = 10,
+                 .database = Database::disabled(),
+                 .backend = hegel::Backend::Default});
+    EXPECT_EQ(count, 10);
 }
 
 // With Database::unset() the engine falls back to its own default `.hegel`
@@ -252,4 +327,137 @@ TEST(Settings, UnsetDatabaseUsesEngineDefault) {
     fs::current_path(prev);
     fs::remove_all(work);
     EXPECT_EQ(count, 5);
+}
+
+// ---------------------------------------------------------------------------
+// Reproduce-failure blobs
+// ---------------------------------------------------------------------------
+
+TEST(FailureBlobs, BlobDoesNotReproduceFailure) {
+    try {
+        hegel::test(
+            [&](hegel::TestCase& tc) {
+                int n = tc.draw(gs::integers<int>());
+                if (n < 50) {
+                    throw std::runtime_error("fail");
+                }
+            },
+            {}, {"AAEAAAAACgEAAAAy"});
+        FAIL();
+    } catch (const std::runtime_error& e) {
+        EXPECT_EQ(std::string(e.what()),
+                  "The failure blob did not reproduce an error");
+    }
+}
+
+TEST(FailureBlobs, InvalidBlob) {
+    try {
+        hegel::test(
+            [&](hegel::TestCase& tc) {
+                int n = tc.draw(gs::integers<int>());
+                if (n < 50) {
+                    throw std::runtime_error("fail");
+                }
+            },
+            {}, {"A"});
+        FAIL();
+    } catch (const std::runtime_error& e) {
+        EXPECT_EQ(std::string(e.what()),
+                  "invalid argument: hegel_test_case_from_blob: the supplied "
+                  "failure blob could not be decoded. It may be corrupt or "
+                  "from an incompatible Hegel version.");
+    }
+}
+
+HEGEL_REPRODUCE_FAILURE(obvious_fail, "AAEAAAAACgEAAAAA", "invalid")
+HEGEL_TEST(obvious_fail,
+           {.phases = {hegel::Phase::Explicit}})(hegel::TestCase& tc) {
+    int n = tc.draw(gs::integers<int>());
+    if (n < 50) {
+        throw std::runtime_error("fail");
+    }
+}
+
+TEST(FailureBlobs, BlobReproduceFailure) {
+    try {
+        obvious_fail();
+        FAIL();
+    } catch (const std::runtime_error& e) {
+        EXPECT_EQ(std::string(e.what()), "fail");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Enum / environment string helpers
+// ---------------------------------------------------------------------------
+
+TEST(Settings, VerbosityToString) {
+    using hegel::Verbosity;
+    EXPECT_STREQ(hegel::verbosity_to_string(Verbosity::Quiet), "quiet");
+    EXPECT_STREQ(hegel::verbosity_to_string(Verbosity::Verbose), "verbose");
+    EXPECT_STREQ(hegel::verbosity_to_string(Verbosity::Debug), "debug");
+    EXPECT_STREQ(hegel::verbosity_to_string(Verbosity::Normal), "normal");
+}
+
+TEST(Settings, HealthCheckToString) {
+    using hegel::HealthCheck;
+    EXPECT_STREQ(hegel::health_check_to_string(HealthCheck::FilterTooMuch),
+                 "filter_too_much");
+    EXPECT_STREQ(hegel::health_check_to_string(HealthCheck::TooSlow),
+                 "too_slow");
+    EXPECT_STREQ(hegel::health_check_to_string(HealthCheck::TestCasesTooLarge),
+                 "test_cases_too_large");
+    EXPECT_STREQ(
+        hegel::health_check_to_string(HealthCheck::LargeInitialTestCase),
+        "large_initial_test_case");
+    // An out-of-range value falls through the switch to the empty string.
+    EXPECT_STREQ(hegel::health_check_to_string(static_cast<HealthCheck>(999)),
+                 "");
+}
+
+// in_ci() scans known CI environment variables. Drive it with a controlled
+// environment so the result doesn't depend on where the suite runs.
+TEST(Settings, InCiDetection) {
+    static const char* kCiVars[] = {"CI",
+                                    "TF_BUILD",
+                                    "BUILDKITE",
+                                    "CIRCLECI",
+                                    "CIRRUS_CI",
+                                    "CODEBUILD_BUILD_ID",
+                                    "GITHUB_ACTIONS",
+                                    "GITLAB_CI",
+                                    "HEROKU_TEST_RUN_ID",
+                                    "TEAMCITY_VERSION"};
+
+    // Save and clear the ambient CI variables so the test is deterministic.
+    std::map<std::string, std::string> saved;
+    for (const char* name : kCiVars) {
+        if (const char* v = std::getenv(name)) {
+            saved.emplace(name, v);
+        }
+        unsetenv(name);
+    }
+
+    // Nothing set: not in CI.
+    EXPECT_FALSE(hegel::internal::in_ci());
+
+    // A presence-only variable (expected == nullptr) satisfies the check.
+    setenv("CI", "anything", 1);
+    EXPECT_TRUE(hegel::internal::in_ci());
+    unsetenv("CI");
+
+    // A variable with an expected value matches only when it is equal.
+    setenv("GITHUB_ACTIONS", "true", 1);
+    EXPECT_TRUE(hegel::internal::in_ci());
+    setenv("GITHUB_ACTIONS", "false", 1);
+    EXPECT_FALSE(hegel::internal::in_ci());
+    unsetenv("GITHUB_ACTIONS");
+
+    // Restore the original environment.
+    for (const char* name : kCiVars) {
+        unsetenv(name);
+    }
+    for (const auto& [name, value] : saved) {
+        setenv(name.c_str(), value.c_str(), 1);
+    }
 }

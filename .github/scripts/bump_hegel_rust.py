@@ -2,10 +2,11 @@
 
 Resolves the target hegel-rust version (an explicit argument, else the latest
 release), writes it into `cmake/libhegel.cmake`, refreshes the vendored C ABI
-header (`libhegel/hegel.h`) from hegel-rust at the matching tag, drops a
-`RELEASE.md` so merging the PR cuts a hegel-cpp release, and force-pushes a fixed
-branch (updating an already-open PR in place rather than stacking one PR per
-release).
+header (`libhegel/hegel.h`) from hegel-rust at the matching tag, repins the Nix
+flake (`nix/flake.nix`) version and per-platform SHA-256 hashes from the release
+sidecars, drops a `RELEASE.md` so merging the PR cuts a hegel-cpp release, and
+force-pushes a fixed branch (updating an already-open PR in place rather than
+stacking one PR per release).
 
 Requires the GitHub CLI (`gh`) on PATH with `GH_TOKEN` set.
 """
@@ -15,6 +16,7 @@ import os
 import re
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -22,6 +24,7 @@ RUST_REPO = "hegeldev/hegel-rust"
 BRANCH = "ci/bump-hegel-rust"
 LIBHEGEL_CMAKE = ROOT / "cmake" / "libhegel.cmake"
 HEADER = ROOT / "libhegel" / "hegel.h"
+FLAKE = ROOT / "nix" / "flake.nix"
 RELEASE_MD = ROOT / "RELEASE.md"
 
 # The generated C ABI header committed in hegel-rust, tagged with each release.
@@ -32,6 +35,12 @@ WORKFLOW_URL = (
 )
 
 VERSION_RE = re.compile(r'(HEGEL_LIBHEGEL_VERSION\s+")([^"]+)(")')
+FLAKE_VERSION_RE = re.compile(r'(libhegelVersion\s*=\s*")([^"]+)(")')
+# Each libhegel asset block in flake.nix: an `asset = "..."` line immediately
+# followed by its `sha256 = "..."` line. Recapture the hash to repin it.
+FLAKE_ASSET_RE = re.compile(
+    r'(asset\s*=\s*"(?P<asset>[^"]+)";\s*sha256\s*=\s*")[0-9a-fA-F]+(")'
+)
 
 
 def git(*args: str) -> None:
@@ -79,6 +88,32 @@ def refresh_header(version: str) -> None:
     subprocess.run(["uvx", "clang-format", "-i", str(HEADER)], check=True, cwd=ROOT)
 
 
+def fetch_asset_sha256(version: str, asset: str) -> str:
+    # Each release asset ships a `<asset>.sha256` sidecar ("<hex>  <asset>").
+    url = f"https://github.com/{RUST_REPO}/releases/download/v{version}/{asset}.sha256"
+    with urllib.request.urlopen(url) as resp:
+        sidecar = resp.read().decode("utf-8")
+    m = re.search(r"[0-9a-fA-F]{64}", sidecar)
+    assert m is not None, f"could not parse SHA-256 for {asset} from {url}"
+    return m.group(0)
+
+
+def refresh_flake(version: str) -> None:
+    # Repin the Nix flake to match cmake/libhegel.cmake: bump the version and
+    # refresh each platform asset's SHA-256 from its release sidecar.
+    text = FLAKE.read_text(encoding="utf-8")
+    text, n = FLAKE_VERSION_RE.subn(rf"\g<1>{version}\g<3>", text, count=1)
+    assert n == 1, "expected exactly one libhegelVersion line in flake.nix"
+
+    def repin(m: "re.Match[str]") -> str:
+        digest = fetch_asset_sha256(version, m.group("asset"))
+        return f"{m.group(1)}{digest}{m.group(3)}"
+
+    text, n = FLAKE_ASSET_RE.subn(repin, text)
+    assert n >= 1, "expected at least one libhegel asset block in flake.nix"
+    FLAKE.write_text(text, encoding="utf-8")
+
+
 def bump(requested: str) -> None:
     current = get_pinned_version()
     target = requested or resolve_latest()
@@ -89,6 +124,7 @@ def bump(requested: str) -> None:
 
     set_pinned_version(target)
     refresh_header(target)
+    refresh_flake(target)
 
     current_url = f"https://github.com/{RUST_REPO}/releases/tag/v{current}"
     new_url = f"https://github.com/{RUST_REPO}/releases/tag/v{target}"
@@ -107,7 +143,7 @@ def bump(requested: str) -> None:
     # A fixed branch that we force-push: an already-open PR is updated in place
     # to the newest version rather than stacking up a new PR per release.
     git("checkout", "-B", BRANCH)
-    git("add", str(LIBHEGEL_CMAKE), str(HEADER), str(RELEASE_MD))
+    git("add", str(LIBHEGEL_CMAKE), str(HEADER), str(FLAKE), str(RELEASE_MD))
     git("commit", "-m", f"Bump pinned libhegel to {target}")
     git("push", "--force", "origin", BRANCH)
 

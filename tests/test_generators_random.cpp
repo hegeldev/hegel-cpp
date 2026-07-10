@@ -1,3 +1,6 @@
+// Random-source generators: randoms() / true randoms, usable as a standard
+// library RNG.
+
 #include <gtest/gtest.h>
 
 #include <hegel/hegel.h>

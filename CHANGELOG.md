@@ -1,5 +1,117 @@
 # Changelog
 
+## 0.7.1 - 2026-07-10
+
+This patch adds three `TestCase` methods and three generators.
+
+New `TestCase` methods:
+
+- `tc.reject()` rejects the current test case unconditionally. Unlike `tc.assume(false)`, it is marked `[[noreturn]]` so it can stand in for a value in a branch that cannot continue.
+
+- `tc.target(score, label = "")` records a numeric observation for the engine's targeted-search phase to maximize. Higher scores are treated as more interesting, so the engine biases later test cases toward inputs that produced higher scores under the same label.
+
+- `tc.repeat(body)` runs `body` in an engine-managed loop whose iteration count the engine chooses and shrinks, like any other drawn value.
+
+```cpp
+int total = 0;
+tc.repeat([&] {
+    total += tc.draw(gs::integers<int>({.min_value = 0, .max_value = 10}));
+    if (total >= 50) throw std::runtime_error("too much");
+});
+```
+
+New generators:
+
+- `uuids()` produces canonical hyphenated UUID strings (e.g. `f47ac10b-58cc-4372-a567-0e02b2c3d479`). By default any version is generated. Pass `{.version = N}` to force an RFC 4122 version (1-5).
+
+- `arrays<T, N>(element)` produces a fixed-size `std::array<T, N>`, drawing exactly `N` elements from the generator 
+`element`. Unlike `vectors()`, the length is fixed at compile time, so `N` is given explicitly: `arrays<int, 3>(integers<int>())`.
+
+- `deferred<T>()` creates a forward reference for recursive or mutually recursive generators. Call `.generator()` to obtain handles before the implementation is known, embed them in other generators, then call `.set(...)` once to install the implementation:
+
+```cpp
+struct Tree { int leaf; std::vector<Tree> children; };
+
+auto tree = gs::deferred<Tree>();
+auto leaf = gs::integers<int>().map([](int v) { return Tree{v, {}}; });
+auto branch = gs::compose([tree](const hegel::TestCase& tc) {
+    return Tree{0, {tc.draw(tree.generator()), tc.draw(tree.generator())}};
+});
+tree.set(gs::one_of<Tree>({leaf, branch}));
+```
+
+## 0.7.0 - 2026-07-09
+
+This release changes the default value of `fullmatch` in `from_regex` from `false` to `true`.
+
+## 0.6.3 - 2026-07-09
+
+This patch bumps our pinned `libhegel` ([hegel-rust](hegeldev/hegel-rust)) from [0.27.0](https://github.com/hegeldev/hegel-rust/releases/tag/v0.27.0) to [0.28.0](https://github.com/hegeldev/hegel-rust/releases/tag/v0.28.0).
+
+## 0.6.2 - 2026-07-09
+
+This patch adds the ability to reproduce a specific failing example from its
+reproduction blob and a `print_blob` setting to toggle printing those blobs.
+
+To replay a failure, annotate a `HEGEL_TEST` with `HEGEL_REPRODUCE_FAILURE`. 
+The test replays that blob instead of generating new cases:
+
+```cpp
+HEGEL_REPRODUCE_FAILURE(my_property, "AAEAAAAACgEAAAAA")
+HEGEL_TEST(my_property)(hegel::TestCase& tc) {
+    int n = tc.draw(gs::integers<int>());
+    if (n < 50) {
+        throw std::runtime_error("fail");
+    }
+}
+```
+
+At least one blob is required. More than one blob can be added for bookkeeping but 
+only the first is replayed. Delete the annotation to return to a normal run.
+
+When calling `hegel::test` directly, pass the blobs as the third argument:
+
+```cpp
+hegel::test(my_property, {}, {"AAEAAAAACgEAAAAA"});
+```
+
+## 0.6.1 - 2026-07-07
+
+This release adds `HEGEL_TEST`, the new recommended way to define a property test. The macro defines the test as a plain function you can invoke from `main()` or any test framework, and derives a database key from the defining file and test name, so failing examples are persisted to the example database and replayed first on later runs. Settings can be written inline after the test name and become the function's default argument. Settings passed when invoking the test replaces them for that run:
+
+```cpp
+HEGEL_TEST(addition_commutes, {.test_cases = 500})(hegel::TestCase& tc) {
+    int x = tc.draw(gs::integers<int>());
+    int y = tc.draw(gs::integers<int>());
+    if (x + y != y + x) {
+        throw std::runtime_error("addition is not commutative");
+    }
+}
+```
+
+Each `HEGEL_TEST` is also registered with the new `hegel::run_all_tests()`, which runs every test defined with the macro in a translation unit. It reports failures to stderr and returns 0 if everything passed (1 otherwise).
+
+You can run the test above in two ways:
+
+```cpp
+int main() {
+    return hegel::run_all_tests();
+}
+```
+```cpp
+int main() {
+    addition_commutes();
+    return 0;
+}
+```
+
+There are four new settings:
+
+- `database_key`: the key scoping which examples are stored in and replayed from the database. `HEGEL_TEST` fills it in automatically. Set it yourself when calling `hegel::test()` directly.
+- `phases`: which phases of the run to enable (`Phase::Explicit`, `Reuse`, `Generate`, `Target`, `Shrink`)
+- `mode`: `Mode::TestRun` (the default) or `Mode::SingleTestCase`, which produces one test case and stops with no shrinking intended for long running tests
+- `backend`: the engine's randomness source. `Backend::Auto` (the default), `Backend::Default` (seeded PRNG), or `Backend::Urandom` (fresh entropy per draw, intended for Antithesis)
+
 ## 0.6.0 - 2026-07-07
 
 This release bumps our pinned `libhegel` ([hegel-rust](hegeldev/hegel-rust)) from [0.23.2](https://github.com/hegeldev/hegel-rust/releases/tag/v0.23.2) to [0.27.0](https://github.com/hegeldev/hegel-rust/releases/tag/v0.27.0) and migrates the library to its reworked C ABI.

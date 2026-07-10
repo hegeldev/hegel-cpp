@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <hegel.h>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -43,8 +44,16 @@ namespace hegel::impl {
                                                hegel_settings_t* s, bool yes);
     void settings_set_database(hegel_context_t* ctx, hegel_settings_t* s,
                                const char* path);
+    void settings_set_database_key(hegel_context_t* ctx, hegel_settings_t* s,
+                                   const char* key);
     void settings_set_suppress_health_check(hegel_context_t* ctx,
                                             hegel_settings_t* s, uint32_t mask);
+    void settings_set_phases(hegel_context_t* ctx, hegel_settings_t* s,
+                             uint32_t phases);
+    void settings_set_mode(hegel_context_t* ctx, hegel_settings_t* s,
+                           hegel_mode_t mode);
+    void settings_set_backend(hegel_context_t* ctx, hegel_settings_t* s,
+                              hegel_backend_t backend);
     hegel_settings_t* settings_new(hegel_context_t* ctx);
 
     hegel_run_t* run_start(hegel_context_t* ctx, hegel_settings_t* s);
@@ -105,6 +114,8 @@ namespace hegel::impl {
     // generators.cpp. (The template-visible ones live in
     // hegel::internal — see include/hegel/internal.h.)
 
+    void target(const TestCase& tc, double score, const char* label);
+
     std::string draw_string(const TestCase& tc,
                             const hegel_string_generator_t* generator);
     std::vector<uint8_t> draw_bytes(const TestCase& tc, uint64_t min_size,
@@ -112,6 +123,7 @@ namespace hegel::impl {
     hegel_date_t draw_date(const TestCase& tc);
     hegel_time_t draw_time(const TestCase& tc);
     hegel_datetime_t draw_datetime(const TestCase& tc);
+    std::string draw_uuid(const TestCase& tc, std::optional<uint8_t> version);
     /// Dotted-quad (v4) / RFC 5952 colon-hex (v6) text form.
     std::string draw_ipv4(const TestCase& tc);
     std::string draw_ipv6(const TestCase& tc);

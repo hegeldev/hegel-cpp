@@ -2,7 +2,9 @@
 
 #include <cstdint>
 #include <initializer_list>
+#include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <variant>
@@ -257,5 +259,98 @@ namespace hegel::generators {
     }
 
     /// @}
+
+    /// @cond INTERNAL
+    // Generator that delegates to an implementation supplied later through a
+    // shared slot. Handed out by DeferredGeneratorDefinition::generator().
+    template <typename T> class DeferredGenerator : public IGenerator<T> {
+      public:
+        explicit DeferredGenerator(
+            std::shared_ptr<std::optional<Generator<T>>> slot)
+            : slot_(std::move(slot)) {}
+
+        T do_draw(const TestCase& tc) const override {
+            if (!*slot_) {
+                throw std::runtime_error(
+                    "deferred generator drawn before set() was called");
+            }
+            return (*slot_)->do_draw(tc);
+        }
+
+      private:
+        std::shared_ptr<std::optional<Generator<T>>> slot_;
+    };
+    /// @endcond
+
+    /**
+     * @brief A forward reference to a generator whose definition is provided
+     *        later.
+     *
+     * Created by deferred(). Call generator() to obtain handles that can be
+     * embedded in other generators before the implementation is known, then
+     * call set() to install it. This enables self-recursive and mutually
+     * recursive generators.
+     *
+     * @tparam T Value type produced by the eventual generator.
+     */
+    template <typename T> class DeferredGeneratorDefinition {
+      public:
+        DeferredGeneratorDefinition()
+            : slot_(std::make_shared<std::optional<Generator<T>>>()) {}
+
+        /**
+         * @brief Return a handle that delegates to whatever is later passed to
+         *        set(). May be called multiple times. Drawing from it before
+         * set() is called throws.
+         *
+         * @return A Generator that delegates to the implementation installed by
+         *   set().
+         */
+        Generator<T> generator() const {
+            return Generator<T>(new DeferredGenerator<T>(slot_));
+        }
+
+        /**
+         * @brief Set the implementation for this deferred generator.
+         *
+         * All handles previously returned by generator() delegate to @p gen.
+         * May be called only once. A second call throws. Drawing from a handle
+         * before set() is called throws.
+         *
+         * @param gen The generator to install as the implementation.
+         */
+        void set(Generator<T> gen) {
+            if (*slot_) {
+                throw std::runtime_error(
+                    "deferred generator set() called more than once");
+            }
+            *slot_ = std::move(gen);
+        }
+
+      private:
+        std::shared_ptr<std::optional<Generator<T>>> slot_;
+    };
+
+    /**
+     * @brief Create a deferred generator definition for forward references.
+     *
+     * @tparam T Value type produced by the eventual generator.
+     * @return A DeferredGeneratorDefinition whose generator() handles can be
+     *   used before set() supplies the implementation.
+     *
+     * @code{.cpp}
+     * struct Tree { int leaf; std::vector<Tree> children; };
+     * auto tree = gs::deferred<Tree>();
+     * auto leaf = gs::integers<int>().map([](int v) { return Tree{v, {}}; });
+     * auto branch = gs::compose([tree](const hegel::TestCase& tc) {
+     *     return Tree{0, {tc.draw(tree.generator()),
+     * tc.draw(tree.generator())}};
+     * });
+     * tree.set(gs::one_of<Tree>({leaf, branch}));
+     * @endcode
+     */
+    template <typename T> DeferredGeneratorDefinition<T> deferred() {
+        return DeferredGeneratorDefinition<T>();
+    }
 
 } // namespace hegel::generators

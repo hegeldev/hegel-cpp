@@ -1,11 +1,14 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <optional>
 #include <set>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "hegel/core.h"
@@ -312,6 +315,63 @@ namespace hegel::generators {
     Generator<std::tuple<Ts...>> tuples(Generator<Ts>... gens) {
         return Generator<std::tuple<Ts...>>(
             new TuplesGenerator<Ts...>(std::move(gens)...));
+    }
+
+    /// @cond INTERNAL
+    // Concrete IGenerator for arrays(). Draws exactly N elements from one
+    // element generator inside a single tuple span (fixed arity, not the
+    // engine-managed collection protocol vectors() uses).
+    template <typename T, size_t N>
+    class ArrayGenerator : public IGenerator<std::array<T, N>> {
+      public:
+        explicit ArrayGenerator(Generator<T> element)
+            : element_(std::move(element)) {}
+
+        std::array<T, N> do_draw(const TestCase& tc) const override {
+            namespace hi = hegel::internal;
+            hi::start_span(tc, hi::SpanLabel::Tuple);
+            std::array<T, N> result =
+                draw_all(tc, std::make_index_sequence<N>{});
+            hi::stop_span(tc);
+            return result;
+        }
+
+      private:
+        // Braced-init evaluates its elements left to right, so the N draws
+        // happen in order; the comma operator consumes each index.
+        template <size_t... Is>
+        std::array<T, N> draw_all(const TestCase& tc,
+                                  std::index_sequence<Is...>) const {
+            return std::array<T, N>{
+                (static_cast<void>(Is), element_.do_draw(tc))...};
+        }
+
+        Generator<T> element_;
+    };
+    /// @endcond
+
+    /**
+     * @brief Generate fixed-size arrays.
+     *
+     * Draws exactly @p N elements from @p element, producing a
+     * @c std::array<T, N>. Unlike vectors(), the length is fixed at compile
+     * time. @p N cannot be deduced, so specify it explicitly.
+     *
+     * @code{.cpp}
+     * auto rgb = arrays<int, 3>(integers<int>({.min_value = 0, .max_value =
+     * 255}));
+     * // Draws std::array<int, 3>
+     * @endcode
+     *
+     * @tparam T Element type
+     * @tparam N Number of elements
+     * @param element Generator for each element
+     * @return Generator producing std::array<T, N>
+     */
+    template <typename T, size_t N>
+    Generator<std::array<T, N>> arrays(Generator<T> element) {
+        return Generator<std::array<T, N>>(
+            new ArrayGenerator<T, N>(std::move(element)));
     }
 
     /// @}

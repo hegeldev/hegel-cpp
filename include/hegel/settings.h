@@ -74,6 +74,48 @@ namespace hegel {
     }
 
     /**
+     * @brief Phases of a property-test run.
+     */
+    enum class Phase {
+        Explicit, ///< Run hard-coded explicit examples.
+        Reuse,    ///< Replay counterexamples persisted in the database.
+        Generate, ///< Randomly generate fresh test cases.
+        Target,   ///< Hill-climb toward observed target scores.
+        Shrink,   ///< Shrink failing examples toward minimal counterexamples.
+    };
+
+    /**
+     * @brief All phases, the default for Settings::phases.
+     * @return A vector containing every Phase variant.
+     */
+    inline std::vector<Phase> all_phases() {
+        return {Phase::Explicit, Phase::Reuse, Phase::Generate, Phase::Target,
+                Phase::Shrink};
+    }
+
+    /**
+     * @brief How much of a run the engine performs.
+     */
+    enum class Mode {
+        TestRun,        ///< Full property-test run. The default.
+        SingleTestCase, ///< Produce exactly one test case and stop, with no
+                        ///< shrinking. Useful for exploratory probes.
+    };
+
+    /**
+     * @brief Source of randomness the engine draws from.
+     */
+    enum class Backend {
+        Auto,    ///< Choose automatically (the default): Urandom when running
+                 ///< inside Antithesis, Default otherwise.
+        Default, ///< Expand a single seeded PRNG. Runs are reproducible from
+                 ///< the seed and shrinking / replay work as usual.
+        Urandom, ///< Read fresh entropy from `/dev/urandom` on every draw.
+                 ///< Intended for running under Antithesis; you almost
+                 ///< certainly don't want it otherwise.
+    };
+
+    /**
      * @brief Configure the Hegel database.
      */
     class Database {
@@ -173,12 +215,32 @@ namespace hegel {
         /// default), stop the run at the first failing example.
         bool report_multiple_failures = false;
 
+        /// If true, print the base64 blob encoding the engine choices that led
+        /// to a failure.
+        bool print_blob = false;
+
         /// Configure the Hegel database. See Database. Defaults to a database
         /// at `.hegel`, or disabled when a CI environment is detected.
         Database database =
             internal::in_ci() ? Database::disabled() : Database::unset();
 
+        /// Key scoping the examples stored in and replayed from the database.
+        /// Unset (the default) disables persistence and Reuse-phase replay.
+        std::optional<std::string> database_key;
+
         /// Health checks to suppress for this test.
         std::vector<HealthCheck> suppress_health_check;
+
+        /// Phases to run. Defaults to all phases; phases left out are
+        /// disabled (e.g. drop Phase::Shrink to keep failing examples
+        /// unshrunk). An empty vector produces a run that does nothing.
+        std::vector<Phase> phases = all_phases();
+
+        /// How much of a run to perform. Defaults to Mode::TestRun.
+        Mode mode = Mode::TestRun;
+
+        /// Randomness backend. Defaults to Backend::Auto; picking an explicit
+        /// backend overrides the automatic detection.
+        Backend backend = Backend::Auto;
     };
 } // namespace hegel

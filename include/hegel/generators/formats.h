@@ -24,6 +24,14 @@ namespace hegel::generators {
         std::optional<int> v; ///< IP version: 4, 6, or nullopt for both
     };
 
+    /**
+     * @brief Parameters for uuids() generator.
+     */
+    struct UuidsParams {
+        /// RFC 4122 version to force (1-5), or nullopt for any version.
+        std::optional<int> version;
+    };
+
     /// @name Strings
     /// @{
 
@@ -79,6 +87,19 @@ namespace hegel::generators {
      * @return Generator producing IP-address strings.
      */
     Generator<std::string> ip_addresses(IpAddressesParams params = {});
+
+    /**
+     * @brief Generate UUIDs in canonical hyphenated form.
+     *
+     * Produces lowercase 8-4-4-4-12 hex strings (e.g.
+     * `f47ac10b-58cc-4372-a567-0e02b2c3d479`). By default any version is
+     * generated; set `version` to restrict to a specific RFC 4122 version.
+     *
+     * @param params Version constraint: `version = 1..5` forces that RFC 4122
+     *   version, or `std::nullopt` (default) for any version.
+     * @return Generator producing canonical UUID strings.
+     */
+    Generator<std::string> uuids(UuidsParams params = {});
 
     /// @}
 

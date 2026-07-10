@@ -124,6 +124,17 @@ namespace {
             },
             no_database());
     }
+
+    void scenario_print_blob() {
+        hegel::test(
+            [](hegel::TestCase& tc) {
+                int32_t x = tc.draw(gs::integers<int32_t>());
+                if (x >= 0) {
+                    throw std::runtime_error("silly error");
+                }
+            },
+            {.print_blob = true, .database = hegel::Database::disabled()});
+    }
 } // namespace
 
 int main(int argc, char** argv) {
@@ -147,6 +158,8 @@ int main(int argc, char** argv) {
             scenario_multiple_failures_off();
         } else if (scenario == "exception_message") {
             scenario_exception_message();
+        } else if (scenario == "print_blob") {
+            scenario_print_blob();
         } else {
             std::fprintf(stderr, "unknown scenario: %s\n", argv[1]);
             return 2;
