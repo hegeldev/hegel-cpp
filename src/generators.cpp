@@ -1,4 +1,5 @@
 #include <hegel/core.h>
+#include <hegel/datetime.h>
 #include <hegel/generators/combinators.h>
 #include <hegel/generators/formats.h>
 #include <hegel/generators/numeric.h>

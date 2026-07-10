@@ -24,6 +24,8 @@ namespace hegel {
          *
          * The year is zero-padded to four digits, month and day to two, so
          * every Date has exactly one serialization.
+         *
+         * @return The date as a `YYYY-MM-DD` string
          */
         std::string to_string() const {
             char buf[32];
@@ -34,21 +36,49 @@ namespace hegel {
 
     /// @name Date comparisons (chronological order)
     /// @{
+
+    /// @brief Equality: all three fields match.
+    /// @param a Left-hand date
+    /// @param b Right-hand date
+    /// @return Whether @p a and @p b are the same date
     inline bool operator==(const Date& a, const Date& b) {
         return std::tie(a.year, a.month, a.day) ==
                std::tie(b.year, b.month, b.day);
     }
+    /// @brief Inequality: any field differs.
+    /// @param a Left-hand date
+    /// @param b Right-hand date
+    /// @return Whether @p a and @p b are different dates
     inline bool operator!=(const Date& a, const Date& b) { return !(a == b); }
+    /// @brief Chronological order.
+    /// @param a Left-hand date
+    /// @param b Right-hand date
+    /// @return Whether @p a is earlier than @p b
     inline bool operator<(const Date& a, const Date& b) {
         return std::tie(a.year, a.month, a.day) <
                std::tie(b.year, b.month, b.day);
     }
+    /// @brief Chronological order.
+    /// @param a Left-hand date
+    /// @param b Right-hand date
+    /// @return Whether @p a is later than @p b
     inline bool operator>(const Date& a, const Date& b) { return b < a; }
+    /// @brief Chronological order.
+    /// @param a Left-hand date
+    /// @param b Right-hand date
+    /// @return Whether @p a is no later than @p b
     inline bool operator<=(const Date& a, const Date& b) { return !(b < a); }
+    /// @brief Chronological order.
+    /// @param a Left-hand date
+    /// @param b Right-hand date
+    /// @return Whether @p a is no earlier than @p b
     inline bool operator>=(const Date& a, const Date& b) { return !(a < b); }
     /// @}
 
     /// @brief Prints Date::to_string().
+    /// @param os Stream to print to
+    /// @param d Date to print
+    /// @return @p os, for chaining
     inline std::ostream& operator<<(std::ostream& os, const Date& d) {
         return os << d.to_string();
     }
@@ -74,6 +104,8 @@ namespace hegel {
          * six digits — including when `microsecond` is zero — so every Time
          * has exactly one serialization. (This differs from Python's
          * `isoformat()`, which drops the fractional part when it is zero.)
+         *
+         * @return The time as an `HH:MM:SS.ffffff` string
          */
         std::string to_string() const {
             char buf[32];
@@ -85,21 +117,49 @@ namespace hegel {
 
     /// @name Time comparisons (chronological order)
     /// @{
+
+    /// @brief Equality: all four fields match.
+    /// @param a Left-hand time
+    /// @param b Right-hand time
+    /// @return Whether @p a and @p b are the same time
     inline bool operator==(const Time& a, const Time& b) {
         return std::tie(a.hour, a.minute, a.second, a.microsecond) ==
                std::tie(b.hour, b.minute, b.second, b.microsecond);
     }
+    /// @brief Inequality: any field differs.
+    /// @param a Left-hand time
+    /// @param b Right-hand time
+    /// @return Whether @p a and @p b are different times
     inline bool operator!=(const Time& a, const Time& b) { return !(a == b); }
+    /// @brief Chronological order.
+    /// @param a Left-hand time
+    /// @param b Right-hand time
+    /// @return Whether @p a is earlier than @p b
     inline bool operator<(const Time& a, const Time& b) {
         return std::tie(a.hour, a.minute, a.second, a.microsecond) <
                std::tie(b.hour, b.minute, b.second, b.microsecond);
     }
+    /// @brief Chronological order.
+    /// @param a Left-hand time
+    /// @param b Right-hand time
+    /// @return Whether @p a is later than @p b
     inline bool operator>(const Time& a, const Time& b) { return b < a; }
+    /// @brief Chronological order.
+    /// @param a Left-hand time
+    /// @param b Right-hand time
+    /// @return Whether @p a is no later than @p b
     inline bool operator<=(const Time& a, const Time& b) { return !(b < a); }
+    /// @brief Chronological order.
+    /// @param a Left-hand time
+    /// @param b Right-hand time
+    /// @return Whether @p a is no earlier than @p b
     inline bool operator>=(const Time& a, const Time& b) { return !(a < b); }
     /// @}
 
     /// @brief Prints Time::to_string().
+    /// @param os Stream to print to
+    /// @param t Time to print
+    /// @return @p os, for chaining
     inline std::ostream& operator<<(std::ostream& os, const Time& t) {
         return os << t.to_string();
     }
@@ -122,6 +182,8 @@ namespace hegel {
          * Combines Date::to_string() and Time::to_string() with the `T`
          * separator, so the fractional-seconds field is always present and
          * every DateTime has exactly one serialization.
+         *
+         * @return The datetime as a `YYYY-MM-DDTHH:MM:SS.ffffff` string
          */
         std::string to_string() const {
             return date.to_string() + "T" + time.to_string();
@@ -130,30 +192,58 @@ namespace hegel {
 
     /// @name DateTime comparisons (chronological order)
     /// @{
+
+    /// @brief Equality: date and time both match.
+    /// @param a Left-hand datetime
+    /// @param b Right-hand datetime
+    /// @return Whether @p a and @p b are the same datetime
     inline bool operator==(const DateTime& a, const DateTime& b) {
         return a.date == b.date && a.time == b.time;
     }
+    /// @brief Inequality: date or time differs.
+    /// @param a Left-hand datetime
+    /// @param b Right-hand datetime
+    /// @return Whether @p a and @p b are different datetimes
     inline bool operator!=(const DateTime& a, const DateTime& b) {
         return !(a == b);
     }
+    /// @brief Chronological order: by date, then by time.
+    /// @param a Left-hand datetime
+    /// @param b Right-hand datetime
+    /// @return Whether @p a is earlier than @p b
     inline bool operator<(const DateTime& a, const DateTime& b) {
         if (a.date != b.date) {
             return a.date < b.date;
         }
         return a.time < b.time;
     }
+    /// @brief Chronological order: by date, then by time.
+    /// @param a Left-hand datetime
+    /// @param b Right-hand datetime
+    /// @return Whether @p a is later than @p b
     inline bool operator>(const DateTime& a, const DateTime& b) {
         return b < a;
     }
+    /// @brief Chronological order: by date, then by time.
+    /// @param a Left-hand datetime
+    /// @param b Right-hand datetime
+    /// @return Whether @p a is no later than @p b
     inline bool operator<=(const DateTime& a, const DateTime& b) {
         return !(b < a);
     }
+    /// @brief Chronological order: by date, then by time.
+    /// @param a Left-hand datetime
+    /// @param b Right-hand datetime
+    /// @return Whether @p a is no earlier than @p b
     inline bool operator>=(const DateTime& a, const DateTime& b) {
         return !(a < b);
     }
     /// @}
 
     /// @brief Prints DateTime::to_string().
+    /// @param os Stream to print to
+    /// @param dt DateTime to print
+    /// @return @p os, for chaining
     inline std::ostream& operator<<(std::ostream& os, const DateTime& dt) {
         return os << dt.to_string();
     }
