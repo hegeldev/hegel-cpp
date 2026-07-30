@@ -92,6 +92,28 @@ std::ostream& operator<<(std::ostream& os, const Both& b) {
     return os << "Both(" << b.v << ")";
 }
 
+// A struct whose field type has no rendering of its own.
+struct HoldsOpaque {
+    int id;
+    std::vector<Opaque> parts;
+};
+
+// Aggregates that inherit. A structured binding needs every member in one
+// class, so reflection cannot view either one.
+struct EmptyBase {};
+
+struct FromEmptyBase : EmptyBase {
+    int d;
+};
+
+struct FieldBase {
+    int b;
+};
+
+struct FromFieldBase : FieldBase {
+    int d;
+};
+
 // ---------------------------------------------------------------------------
 // Fundamentals
 // ---------------------------------------------------------------------------
@@ -498,7 +520,7 @@ TEST(ReprProperty, VectorRoundTrip) {
 }
 
 // is_renderable_v names the same set of types repr() has a rendering for.
-// The trait restates repr()'s branch conditions, so this pins the two
+// The trait follows repr()'s branch conditions, so this pins the two
 // together: a type repr() renders must satisfy the trait, and one it falls
 // back on must not.
 namespace {
@@ -510,7 +532,7 @@ namespace {
     };
 
     template <typename T> bool falls_back() {
-        return hegel::internal::repr(T{}).rfind("<unprintable", 0) == 0;
+        return contains(hegel::internal::repr(T{}), "<unprintable");
     }
 
     template <typename T> void check_agrees(const char* name) {
@@ -536,4 +558,45 @@ TEST(ReprRenderable, MatchesWhatReprProduces) {
     // The one that matters: no rendering means the trait says no.
     EXPECT_FALSE(hegel::internal::is_renderable_v<NoRendering>);
     EXPECT_TRUE(hegel::internal::is_renderable_v<int>);
+}
+
+TEST(ReprRenderable, CompoundHoldingAnUnrenderablePart) {
+    EXPECT_FALSE(hegel::internal::is_renderable_v<std::vector<Opaque>>);
+    EXPECT_FALSE(hegel::internal::is_renderable_v<std::set<Opaque>>);
+    EXPECT_FALSE(hegel::internal::is_renderable_v<std::optional<Opaque>>);
+    EXPECT_FALSE((hegel::internal::is_renderable_v<std::array<Opaque, 2>>));
+    EXPECT_FALSE((hegel::internal::is_renderable_v<std::map<int, Opaque>>));
+    EXPECT_FALSE((hegel::internal::is_renderable_v<std::pair<Opaque, int>>));
+    EXPECT_FALSE((hegel::internal::is_renderable_v<std::tuple<int, Opaque>>));
+    EXPECT_FALSE((hegel::internal::is_renderable_v<std::variant<int, Opaque>>));
+    EXPECT_FALSE(hegel::internal::is_renderable_v<HoldsOpaque>);
+    EXPECT_FALSE(
+        hegel::internal::is_renderable_v<std::vector<std::vector<Opaque>>>);
+
+    // A part that renders keeps the whole renderable.
+    EXPECT_TRUE(hegel::internal::is_renderable_v<std::vector<int>>);
+    EXPECT_TRUE(hegel::internal::is_renderable_v<std::vector<Streamy>>);
+    EXPECT_TRUE(hegel::internal::is_renderable_v<std::vector<Wrapped>>);
+    EXPECT_TRUE(
+        (hegel::internal::is_renderable_v<std::map<std::string, Streamy>>));
+}
+
+TEST(ReprRenderable, UnrenderablePartSitsInsideTheValue) {
+    std::string out = repr(std::vector<Opaque>{Opaque{}});
+    EXPECT_TRUE(contains(out, "<unprintable")) << out;
+    // The value itself renders; only the part inside it does not.
+    EXPECT_EQ(out.rfind("std::vector<Opaque>{", 0), 0u) << out;
+}
+
+// An aggregate that inherits is one reflection cannot view. Asking the trait
+// must answer false rather than fail to compile.
+TEST(ReprRenderable, InheritingAggregateIsNotRenderable) {
+    EXPECT_FALSE(hegel::internal::is_renderable_v<FromEmptyBase>);
+    EXPECT_FALSE(hegel::internal::is_renderable_v<FromFieldBase>);
+    EXPECT_TRUE(contains(repr(FromFieldBase{{1}, 2}), "<unprintable"));
+
+#if HEGEL_HAS_REFLECTION
+    // The same struct without the base class stays renderable.
+    EXPECT_TRUE(hegel::internal::is_renderable_v<Config>);
+#endif
 }

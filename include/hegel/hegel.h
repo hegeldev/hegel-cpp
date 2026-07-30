@@ -691,12 +691,13 @@ namespace hegel {
  *   @c std::monostate
  * - @c std::vector, @c std::set, @c std::map and @c std::array
  * - any nesting of the types above
- * - aggregate structs, through reflection. This needs a build with
- *   `HEGEL_REFLECTION` on, which is the default. Without reflection an
- *   aggregate struct is subject to the rule below.
+ * - aggregate structs with no base class, through reflection. This needs a
+ *   build with `HEGEL_REFLECTION` on, which is the default. Without
+ *   reflection an aggregate struct is subject to the rule below.
  *
  * A type that is not in that list needs an @c operator<< that writes it to a
- * @c std::ostream:
+ * @c std::ostream. The rule applies to each part of a value. A
+ * @c std::vector of a type Hegel cannot render does not compile either.
  *
  * @code{.cpp}
  * class Point {

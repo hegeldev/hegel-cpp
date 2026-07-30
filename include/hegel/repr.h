@@ -35,6 +35,7 @@ namespace hegel::internal {
 
     template <typename T> std::string cpp_type_name();
     template <typename T> std::string repr(const T& value);
+    template <typename T> constexpr bool renderable();
 
     // A rendered value, kept as a tree so a difference of two values can
     // descend to the part that changed.
@@ -157,11 +158,28 @@ namespace hegel::internal {
             T, std::void_t<decltype(rfl::to_view(std::declval<T&>()))>>
             : std::true_type {};
 
-        // The aggregate check must come first: rfl::to_view hard-errors on
-        // non-aggregates instead of failing substitution.
+        // Checks if type D has a base class at compile time
+        template <typename D> struct base_probe {
+            base_probe(std::size_t);
+            template <typename B>
+                requires(std::is_base_of_v<std::remove_cvref_t<B>, D> &&
+                         !std::is_same_v<std::remove_cvref_t<B>, D>)
+            constexpr operator B&() const noexcept;
+        };
+
+        // A struct that inherits is an aggregate that rfl::to_view still cannot
+        // view. Its structured binding needs every member in one class.
+        template <typename T>
+        inline constexpr bool has_base_class = requires {
+            std::remove_cv_t<T>{base_probe<std::remove_cv_t<T>>(0)};
+        };
+
         template <typename T>
         struct is_reflectable
-            : std::conjunction<std::is_aggregate<T>, is_reflectable_impl<T>> {};
+            : std::conjunction<
+                  std::is_aggregate<T>,
+                  std::negation<std::bool_constant<has_base_class<T>>>,
+                  is_reflectable_impl<T>> {};
 #endif
 
         template <typename... Ts> std::string type_name_list() {
@@ -233,19 +251,67 @@ namespace hegel::internal {
 
     } // namespace repr_detail
 
-    template <typename T>
-    inline constexpr bool is_renderable_v =
-        std::is_integral_v<T> || std::is_enum_v<T> ||
-        std::is_floating_point_v<T> || std::is_same_v<T, std::string> ||
-        std::is_same_v<T, std::monostate> || repr_detail::is_pair<T>::value ||
-        repr_detail::is_tuple<T>::value || repr_detail::is_optional<T>::value ||
-        repr_detail::is_variant<T>::value || repr_detail::is_vector<T>::value ||
-        repr_detail::is_set<T>::value || repr_detail::is_std_array<T>::value ||
-        repr_detail::is_map<T>::value ||
+    namespace repr_detail {
+
+        // The parts of a compound type, for the branches of renderable()
+        // that hold more than one type.
+        template <typename T> struct parts_renderable;
+        template <typename... Ts> struct parts_renderable<std::tuple<Ts...>> {
+            static constexpr bool value = (renderable<Ts>() && ...);
+        };
+        template <typename... Ts> struct parts_renderable<std::variant<Ts...>> {
+            static constexpr bool value = (renderable<Ts>() && ...);
+        };
+
 #if HEGEL_HAS_REFLECTION
-        repr_detail::is_reflectable<T>::value ||
+        // A view holds one field per member, and the field's Type is a
+        // pointer to that member.
+        template <typename View> struct fields_renderable;
+        template <template <typename...> class Tuple, typename... Fields>
+        struct fields_renderable<Tuple<Fields...>> {
+            static constexpr bool value =
+                (renderable<std::remove_cv_t<
+                     std::remove_pointer_t<typename Fields::Type>>>() &&
+                 ...);
+        };
 #endif
-        repr_detail::has_ostream_operator<T>::value;
+
+    } // namespace repr_detail
+
+    template <typename T> constexpr bool renderable() {
+        if constexpr (std::is_integral_v<T> || std::is_enum_v<T> ||
+                      std::is_floating_point_v<T> ||
+                      std::is_same_v<T, std::string> ||
+                      std::is_same_v<T, std::monostate>) {
+            return true;
+        } else if constexpr (repr_detail::is_pair<T>::value) {
+            return renderable<typename T::first_type>() &&
+                   renderable<typename T::second_type>();
+        } else if constexpr (repr_detail::is_tuple<T>::value ||
+                             repr_detail::is_variant<T>::value) {
+            return repr_detail::parts_renderable<T>::value;
+        } else if constexpr (repr_detail::is_optional<T>::value ||
+                             repr_detail::is_vector<T>::value ||
+                             repr_detail::is_set<T>::value ||
+                             repr_detail::is_std_array<T>::value) {
+            return renderable<typename T::value_type>();
+        } else if constexpr (repr_detail::is_map<T>::value) {
+            return renderable<typename T::key_type>() &&
+                   renderable<typename T::mapped_type>();
+        }
+#if HEGEL_HAS_REFLECTION
+        else if constexpr (repr_detail::is_reflectable<T>::value) {
+            return repr_detail::fields_renderable<decltype(rfl::to_view(
+                std::declval<T&>()))>::value;
+        }
+#endif
+        else {
+            return repr_detail::has_ostream_operator<T>::value;
+        }
+    }
+
+    template <typename T>
+    inline constexpr bool is_renderable_v = renderable<T>();
 
     // C++ source spelling of T, for use inside rendered expressions.
     template <typename T> std::string cpp_type_name() {
