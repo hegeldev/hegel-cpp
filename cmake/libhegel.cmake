@@ -12,7 +12,7 @@
 
 # libhegel release the bundled C header matches. Keep in sync with
 # libhegel/hegel.h.
-set(HEGEL_LIBHEGEL_VERSION "0.32.5"
+set(HEGEL_LIBHEGEL_VERSION "0.33.0"
     CACHE STRING "libhegel (hegeltest) release version to download")
 set(HEGEL_LIBHEGEL_BASE_URL
     "https://github.com/hegeldev/hegel-rust/releases/download/v${HEGEL_LIBHEGEL_VERSION}")
