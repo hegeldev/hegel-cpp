@@ -102,7 +102,7 @@ namespace hegel::internal {
         hegel_pool_t* handle_ = nullptr;
     };
 
-    inline constexpr int64_t state_machine_done = -1;
+    inline constexpr int64_t state_machine_done = INT64_MIN;
     class StateMachineHandle {
       public:
         StateMachineHandle(const TestCase& tc,
@@ -113,14 +113,21 @@ namespace hegel::internal {
         StateMachineHandle& operator=(const StateMachineHandle&) = delete;
 
         // Returns the index of the next rule to run, or state_machine_done
-        // once the engine's step budget for this test case is used up.
+        // once the engine's step budget for this test case is used up. Drives
+        // the engine's round protocol for the single sequential worker.
         int64_t next_rule(const TestCase& tc);
         // Report that an assumption failed in the last rule, so it does not
         // count against the step budget.
         void rule_rejected(const TestCase& tc);
 
       private:
+        // Start the next round and return its group id, or state_machine_done
+        // when the machine is finished.
+        int64_t next_group(const TestCase& tc);
+
         hegel_state_machine_t* handle_ = nullptr;
+        // Whether a round is open and the worker may still pull rules from it.
+        bool round_active_ = false;
     };
 
     class NoteIndentScope {

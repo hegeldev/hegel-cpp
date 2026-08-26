@@ -1,5 +1,5 @@
 --- Failure: FailureReport.MultipleFailuresReported ([location]) ---
-Falsified after 2 test cases (0 discarded):
+Falsified after 6 test cases (0 discarded):
 
 Failure 1 of 2:
 

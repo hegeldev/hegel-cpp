@@ -695,11 +695,19 @@ namespace hegel::internal {
         std::vector<char*> invariant_name_cstrings =
             to_cstrings(invariant_names);
 
+        // Sequential machine: every rule shares one concurrency group and the
+        // level is fixed at 1, so no entropy is drawn and the run stays
+        // deterministic.
+        std::vector<int64_t> rule_groups(rule_names.size(), 0);
+        int64_t concurrency = 0;
+
         scope.raise_for_rc(hegel_new_state_machine(
                                scope.ctx, scope.tc, rule_name_cstrings.data(),
-                               rule_names.size(),
+                               rule_groups.data(), rule_names.size(),
                                invariant_name_cstrings.data(),
-                               invariant_names.size(), &handle_),
+                               invariant_names.size(),
+                               /*min_concurrency=*/1, /*max_concurrency=*/1,
+                               &handle_, &concurrency),
                            "hegel_new_state_machine");
     }
 
@@ -707,20 +715,46 @@ namespace hegel::internal {
         hegel_state_machine_free(impl::thread_context(), handle_);
     }
 
-    int64_t StateMachineHandle::next_rule(const TestCase& tc) {
+    int64_t StateMachineHandle::next_group(const TestCase& tc) {
         impl::DrawScope scope(tc);
-        int64_t rule_idx;
+        int64_t group_id;
 
-        scope.raise_for_rc(hegel_state_machine_next_rule(scope.ctx, scope.tc,
-                                                         handle_, &rule_idx),
-                           "hegel_state_machine_next_rule");
-        return rule_idx;
+        scope.raise_for_rc(hegel_state_machine_next_group(scope.ctx, scope.tc,
+                                                          handle_, &group_id),
+                           "hegel_state_machine_next_group");
+        return group_id;
+    }
+
+    int64_t StateMachineHandle::next_rule(const TestCase& tc) {
+        // Open a new round at each join point, then pull rules for the one
+        // sequential worker until its round budget is used up, and repeat
+        // until the machine ends.
+        while (true) {
+            if (!round_active_) {
+                if (next_group(tc) == state_machine_done)
+                    return state_machine_done;
+                round_active_ = true;
+            }
+
+            impl::DrawScope scope(tc);
+            int64_t rule_idx;
+            scope.raise_for_rc(
+                hegel_state_machine_next_rule(scope.ctx, scope.tc, handle_,
+                                              /*worker_index=*/0, &rule_idx),
+                "hegel_state_machine_next_rule");
+            if (rule_idx == state_machine_done) {
+                round_active_ = false;
+                continue;
+            }
+            return rule_idx;
+        }
     }
 
     void StateMachineHandle::rule_rejected(const TestCase& tc) {
         impl::DrawScope scope(tc);
         scope.raise_for_rc(
-            hegel_state_machine_rule_rejected(scope.ctx, scope.tc, handle_),
+            hegel_state_machine_rule_rejected(scope.ctx, scope.tc, handle_,
+                                              /*worker_index=*/0),
             "hegel_state_machine_rule_rejected");
     }
 
