@@ -49,6 +49,13 @@ TEST(DefaultGenerator, PrimitiveTypes) {
     EXPECT_NO_THROW(gs::default_generator<std::string>());
 }
 
+TEST(DefaultGenerator, Monostate) {
+    hegel::test([](hegel::TestCase& tc) {
+        std::monostate m = tc.draw(gs::default_generator<std::monostate>());
+        (void)m;
+    });
+}
+
 TEST(DefaultGenerator, ContainerTypes) {
     EXPECT_NO_THROW(gs::default_generator<std::vector<int>>());
     EXPECT_NO_THROW(gs::default_generator<std::set<int>>());
@@ -64,16 +71,30 @@ TEST(DefaultGenerator, StructTypes) {
     EXPECT_NO_THROW(gs::default_generator<Person>());
 }
 
-TEST(DefaultGenerator, PrimitiveSchemas) {
-    EXPECT_TRUE(gs::default_generator<int>().schema().has_value());
-    EXPECT_TRUE(gs::default_generator<double>().schema().has_value());
-    EXPECT_TRUE(gs::default_generator<bool>().schema().has_value());
-    EXPECT_TRUE(gs::default_generator<std::string>().schema().has_value());
+// The shift puts every mapped value outside the source range, so a map()
+// that failed to apply f would fail the bounds check on every draw.
+TEST(Map, TransformsPrimitiveDraws) {
+    hegel::test([](hegel::TestCase& tc) {
+        auto shifted =
+            gs::integers<int>({.min_value = 0, .max_value = 10}).map([](int x) {
+                return x + 1000;
+            });
+        int value = tc.draw(shifted);
+        EXPECT_GE(value, 1000);
+        EXPECT_LE(value, 1010);
+    });
 }
 
-TEST(DefaultGenerator, StructHasNoSchema) {
-    // Struct generators are function-based (no schema)
-    EXPECT_FALSE(gs::default_generator<Point>().schema().has_value());
+// Pinning x makes the mapped value exact, so this checks f really receives
+// the drawn struct and returns the selected field.
+TEST(Map, TransformsDerivedStructDraws) {
+    hegel::test([](hegel::TestCase& tc) {
+        auto x_only = gs::default_generator<Point>()
+                          .override(gs::field<&Point::x>(gs::just(42.0)))
+                          .map([](const Point& p) { return p.x; });
+        double value = tc.draw(x_only);
+        EXPECT_EQ(value, 42.0);
+    });
 }
 
 TEST(DefaultGenerator, Instantiation) {
@@ -96,7 +117,7 @@ TEST(DefaultGenerator, ContainerOfStructs) {
 }
 
 TEST(DefaultGeneratorProperty, StructFieldsAreGenerated) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto p = tc.draw(gs::default_generator<Point>());
         // Fields should be finite doubles (not NaN/Inf by default since
         // default floats generator allows them, but they should at least exist)
@@ -106,7 +127,7 @@ TEST(DefaultGeneratorProperty, StructFieldsAreGenerated) {
 }
 
 TEST(DefaultGeneratorProperty, NestedStructWorks) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto line = tc.draw(gs::default_generator<Line>());
         (void)line.start.x;
         (void)line.start.y;
@@ -116,7 +137,7 @@ TEST(DefaultGeneratorProperty, NestedStructWorks) {
 }
 
 TEST(DefaultGeneratorProperty, OverriddenFieldRespectsConstraints) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto gen = gs::default_generator<Point>().override(
             gs::field<&Point::x>(
                 gs::floats<double>({.min_value = 0.0, .max_value = 0.0})),
@@ -131,7 +152,7 @@ TEST(DefaultGeneratorProperty, OverriddenFieldRespectsConstraints) {
 }
 
 TEST(DefaultGeneratorProperty, PartialOverride) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         // Override only age, name uses default
         auto gen =
             gs::default_generator<Person>().override(gs::field<&Person::age>(
@@ -144,7 +165,7 @@ TEST(DefaultGeneratorProperty, PartialOverride) {
 }
 
 TEST(DefaultGeneratorProperty, VectorOfStructs) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto vec = tc.draw(gs::vectors(gs::default_generator<Point>(),
                                        {.min_size = 1, .max_size = 5}));
         ASSERT_GE(vec.size(), 1u);
@@ -157,7 +178,7 @@ TEST(DefaultGeneratorProperty, VectorOfStructs) {
 // =============================================================================
 
 TEST(DefaultGeneratorProperty, MapOnStruct) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto gen =
             gs::default_generator<Point>()
                 .override(gs::field<&Point::x>(gs::integers<int>(
@@ -171,7 +192,7 @@ TEST(DefaultGeneratorProperty, MapOnStruct) {
 }
 
 TEST(DefaultGeneratorProperty, FlatMapOnStruct) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto gen = gs::default_generator<Point>()
                        .override(gs::field<&Point::x>(gs::integers<uint16_t>(
                            {.min_value = 0, .max_value = 100})))
@@ -186,7 +207,7 @@ TEST(DefaultGeneratorProperty, FlatMapOnStruct) {
 }
 
 TEST(DefaultGeneratorProperty, OneOfWithStructs) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto gen = gs::one_of<Point>({
             gs::default_generator<Point>(),
             gs::default_generator<Point>().override(
@@ -200,7 +221,7 @@ TEST(DefaultGeneratorProperty, OneOfWithStructs) {
 }
 
 TEST(DefaultGeneratorProperty, StructWithAllDefaultGenerators) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto a = tc.draw(gs::default_generator<AllDefaults>());
         EXPECT_TRUE(a.b == true || a.b == false);
         EXPECT_EQ(a.i, a.i);
@@ -223,7 +244,7 @@ TEST(DefaultGeneratorProperty, StructWithAllDefaultGenerators) {
 }
 
 TEST(DefaultGeneratorProperty, OptionalOfStruct) {
-    hegel::hegel([](hegel::TestCase& tc) {
+    hegel::test([](hegel::TestCase& tc) {
         auto gen = gs::optional(gs::default_generator<Point>());
         auto maybe_point = tc.draw(gen);
         if (maybe_point.has_value()) {

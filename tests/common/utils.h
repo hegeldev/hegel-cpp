@@ -1,13 +1,5 @@
 #pragma once
 
-/**
- * @file utils.h
- * @brief Test utilities for the Hegel C++ test suite.
- *
- * These mirror rust/tests/common/utils.rs. They are intentionally header-only
- * because they are templated on generator/value types.
- */
-
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -20,6 +12,9 @@
 #include <gtest/gtest.h>
 
 #include <hegel/hegel.h>
+
+// These are intentionally header-only because they are templated on
+// generator/value types.
 
 namespace hegel::tests::common {
 
@@ -52,7 +47,7 @@ namespace hegel::tests::common {
     void assert_all_examples(const gs::Generator<T>& gen,
                              std::function<bool(const T&)> predicate,
                              uint64_t test_cases = 100) {
-        hegel::hegel(
+        hegel::test(
             [&](hegel::TestCase& tc) {
                 T value = tc.draw(gen);
                 if (!predicate(value)) {
@@ -60,10 +55,9 @@ namespace hegel::tests::common {
                         "Found value that does not match predicate");
                 }
             },
-            hegel::settings::HegelSettings{
-                .test_cases = test_cases,
-                .derandomize = true,
-                .database = hegel::settings::Database::disabled()});
+            hegel::Settings{.test_cases = test_cases,
+                            .derandomize = true,
+                            .database = hegel::Database::disabled()});
     }
 
     /// @brief Assert that no example drawn from `gen` satisfies `predicate`.
@@ -75,18 +69,6 @@ namespace hegel::tests::common {
             gen, [predicate](const T& v) { return !predicate(v); }, test_cases);
     }
 
-    namespace detail {
-        /// Only swallow `hegel()`'s rethrow if it was caused by our own
-        /// sentinel *and* carries the generic "Hegel test failed" message.
-        /// Anything else — infrastructure failures, user code throwing its
-        /// own exception — is re-raised.
-        inline bool is_expected_property_failure(const std::exception& e,
-                                                 bool sentinel_thrown) {
-            return sentinel_thrown &&
-                   std::string(e.what()) == "Hegel test failed";
-        }
-    } // namespace detail
-
     /// @brief Find any example satisfying `condition`, running up to
     /// `max_attempts` test cases.
     ///
@@ -94,30 +76,26 @@ namespace hegel::tests::common {
     template <typename T>
     T find_any(const gs::Generator<T>& gen,
                std::function<bool(const T&)> condition,
-               uint64_t max_attempts = 1000) {
+               uint64_t max_attempts = 300) {
         auto found = std::make_shared<std::optional<T>>();
-        auto sentinel_thrown = std::make_shared<bool>(false);
         auto mu = std::make_shared<std::mutex>();
 
         try {
-            hegel::hegel(
+            hegel::test(
                 [&](hegel::TestCase& tc) {
                     T value = tc.draw(gen);
                     if (condition(value)) {
                         std::lock_guard<std::mutex> g(*mu);
                         *found = value;
-                        *sentinel_thrown = true;
                         throw FindAnyFound{};
                     }
                 },
-                hegel::settings::HegelSettings{
-                    .test_cases = max_attempts,
-                    .derandomize = true,
-                    .database = hegel::settings::Database::disabled()});
-        } catch (const std::runtime_error& e) {
-            if (!detail::is_expected_property_failure(e, *sentinel_thrown)) {
-                throw;
-            }
+                hegel::Settings{.test_cases = max_attempts,
+                                .derandomize = true,
+                                .database = hegel::Database::disabled()});
+        } catch (const FindAnyFound&) { // NOLINT(bugprone-empty-catch)
+            // Expected: test() re-raises the failing test's own exception,
+            // which is our sentinel. Anything else propagates.
         }
 
         std::lock_guard<std::mutex> g(*mu);
@@ -139,30 +117,26 @@ namespace hegel::tests::common {
     template <typename T>
     T minimal(const gs::Generator<T>& gen,
               std::function<bool(const T&)> condition,
-              uint64_t test_cases = 500) {
+              uint64_t test_cases = 100) {
         auto found = std::make_shared<std::optional<T>>();
-        auto sentinel_thrown = std::make_shared<bool>(false);
         auto mu = std::make_shared<std::mutex>();
 
         try {
-            hegel::hegel(
+            hegel::test(
                 [&](hegel::TestCase& tc) {
                     T value = tc.draw(gen);
                     if (condition(value)) {
                         std::lock_guard<std::mutex> g(*mu);
                         *found = value;
-                        *sentinel_thrown = true;
                         throw MinimalFound{};
                     }
                 },
-                hegel::settings::HegelSettings{
-                    .test_cases = test_cases,
-                    .derandomize = true,
-                    .database = hegel::settings::Database::disabled()});
-        } catch (const std::runtime_error& e) {
-            if (!detail::is_expected_property_failure(e, *sentinel_thrown)) {
-                throw;
-            }
+                hegel::Settings{.test_cases = test_cases,
+                                .seed = 1,
+                                .database = hegel::Database::disabled()});
+        } catch (const MinimalFound&) { // NOLINT(bugprone-empty-catch)
+            // Expected: test() re-raises the failing test's own exception,
+            // which is our sentinel. Anything else propagates.
         }
 
         std::lock_guard<std::mutex> g(*mu);

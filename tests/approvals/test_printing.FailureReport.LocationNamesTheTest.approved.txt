@@ -1,0 +1,6 @@
+--- Failure: my_property (tests/example.cpp:42) ------------------------
+Falsified after 1 test case (0 discarded):
+Exception: std::runtime_error: boom
+rerun with: hegel::test(test_fn, settings, {"[blob]"})
+--- rethrown: boom
+

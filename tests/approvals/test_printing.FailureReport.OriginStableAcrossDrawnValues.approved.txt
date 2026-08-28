@@ -1,0 +1,9 @@
+--- Failure: FailureReport.OriginStableAcrossDrawnValues ([location]) ---
+Falsified after 2 test cases (0 discarded):
+
+  auto draw_1 = 10;
+
+Exception: std::runtime_error: failure with x=10
+rerun with: hegel::test(test_fn, settings, {"[blob]"})
+--- rethrown: failure with x=10
+

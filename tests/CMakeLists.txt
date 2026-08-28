@@ -9,6 +9,21 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 include(GoogleTest)
 
+# Snapshot ("approval") testing for full-output assertions. ApprovalTests
+# is fetched at configure time, so sandboxed builds without network access
+# (e.g. nix) set HEGEL_APPROVAL_TESTS=OFF; the test suites that contain
+# approval tests are skipped there.
+option(HEGEL_APPROVAL_TESTS
+    "Build the test suites that use ApprovalTests snapshots" ON)
+if(HEGEL_APPROVAL_TESTS)
+    FetchContent_Declare(
+        ApprovalTests
+        GIT_REPOSITORY https://github.com/approvals/ApprovalTests.cpp.git
+        GIT_TAG v.10.13.0
+    )
+    FetchContent_MakeAvailable(ApprovalTests)
+endif()
+
 # Interface target shared by all tests that use common/utils.h.
 # Provides include path and links gtest for the FAIL() macro.
 add_library(hegel_tests_common INTERFACE)
@@ -23,7 +38,7 @@ target_link_libraries(hegel_tests_common
 )
 
 # -----------------------------------------------------------------------------
-# hegel_add_test(NAME <name> SOURCE <path> [USE_UTILS] [INTERNAL])
+# hegel_add_test(NAME <name> SOURCE <path> [USE_UTILS] [INTERNAL] [APPROVALS])
 #
 #   Registers a GTest-based test executable and gtest_discover_tests target.
 #
@@ -31,39 +46,49 @@ target_link_libraries(hegel_tests_common
 #   SOURCE       - relative path to the .cpp file
 #   USE_UTILS    - if set, link against hegel_tests_common (adds tests/ to
 #                  the include path). If not set, link against hegel directly.
-#   INTERNAL     - if set, also add src/ and nlohmann_json to the include
-#                  path (for unit tests against private headers).
+#   INTERNAL     - if set, also add src/ to the include path (for unit
+#                  tests against private headers).
+#   APPROVALS    - if set, the test contains approval (snapshot) tests: the
+#                  executable uses common/approval_main.cpp as its main and
+#                  links ApprovalTests instead of gtest_main.
 # -----------------------------------------------------------------------------
 function(hegel_add_test)
     cmake_parse_arguments(HAT
-        "USE_UTILS;INTERNAL"
+        "USE_UTILS;INTERNAL;APPROVALS"
         "NAME;SOURCE"
         ""
         ${ARGN})
 
-    add_executable(${HAT_NAME} ${HAT_SOURCE})
+    if(HAT_APPROVALS AND NOT HEGEL_APPROVAL_TESTS)
+        return()
+    endif()
+
+    set(HAT_SOURCES ${HAT_SOURCE})
+    if(HAT_APPROVALS)
+        list(APPEND HAT_SOURCES common/approval_main.cpp)
+        set(HAT_MAIN_LIBS ApprovalTests::ApprovalTests)
+    else()
+        set(HAT_MAIN_LIBS GTest::gtest_main)
+    endif()
+
+    add_executable(${HAT_NAME} ${HAT_SOURCES})
     if(HAT_USE_UTILS)
         target_link_libraries(${HAT_NAME}
-            PRIVATE hegel_tests_common GTest::gtest_main)
+            PRIVATE hegel_tests_common ${HAT_MAIN_LIBS})
     else()
         target_link_libraries(${HAT_NAME}
-            PRIVATE hegel GTest::gtest_main)
+            PRIVATE hegel GTest::gtest ${HAT_MAIN_LIBS})
     endif()
 
     if(HAT_INTERNAL)
         target_include_directories(${HAT_NAME}
             PRIVATE
-                ${CMAKE_SOURCE_DIR}/src
-                $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>
+                ${PROJECT_SOURCE_DIR}/src
         )
     endif()
 
     gtest_discover_tests(${HAT_NAME})
 endfunction()
-
-hegel_add_test(NAME test_crc32 SOURCE unit/test_crc32.cpp INTERNAL)
-hegel_add_test(NAME test_protocol SOURCE unit/test_protocol.cpp INTERNAL)
-hegel_add_test(NAME test_utils SOURCE unit/test_utils.cpp INTERNAL)
 
 foreach(name IN ITEMS integers floats strings collections flatmap
         mixed_types)
@@ -78,55 +103,69 @@ foreach(name IN ITEMS integers floats strings collections one_of)
         USE_UTILS)
 endforeach()
 
+# Example / integration property tests.
 hegel_add_test(NAME property_tests SOURCE property_tests.cpp)
-hegel_add_test(NAME test_settings SOURCE test_settings.cpp)
-hegel_add_test(NAME test_hegel SOURCE test_hegel.cpp)
-hegel_add_test(NAME test_random SOURCE test_random.cpp)
-hegel_add_test(NAME test_no_nlohmann_include SOURCE test_no_nlohmann_include.cpp)
-hegel_add_test(NAME test_derived SOURCE test_derived.cpp)
-hegel_add_test(NAME test_coverage SOURCE test_coverage.cpp)
 
-# The `subject` binary used by TempCppProject is defined as a regular target
-# in the parent build tree rather than a separate cmake project. This way it
-# automatically inherits every toolchain detail the parent uses to build
-# libhegel.a (compiler, CMAKE_CXX_FLAGS, macOS arch/sysroot, etc.), and there
-# is no ABI mismatch when the parent is configured with e.g.
-# -DCMAKE_CXX_FLAGS="-stdlib=libc++". At test time TempCppProject overwrites
-# the source file and invokes `cmake --build --target subject`.
-set(HEGEL_TEMP_PROJECT_MAIN_CPP
-    ${CMAKE_CURRENT_BINARY_DIR}/temp_project_subject/main.cpp)
-if(NOT EXISTS ${HEGEL_TEMP_PROJECT_MAIN_CPP})
-    file(WRITE ${HEGEL_TEMP_PROJECT_MAIN_CPP}
-        "// Overwritten at test runtime by TempCppProject.\n"
-        "int main() { return 0; }\n")
+# Run configuration: settings, phases, backend, database, health checks,
+# reproduce-failure blobs, and enum/environment helpers.
+hegel_add_test(NAME test_settings SOURCE test_settings.cpp)
+
+# Generators, split by family.
+hegel_add_test(NAME test_generators_numeric
+    SOURCE test_generators_numeric.cpp)
+hegel_add_test(NAME test_generators_strings
+    SOURCE test_generators_strings.cpp)
+hegel_add_test(NAME test_generators_collections
+    SOURCE test_generators_collections.cpp)
+hegel_add_test(NAME test_generators_combinators
+    SOURCE test_generators_combinators.cpp)
+hegel_add_test(NAME test_generators_random
+    SOURCE test_generators_random.cpp)
+hegel_add_test(NAME test_stateful
+    SOURCE test_stateful.cpp
+    USE_UTILS
+    APPROVALS)
+
+
+# Guiding generation: reject(), target(), repeat().
+hegel_add_test(NAME test_guiding SOURCE test_guiding.cpp)
+
+# Value printer for draw output.
+hegel_add_test(NAME test_repr SOURCE test_repr.cpp)
+# GoogleTest assertion macros inside a property body.
+hegel_add_test(NAME test_gtest_macros SOURCE test_gtest_macros.cpp)
+# Test-case cloning: clone(), spawn()/join(), and clone output approval.
+hegel_add_test(NAME test_clone SOURCE test_clone.cpp USE_UTILS APPROVALS)
+
+# default_generator is only available with reflection (C++20).
+if(HEGEL_REFLECTION)
+    hegel_add_test(NAME test_derived SOURCE test_derived.cpp)
 endif()
-add_executable(subject EXCLUDE_FROM_ALL ${HEGEL_TEMP_PROJECT_MAIN_CPP})
+add_executable(subject subject_main.cpp)
 target_link_libraries(subject PRIVATE hegel)
 
-add_executable(test_output test_output.cpp)
-target_link_libraries(test_output
-    PRIVATE hegel_tests_common GTest::gtest_main)
-target_compile_definitions(test_output
-    PRIVATE
-        HEGEL_TEMP_PROJECT_MAIN_CPP="${HEGEL_TEMP_PROJECT_MAIN_CPP}"
-        HEGEL_TEMP_PROJECT_SUBJECT_BIN="$<TARGET_FILE:subject>"
-        HEGEL_TEMP_PROJECT_BUILD_DIR="${CMAKE_BINARY_DIR}"
-        HEGEL_TEMP_PROJECT_CMAKE_EXE="${CMAKE_COMMAND}"
-)
-# Each TEST() in test_output.cpp rewrites the shared subject main.cpp and
-# rebuilds the `subject` target, so they cannot run concurrently.
-# RESOURCE_LOCK serializes them across ctest -j while still allowing
-# parallelism with other test binaries.
-gtest_discover_tests(test_output PROPERTIES RESOURCE_LOCK temp_project_subject)
+# Printing / failure reporting: subject-subprocess output tests plus in-process
+# per-verbosity diagnostics. Needs the subject binary for the output scenarios.
+if(HEGEL_APPROVAL_TESTS)
+    add_executable(test_printing test_printing.cpp common/approval_main.cpp)
+    target_link_libraries(test_printing
+        PRIVATE hegel_tests_common ApprovalTests::ApprovalTests)
+    add_dependencies(test_printing subject)
+    target_compile_definitions(test_printing
+        PRIVATE
+            HEGEL_SUBJECT_BIN="$<TARGET_FILE:subject>"
+    )
+    gtest_discover_tests(test_printing)
+endif()
 
-add_executable(gtest_failure_test gtest_failure_test.cpp)
-target_link_libraries(gtest_failure_test
+add_executable(test_gtest test_gtest.cpp)
+target_link_libraries(test_gtest
     PRIVATE
         hegel
         GTest::gtest
 )
 
-add_test(NAME gtest_failure_test COMMAND gtest_failure_test)
-set_tests_properties(gtest_failure_test PROPERTIES
+add_test(NAME test_gtest COMMAND test_gtest)
+set_tests_properties(test_gtest PROPERTIES
     PASS_REGULAR_EXPRESSION "actual:"
 )

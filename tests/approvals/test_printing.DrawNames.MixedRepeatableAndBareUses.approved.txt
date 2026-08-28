@@ -1,0 +1,5 @@
+Starting phase: Generate
+auto x_1 = 1;
+auto x = 2;
+Ending phase: Generate
+

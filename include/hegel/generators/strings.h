@@ -1,10 +1,5 @@
 #pragma once
 
-/**
- * @file strings.h
- * @brief String generator functions: text, characters, binary, from_regex
- */
-
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -13,17 +8,13 @@
 
 namespace hegel::generators {
 
-    // =============================================================================
-    // Parameter structs
-    // =============================================================================
-
     /**
-     * @brief Parameters for text() strategy.
+     * @brief Parameters for text() generator.
      */
     struct TextParams {
         size_t min_size = 0; ///< Minimum string length
         std::optional<size_t>
-            max_size; ///< Maximum string length. Default: no limit
+            max_size; ///< Maximum string length. Default: max(min_size, 100)
 
         // Character filtering options
         std::optional<std::string> codec;      ///< Restrict to this codec
@@ -42,7 +33,7 @@ namespace hegel::generators {
     };
 
     /**
-     * @brief Parameters for characters() strategy.
+     * @brief Parameters for characters() generator.
      *
      * Same character filtering options as TextParams except no min_size,
      * max_size, or alphabet.
@@ -62,19 +53,15 @@ namespace hegel::generators {
     };
 
     /**
-     * @brief Parameters for binary() strategy.
+     * @brief Parameters for binary() generator.
      */
     struct BinaryParams {
         size_t min_size = 0; ///< Minimum size in bytes
         std::optional<size_t>
-            max_size; ///< Maximum size in bytes. Default: no limit
+            max_size; ///< Maximum size in bytes. Default: max(min_size, 100)
     };
 
-    // =============================================================================
-    // Strategy declarations
-    // =============================================================================
-
-    /// @name String Strategies
+    /// @name Strings
     /// @{
 
     /**
@@ -82,7 +69,7 @@ namespace hegel::generators {
      * @param params Length and character filtering constraints
      * @return Generator producing random strings
      */
-    Generator<std::string> text(TextParams params = {});
+    Generator<std::string> text(const TextParams& params = {});
 
     /**
      * @brief Generate single-character UTF-8 strings.
@@ -100,13 +87,29 @@ namespace hegel::generators {
 
     /**
      * @brief Generate strings matching a regular expression.
-     * @param pattern Regex pattern to match
-     * @param fullmatch If true, the entire string must match the pattern; if
-     * false (default), the string just needs to contain a match
-     * @return Generator producing matching strings
+     *
+     * @code{.cpp}
+     * // Default: the entire generated string matches the pattern,
+     * // as if anchored with ^...$.
+     * auto strict = from_regex("[A-Z]{2}-[0-9]{4}");
+     * // e.g. "QX-8271"
+     *
+     * // fullmatch = false: generated string only needs to *contain* a match,
+     * // so arbitrary prefix/suffix characters may surround it.
+     * auto loose = from_regex("[A-Z]{2}-[0-9]{4}", false);
+     * // e.g. "xx QX-8271 yy"
+     * @endcode
+     *
+     * @param pattern Regex pattern
+     * @param fullmatch If `true` (default), the entire generated string must
+     *   match the pattern (equivalent to anchoring with `^` and `$`). If
+     *   `false`, the generated string need only contain a substring that
+     *   matches; arbitrary characters may appear before or after the match.
+     * @return Generator producing strings that satisfy @p pattern under the
+     *   selected match mode.
      */
     Generator<std::string> from_regex(const std::string& pattern,
-                                      bool fullmatch = false);
+                                      bool fullmatch = true);
 
     /// @}
 

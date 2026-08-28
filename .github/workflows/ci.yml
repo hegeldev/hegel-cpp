@@ -31,21 +31,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y clang-tidy-18
 
       - name: Install zizmor
-        run: pip install zizmor
+        run: pip install zizmor==1.23.1
       - name: Run zizmor
         run: zizmor --format plain .github/
-
-      - uses: ./.github/actions/base
-        with:
-          ssh-key: ${{ secrets.HEGEL_DEPLOY_KEY }}
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.13'
-
-      - name: Install hegel
-        run: pip install hegel-core
 
       - name: Check lint
         run: just check-lint
@@ -81,12 +69,6 @@ jobs:
             packages: clang-18 libc++-18-dev libc++abi-18-dev
             cmake_flags: -DCMAKE_CXX_FLAGS="-stdlib=libc++"
 
-          - compiler: g++-13
-            cc: gcc-13
-            cxx: g++-13
-            extra_label: (nlohmann 3.11)
-            cmake_flags: -DNLOHMANN_JSON_VERSION=3.10.0
-
           - compiler: macos
             cc: cc
             cxx: c++
@@ -106,21 +88,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y $PACKAGES
 
-      - uses: ./.github/actions/base
-        with:
-          ssh-key: ${{ secrets.HEGEL_DEPLOY_KEY }}
-
       - uses: ./.github/actions/install-tools
         with:
-          tools: just uv
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.13'
-
-      - name: Install hegel
-        run: pip install hegel-core
+          tools: just
 
       - name: Run tests
         env:
@@ -129,36 +99,97 @@ jobs:
           CMAKE_FLAGS: ${{ matrix.cmake_flags }}
         run: just check-tests
 
-  conformance:
-    name: conformance
-    runs-on: ubuntu-24.04
+  consumer:
+    name: consumer
+    runs-on: ubuntu-latest
     permissions:
       contents: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/base
+      - uses: ./.github/actions/install-tools
         with:
-          ssh-key: ${{ secrets.HEGEL_DEPLOY_KEY }}
+          tools: just
+
+      - name: Run consumer tests
+        run: just check-consumer-all
+
+  cxx17:
+    name: cxx17
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/install-tools
+        with:
+          tools: just
+
+      - name: Build and run the C++17 consumer (HEGEL_REFLECTION=OFF)
+        run: just check-cxx17
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install clang + llvm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 llvm-18
 
       - uses: ./.github/actions/install-tools
         with:
           tools: just uv
 
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - name: Enforce coverage floor
+        env:
+          CC: clang-18
+          CXX: clang++-18
+        run: just check-coverage
+
+  sanitizers:
+    name: sanitizers
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          python-version: '3.13'
+          persist-credentials: false
 
-      - name: Install hegel
-        run: pip install hegel-core==0.4.0
+      - name: Install clang
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18
 
-      - name: Run conformance tests
-        timeout-minutes: 10
-        run: just check-conformance
+      - uses: ./.github/actions/install-tools
+        with:
+          tools: just uv
+
+      - name: Run sanitizers (address+undefined, thread)
+        env:
+          CC: clang-18
+          CXX: clang++-18
+        run: just check-sanitizers
 
   nix:
     name: nix
@@ -169,9 +200,6 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
-      - uses: ./.github/actions/base
-        with:
-          ssh-key: ${{ secrets.HEGEL_DEPLOY_KEY }}
       - uses: cachix/install-nix-action@ba0dd844c9180cbf77aa72a116d6fbc515d0e87b # v27
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -195,35 +223,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/base
-        with:
-          ssh-key: ${{ secrets.HEGEL_DEPLOY_KEY }}
-
       - uses: ./.github/actions/install-tools
         with:
-          tools: just
-
-      - name: Install doxygen
-        # Ubuntu's packaged doxygen is 1.9.8, which has a parallel-dot race
-        # that spuriously reports "problems opening map file" and trips
-        # WARN_AS_ERROR. Fixed in 1.10+; we pin the upstream Linux binary.
-        env:
-          DOXYGEN_VERSION: 1.15.0
-          DOXYGEN_SHA256: 0ec2e5b2c3cd82b7106d19cb42d8466450730b8cb7a9e85af712be38bf4523a1
-        run: |
-          sudo apt-get update && sudo apt-get install -y graphviz
-          curl -fsSL "https://www.doxygen.nl/files/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz" -o /tmp/doxygen.tar.gz
-          echo "${DOXYGEN_SHA256}  /tmp/doxygen.tar.gz" | sha256sum -c -
-          sudo tar -xzf /tmp/doxygen.tar.gz -C /opt
-          sudo ln -sf "/opt/doxygen-${DOXYGEN_VERSION}/bin/doxygen" /usr/local/bin/doxygen
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.13'
-
-      - name: Install hegel
-        run: pip install hegel-core
+          tools: just doxygen
 
       - name: Check docs
         run: just check-docs
@@ -231,10 +233,13 @@ jobs:
   release:
     name: release
     if: github.event_name == 'push' && github.repository == 'hegeldev/hegel-cpp'
-    needs: [lint, build-and-test, conformance, docs]
+    needs: [lint, build-and-test, consumer, cxx17, coverage, docs]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -254,7 +259,7 @@ jobs:
         with:
           app-id: ${{ vars.HEGEL_RELEASE_APP_ID }}
           private-key: ${{ secrets.HEGEL_RELEASE_APP_PRIVATE_KEY }}
-          repositories: hegel-cpp
+          repositories: hegel-cpp, website
 
       - name: Re-checkout with app token # zizmor: ignore[artipacked]
         if: steps.check.outputs.skip != 'true'
@@ -270,8 +275,58 @@ jobs:
           HEGEL_RELEASE_APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
         run: python .github/scripts/release.py release
 
+      - name: Emit version
+        if: steps.check.outputs.skip != 'true'
+        id: version
+        run: |
+          VERSION=$(sed -n 's/.*project(hegel-cpp VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
       - name: Push to main or open PR
         if: steps.check.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: python .github/scripts/release.py push-or-pr
+
+  push-docs:
+    name: push-docs
+    needs: [release]
+    if: needs.release.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Generate app token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        id: app-token
+        with:
+          app-id: ${{ vars.HEGEL_RELEASE_APP_ID }}
+          private-key: ${{ secrets.HEGEL_RELEASE_APP_PRIVATE_KEY }}
+          repositories: hegel-cpp, website
+
+      - name: Checkout hegel-cpp at release tag
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: v${{ needs.release.outputs.version }}
+          persist-credentials: false
+
+      - name: Checkout website
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4 # zizmor: ignore[artipacked]
+        with:
+          repository: hegeldev/website
+          token: ${{ steps.app-token.outputs.token }}
+          path: website
+
+      - uses: ./.github/actions/install-tools
+        with:
+          tools: just doxygen
+
+      - name: Build docs
+        run: just check-docs
+
+      - name: Push docs to website repo
+        env:
+          HEGEL_RELEASE_APP_ID: ${{ vars.HEGEL_RELEASE_APP_ID }}
+          HEGEL_RELEASE_APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: python3 .github/scripts/push_docs.py

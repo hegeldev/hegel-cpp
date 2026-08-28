@@ -1,0 +1,13 @@
+--- Failure: Stateful.StatePrintingIsOnByDefault ([location]) ---
+Falsified after 2 test cases (0 discarded):
+
+  state = 0
+  Step 1: add
+    auto amount = 3;
+  state = 3
+  Step 2: add
+    auto amount = 9;
+
+Exception: std::runtime_error: counter overflowed
+rerun with: hegel::test(test_fn, settings, {"[blob]"})
+

@@ -1,0 +1,4 @@
+Starting phase: Generate
+auto draw_1 = std::vector<int>{5, 5};
+Ending phase: Generate
+

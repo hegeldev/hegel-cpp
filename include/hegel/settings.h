@@ -1,23 +1,21 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <optional>
 #include <string>
 #include <vector>
 
-/** @namespace hegel::settings
- * @brief The HegelSettings struct for configuring your Hegel run, and
- * supporting items
- */
-namespace hegel::settings {
+namespace hegel {
     /**
-     * @brief Verbosity levels for hegel output.
+     * @brief Verbosity levels.
      */
     enum class Verbosity {
         Quiet,   ///< Minimal output (used by TUI)
         Normal,  ///< Default - standard test output
         Verbose, ///< More detailed output
-        Debug    ///< Maximum verbosity + request/response logging
+        Debug    ///< Maximum verbosity + engine-side shrinker tracing
     };
 
     /**
@@ -40,9 +38,7 @@ namespace hegel::settings {
     }
 
     /**
-     * @brief Hypothesis health checks that can be suppressed.
-     *
-     * Wire names match what the Hegel server (Hypothesis) expects.
+     * @brief Health checks.
      */
     enum class HealthCheck {
         FilterTooMuch,        ///< Test filters out too many generated examples.
@@ -78,37 +74,71 @@ namespace hegel::settings {
     }
 
     /**
-     * @brief Example database configuration.
-     *
-     * A three-state value for HegelSettings::database:
-     *
-     *  - `Database::unset()` — let the server pick the database
-     *    location. This is the default.
-     *  - `Database::disabled()` — no database is used for this run.
-     *    Sends `database: null` on the wire.
-     *  - `Database::from_path(path)` — use the given directory as the
-     *    example database.
+     * @brief Phases of a property-test run.
+     */
+    enum class Phase {
+        Explicit, ///< Run hard-coded explicit examples.
+        Reuse,    ///< Replay counterexamples persisted in the database.
+        Generate, ///< Randomly generate fresh test cases.
+        Target,   ///< Hill-climb toward observed target scores.
+        Shrink,   ///< Shrink failing examples toward minimal counterexamples.
+    };
+
+    /**
+     * @brief All phases, the default for Settings::phases.
+     * @return A vector containing every Phase variant.
+     */
+    inline std::vector<Phase> all_phases() {
+        return {Phase::Explicit, Phase::Reuse, Phase::Generate, Phase::Target,
+                Phase::Shrink};
+    }
+
+    /**
+     * @brief How much of a run the engine performs.
+     */
+    enum class Mode {
+        TestRun,        ///< Full property-test run. The default.
+        SingleTestCase, ///< Produce exactly one test case and stop, with no
+                        ///< shrinking. Useful for exploratory probes.
+    };
+
+    /**
+     * @brief Source of randomness the engine draws from.
+     */
+    enum class Backend {
+        Auto,    ///< Choose automatically (the default): Urandom when running
+                 ///< inside Antithesis, Default otherwise.
+        Default, ///< Expand a single seeded PRNG. Runs are reproducible from
+                 ///< the seed and shrinking / replay work as usual.
+        Urandom, ///< Read fresh entropy from `/dev/urandom` on every draw.
+                 ///< Intended for running under Antithesis; you almost
+                 ///< certainly don't want it otherwise.
+    };
+
+    /**
+     * @brief Configure the Hegel database.
      */
     class Database {
       public:
-        /// Which variant this Database represents.
+        /// The configuration of the database. See the methods below.
         enum class Kind {
-            Unset,    ///< Server picks the default database location.
-            Disabled, ///< No database is used for this run.
-            Path,     ///< A specific directory is used for the database.
+            Unset, ///< Default behavior. By default, Hegel places the database
+                   ///< at `.hegel`.
+            Disabled, ///< Disable the database.
+            Path,     ///< Use the given directory as the database.
         };
 
-        /// Let the server pick the default database location.
-        /// @return A Database in the Unset state.
+        /// Default behavior. By default, Hegel places the database at `.hegel`.
+        /// @return A database with Database.Kind.Unset.
         static Database unset() { return {Kind::Unset, {}}; }
 
-        /// Disable the example database for this run.
-        /// @return A Database in the Disabled state.
+        /// Disable the database.
+        /// @return A database with Database.Kind.Disabled.
         static Database disabled() { return {Kind::Disabled, {}}; }
 
-        /// Use the given directory as the example database.
-        /// @param path Directory path for the example database.
-        /// @return A Database in the Path state.
+        /// Use the given directory as the database.
+        /// @param path The directory path for the database.
+        /// @return A database with Database.Kind.Path.
         static Database from_path(std::string path) {
             return {Kind::Path, std::move(path)};
         }
@@ -124,34 +154,99 @@ namespace hegel::settings {
         std::string path_;
     };
 
+    /// @cond INTERNAL
+    namespace internal {
+        // True if a CI environment is detected, by probing the variables the
+        // common CI providers set. Used as the default for
+        // Settings::derandomize so runs are reproducible under CI.
+        inline bool in_ci() {
+            // expected == nullptr means "any value present satisfies it".
+            struct CiVar {
+                const char* name;
+                const char* expected;
+            };
+            static constexpr CiVar ci_vars[] = {
+                {"CI", nullptr},
+                {"TF_BUILD", "true"},
+                {"BUILDKITE", "true"},
+                {"CIRCLECI", "true"},
+                {"CIRRUS_CI", "true"},
+                {"CODEBUILD_BUILD_ID", nullptr},
+                {"GITHUB_ACTIONS", "true"},
+                {"GITLAB_CI", nullptr},
+                {"HEROKU_TEST_RUN_ID", nullptr},
+                {"TEAMCITY_VERSION", nullptr},
+            };
+            for (const CiVar& v : ci_vars) {
+                const char* value = std::getenv(v.name);
+                if (value == nullptr) {
+                    continue;
+                }
+                if (v.expected == nullptr ||
+                    std::strcmp(value, v.expected) == 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    } // namespace internal
+    /// @endcond
+
     /**
-     * @brief Configuration options for embedded mode execution.
-     * @see hegel::hegel()
+     * @brief Configuration options for hegel::test().
      */
-    struct HegelSettings {
-        /// Number of test cases to run. Default: 100
+    struct Settings {
+        /// Number of test cases to run. Defaults to 100.
         std::optional<uint64_t> test_cases;
 
-        /// Verbosity level for hegel output. Default: Normal
+        /// Verbosity level. Defaults to Verbosity::Normal.
         Verbosity verbosity = Verbosity::Normal;
 
-        /// Explicit RNG seed. If unset, Hegel picks one (unless derandomize).
+        /// Explicit seed for the test.
         std::optional<uint64_t> seed;
 
-        /// If true, the server uses a derandomized (deterministic) RNG.
-        /// Combined with `database = Database::disabled()` this produces a
-        /// fully reproducible run, which is what test helpers like
-        /// `minimal()` want.
-        bool derandomize = false;
+        /// If true, use a deterministic RNG, making the test deterministic
+        /// across executions. Defaults to true when a CI environment is
+        /// detected, false otherwise.
+        bool derandomize = internal::in_ci();
 
-        /// Example database configuration. Default: `Database::unset()`
-        /// (server picks the default location).
-        ///
-        /// Use `Database::disabled()` to disable the database for this
-        /// run, or `Database::from_path()` to use a specific directory.
-        Database database = Database::unset();
+        /// If true, keep generating after the first failure to surface
+        /// additional distinct bugs, and report all of them. If false (the
+        /// default), stop the run at the first failing example.
+        bool report_multiple_failures = false;
 
-        /// Health checks to suppress for this run. Defaults to none.
+        /// If true (the default), a failure report ends with a
+        /// `rerun with:` line holding the base64 blob that replays the
+        /// failure.
+        bool print_blob = true;
+
+        /// Configure the Hegel database. See Database. Defaults to a database
+        /// at `.hegel`, or disabled when a CI environment is detected.
+        Database database =
+            internal::in_ci() ? Database::disabled() : Database::unset();
+
+        /// Key scoping the examples stored in and replayed from the database.
+        /// Unset (the default) disables persistence and Reuse-phase replay.
+        std::optional<std::string> database_key;
+
+        /// Health checks to suppress for this test.
         std::vector<HealthCheck> suppress_health_check;
+
+        /// Phases to run. Defaults to all phases; phases left out are
+        /// disabled (e.g. drop Phase::Shrink to keep failing examples
+        /// unshrunk). An empty vector produces a run that does nothing.
+        std::vector<Phase> phases = all_phases();
+
+        /// How much of a run to perform. Defaults to Mode::TestRun.
+        Mode mode = Mode::TestRun;
+
+        /// Randomness backend. Defaults to Backend::Auto; picking an explicit
+        /// backend overrides the automatic detection.
+        Backend backend = Backend::Auto;
+
+        /// The maximum number of steps a stateful test case attempts. Each
+        /// case runs at least one step and at most this many. Must be at
+        /// least 1.
+        int64_t stateful_step_count = 50;
     };
-} // namespace hegel::settings
+} // namespace hegel

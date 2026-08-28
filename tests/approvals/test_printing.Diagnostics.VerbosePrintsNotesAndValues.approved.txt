@@ -1,0 +1,17 @@
+Starting phase: Generate
+SENTINEL_NOTE
+auto draw_1 = 0;
+Running test case
+SENTINEL_NOTE
+auto draw_1 = 1024;
+Running test case
+SENTINEL_NOTE
+auto draw_1 = -1633;
+Running test case
+SENTINEL_NOTE
+auto draw_1 = -120;
+Running test case
+SENTINEL_NOTE
+auto draw_1 = -1024;
+Ending phase: Generate
+

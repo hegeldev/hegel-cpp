@@ -1,0 +1,9 @@
+--- Failure: FailureReport.NonStdException ([location]) ---
+Falsified after 2 test cases (0 discarded):
+
+  auto draw_1 = 5;
+
+Exception: int
+rerun with: hegel::test(test_fn, settings, {"[blob]"})
+--- rethrown: <non-std exception>
+

@@ -2,9 +2,34 @@
 
 include(CMakeFindDependencyMacro)
 
-# reflect-cpp is required
-find_dependency(reflectcpp)
+# reflect-cpp is a dependency only when hegel was built with reflection
+# (default). A C++17 build (HEGEL_REFLECTION=OFF) has no reflect-cpp.
+set(HEGEL_REFLECTION @HEGEL_REFLECTION@)
+if(HEGEL_REFLECTION)
+    find_dependency(reflectcpp)
+endif()
+
+# spawn()/Worker in the public headers pull in std::thread.
+find_dependency(Threads)
 
 include("${CMAKE_CURRENT_LIST_DIR}/hegelTargets.cmake")
+
+# hegel is a static archive whose hegel_* symbols are resolved by libhegel
+# (Hegel's native engine) at the consumer's final link step. Re-create the
+# imported target pointing at the shared library shipped beside the archive,
+# and arrange for consumers to find it at build and run time.
+if(NOT TARGET hegel::libhegel)
+    add_library(hegel::libhegel SHARED IMPORTED)
+    # @PACKAGE_CMAKE_INSTALL_LIBDIR@ resolves to an absolute path under the
+    # install prefix whether CMAKE_INSTALL_LIBDIR was configured relative or
+    # absolute (the latter happens under Nix).
+    set_target_properties(hegel::libhegel PROPERTIES
+        IMPORTED_LOCATION
+            "@PACKAGE_CMAKE_INSTALL_LIBDIR@/@HEGEL_LIBHEGEL_LOCAL_NAME@")
+endif()
+set_property(TARGET hegel::hegel APPEND PROPERTY
+    INTERFACE_LINK_LIBRARIES hegel::libhegel)
+# Consumers that link the imported SHARED target above automatically get an
+# RPATH entry for its directory, so the shared library is found at runtime.
 
 check_required_components(hegel)

@@ -1,24 +1,11 @@
 #pragma once
 
-/**
- * @file primitives.h
- * @brief Primitive generator functions: nulls, booleans, just
- */
-
-#include <variant>
-
 #include "hegel/core.h"
 
 namespace hegel::generators {
 
-    /// @name Primitive Strategies
+    /// @name Primitives
     /// @{
-
-    /**
-     * @brief Generate null values (std::monostate).
-     * @return Generator that always produces std::monostate{}.
-     */
-    Generator<std::monostate> nulls();
 
     /**
      * @brief Generate random boolean values.
@@ -26,11 +13,23 @@ namespace hegel::generators {
      */
     Generator<bool> booleans();
 
+    /// @cond INTERNAL
+    // Concrete IGenerator<T> subclass produced by just(). A constant draws
+    // zero entropy, so it returns the captured value without touching the
+    // engine at all.
+    template <typename T> class JustGenerator : public IGenerator<T> {
+      public:
+        explicit JustGenerator(T value) : value_(std::move(value)) {}
+
+        T do_draw(const TestCase&) const override { return value_; }
+
+      private:
+        T value_;
+    };
+    /// @endcond
+
     /**
      * @brief Generate a constant value.
-     *
-     * Always returns the same value. Useful for creating fixed elements
-     * in composite generators.
      *
      * @code{.cpp}
      * auto answer = just(42);
@@ -42,23 +41,14 @@ namespace hegel::generators {
      * @return Generator that always produces value
      */
     template <typename T> Generator<T> just(T value) {
-        if constexpr (std::is_same_v<T, bool> ||
-                      std::is_same_v<T, std::nullptr_t> ||
-                      std::is_integral_v<T> || std::is_floating_point_v<T> ||
-                      std::is_same_v<T, std::string>) {
-            hegel::internal::json::json schema = {{"type", "constant"},
-                                                  {"value", value}};
-            return from_function<T>([value](const TestCase&) { return value; },
-                                    std::move(schema));
-        } else {
-            return from_function<T>([value](const TestCase&) { return value; });
-        }
+        return Generator<T>(new JustGenerator<T>(std::move(value)));
     }
 
     /**
-     * @brief Generate a constant string value (string literal convenience).
-     * @param value The C-string to convert to std::string.
-     * @return Generator that always produces std::string(value).
+     * @brief Overload for `just` so that `just("a string literal")` has type
+     * `Generator<std::string>` rather than `Generator<const char*>`.
+     * @param value The constant value to generator
+     * @return Generator that always produces value
      */
     inline Generator<std::string> just(const char* value) {
         return just(std::string(value));

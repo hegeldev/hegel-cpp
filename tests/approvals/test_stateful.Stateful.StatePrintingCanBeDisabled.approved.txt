@@ -1,0 +1,11 @@
+--- Failure: Stateful.StatePrintingCanBeDisabled ([location]) ---
+Falsified after 2 test cases (0 discarded):
+
+  Step 1: add
+    auto amount = 3;
+  Step 2: add
+    auto amount = 9;
+
+Exception: std::runtime_error: counter overflowed
+rerun with: hegel::test(test_fn, settings, {"[blob]"})
+

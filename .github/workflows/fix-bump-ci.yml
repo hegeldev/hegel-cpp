@@ -1,0 +1,161 @@
+name: Fix bump-branch CI
+
+# When CI fails on a libhegel bump branch (ci/bump-hegel-rust*), have Claude
+# inspect the failure and fix the wrapper layer, then push the fix back to the
+# branch. Complements bump-hegel-rust.yml's pre-push alignment step: that step
+# aligns before CI ever runs; this one reacts to whatever CI still catches.
+#
+# workflow_run is listed as a dangerous trigger because it runs with repo
+# secrets against attacker-influenced context. Here the job only ever acts on
+# same-repo branches (head_repository is checked against github.repository, so
+# fork PRs never qualify), and anyone who can push a ci/bump-hegel-rust*
+# branch to this repo already has write access.
+on:
+  workflow_run: # zizmor: ignore[dangerous-triggers]
+    workflows: [CI]
+    types: [completed]
+
+permissions: {}
+
+# One fix run per bump branch at a time. Never cancel an in-flight fix: a
+# half-finished Claude session that gets killed mid-edit could leave a
+# confusing partial push; the queued run will see the branch's latest state.
+concurrency:
+  group: fix-bump-ci-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    name: fix bump-branch CI
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      startsWith(github.event.workflow_run.head_branch, 'ci/bump-hegel-rust')
+    permissions:
+      # For GITHUB_TOKEN, which the Claude step uses to read the failed run's
+      # logs. All writes (push, PR comments) go through the app token instead.
+      actions: read
+    steps:
+      - name: Generate app token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        id: app-token
+        with:
+          app-id: ${{ vars.HEGEL_RELEASE_APP_ID }}
+          private-key: ${{ secrets.HEGEL_RELEASE_APP_PRIVATE_KEY }}
+          repositories: hegel-cpp
+
+      # Full history so the retry-cap step can count this branch's fix commits
+      # against origin/main. Credentials persist so the final step can push.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          token: ${{ steps.app-token.outputs.token }} # zizmor: ignore[artipacked]
+          fetch-depth: 0
+
+      # Loop safety: our push retriggers CI on the bump PR, and another CI
+      # failure retriggers this workflow. Cap automated attempts at 3 so a
+      # fix Claude can't find doesn't ping-pong forever.
+      - name: Count previous fix attempts
+        id: attempts
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          attempts=$(git log --format=%s origin/main..HEAD | grep -c '^Fix bump-branch CI' || true)
+          echo "Previous automated fix attempts on this branch: $attempts"
+          if [ "$attempts" -ge 3 ]; then
+            echo "capped=true" >> "$GITHUB_OUTPUT"
+            pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+            if [ -n "$pr" ]; then
+              gh pr comment "$pr" --body "CI failed again ($RUN_URL) but automated fix attempts are exhausted (${attempts} so far). A human needs to look at this branch."
+            fi
+            exit 0
+          fi
+          echo "capped=false" >> "$GITHUB_OUTPUT"
+          echo "attempt=$((attempts + 1))" >> "$GITHUB_OUTPUT"
+
+      # The fix step's done-condition is `just check`, which needs uv
+      # (clang-format via uvx), doxygen (check-docs), clang-tidy (check-tidy),
+      # and clang + llvm (check-coverage) — the same toolchain the bump
+      # workflow's alignment step installs.
+      - uses: ./.github/actions/install-tools
+        if: steps.attempts.outputs.capped == 'false'
+        with:
+          tools: just uv doxygen
+
+      - name: Install clang, llvm, and clang-tidy
+        if: steps.attempts.outputs.capped == 'false'
+        run: sudo apt-get update && sudo apt-get install -y clang-18 llvm-18 clang-tidy-18
+
+      - name: Fix the CI failure
+        if: steps.attempts.outputs.capped == 'false'
+        # `just check` runs two full builds (normal and coverage-instrumented),
+        # plus whatever investigation the failure needs.
+        timeout-minutes: 45
+        uses: anthropics/claude-code-action@4d7e1f0cd85743fdc93b1c8040ab54395da024e2 # v1.0.149
+        env:
+          # LLVM source-based coverage needs clang-built binaries; match the
+          # CI coverage job's toolchain so `just check-coverage` works.
+          CC: clang-18
+          CXX: clang++-18
+          # GITHUB_TOKEN (actions: read) so `gh run view --log-failed` works;
+          # the app token is not guaranteed to hold Actions permissions.
+          GH_TOKEN: ${{ github.token }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          # The CI run being reacted to was triggered by the hegel-release
+          # app's push to the bump branch, so the actor here is that bot. The
+          # action blocks bot-initiated runs by default; allow this one.
+          allowed_bots: hegel-release
+          prompt: |
+            CI run ${{ github.event.workflow_run.id }} failed on this branch,
+            which bumps the pinned libhegel to a new release. Inspect the
+            failures with `gh run view ${{ github.event.workflow_run.id }} --log-failed`
+            (GH_TOKEN is already set). The most likely cause is FFI/ABI
+            misalignment between the C++ wrapper layer and the new libhegel —
+            use the align-libhegel skill to realign the wrapper (src/engine.h,
+            src/engine.cpp, include/hegel/internal.h and, only if the ABI
+            demands it, src/test_case.cpp / src/hegel.cpp / src/generators.cpp).
+            Make the repo's checks pass: `just check`, and also
+            `just check-sanitizers` if any of the failing CI jobs were
+            sanitizer jobs. Do NOT change the public hegel:: API (hegel::test,
+            TestCase, Settings, the generators). Do NOT commit or push; leave
+            all changes in the working tree for the next step to commit.
+          claude_args: >-
+            --allowed-tools "Bash,Edit,Write,Read,Glob,Grep,WebFetch,Skill"
+            --max-turns 60
+
+      # Push whatever Claude changed as one attempt-numbered commit, or flag
+      # on the PR that the attempt came up empty so a human knows to look.
+      # Plain push, never --force: the bump commit and earlier fix attempts
+      # must survive.
+      - name: Commit and push the fix
+        if: steps.attempts.outputs.capped == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          HEGEL_RELEASE_APP_ID: ${{ vars.HEGEL_RELEASE_APP_ID }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          ATTEMPT: ${{ steps.attempts.outputs.attempt }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Claude made no changes."
+            pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+            if [ -n "$pr" ]; then
+              gh pr comment "$pr" --body "CI failed ($RUN_URL) and the automated fix attempt made no changes. A human needs to look at this branch."
+            fi
+            exit 0
+          fi
+          git config user.name "hegel-release[bot]"
+          git config user.email "${HEGEL_RELEASE_APP_ID}+hegel-release[bot]@users.noreply.github.com"
+          git add -A
+          git commit \
+            -m "Fix bump-branch CI (attempt ${ATTEMPT})" \
+            -m "Automated fix for failed CI run: ${RUN_URL}" \
+            -m "Co-Authored-By: Claude <noreply@anthropic.com>"
+          git push origin "HEAD:refs/heads/${BRANCH}"

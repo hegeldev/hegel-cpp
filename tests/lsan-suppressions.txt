@@ -1,0 +1,11 @@
+# LeakSanitizer suppressions for the test suite.
+#
+# Matched narrowly by function name so LSan still reports every other leak
+# (including any dropped test-case handle in clone()/spawn()).
+
+# Deferred.RecursiveTreeGenerates builds a self-referential generator: the
+# deferred generator's shared state references itself through the captured
+# `branch` (tree.set(one_of{leaf, branch}) where branch holds tree). That is a
+# reference cycle, which shared_ptr refcounting cannot reclaim — a property of
+# recursive/deferred generators, not a leak in the code under test.
+leak:RecursiveTreeGenerates

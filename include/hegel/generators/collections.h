@@ -1,17 +1,17 @@
 #pragma once
 
-/**
- * @file collections.h
- * @brief Collection generator functions: vectors, sets, dictionaries, tuples
- */
-
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <map>
+#include <optional>
 #include <set>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "hegel/core.h"
-#include "hegel/generators/numeric.h"
 
 namespace hegel::generators {
 
@@ -20,36 +20,176 @@ namespace hegel::generators {
     // =============================================================================
 
     /**
-     * @brief Parameters for vectors() strategy.
+     * @brief Parameters for vectors() generator.
      */
     struct VectorsParams {
         size_t min_size = 0;            ///< Minimum vector size
-        std::optional<size_t> max_size; ///< Maximum vector size. Default: 100
+        std::optional<size_t> max_size; ///< Maximum vector size. Default: no
+                                        ///< limit (engine-chosen sizes)
         bool unique = false; ///< If true, all elements must be unique
     };
 
     /**
-     * @brief Parameters for sets() strategy.
+     * @brief Parameters for sets() generator.
      */
     struct SetsParams {
         size_t min_size = 0;            ///< Minimum set size
-        std::optional<size_t> max_size; ///< Maximum set size. Default: 20
+        std::optional<size_t> max_size; ///< Maximum set size. Default: no
+                                        ///< limit (engine-chosen sizes)
     };
 
     /**
-     * @brief Parameters for dictionaries() strategy.
+     * @brief Parameters for maps() generator.
      */
-    struct DictionariesParams {
-        size_t min_size = 0; ///< Minimum number of entries
-        std::optional<size_t>
-            max_size; ///< Maximum number of entries. Default: 20
+    struct MapsParams {
+        size_t min_size = 0;            ///< Minimum number of entries
+        std::optional<size_t> max_size; ///< Maximum number of entries.
+                                        ///< Default: no limit (engine-chosen
+                                        ///< sizes)
     };
 
-    // =============================================================================
-    // Template strategies
-    // =============================================================================
+    /// @cond INTERNAL
+    namespace detail {
 
-    /// @name Collection Strategies
+        // True iff `a == b` is well-formed for const T. vectors() only
+        // needs operator== when unique=true, so its availability is checked
+        // at runtime rather than required of every element type.
+        template <typename T, typename = void>
+        struct is_equality_comparable : std::false_type {};
+        template <typename T>
+        struct is_equality_comparable<
+            T, std::void_t<decltype(std::declval<const T&>() ==
+                                    std::declval<const T&>())>>
+            : std::true_type {};
+
+        inline uint64_t
+        collection_max_size(const std::optional<size_t>& max_size) {
+            return max_size ? static_cast<uint64_t>(*max_size)
+                            : hegel::internal::no_max_size;
+        }
+
+    } // namespace detail
+
+    // Concrete IGenerator for vectors(). An engine-managed collection
+    // decides how many elements to draw; uniqueness is enforced by
+    // rejecting duplicate elements back to the engine.
+    template <typename T>
+    class VectorsGenerator : public IGenerator<std::vector<T>> {
+      public:
+        VectorsGenerator(Generator<T> elements, VectorsParams params = {})
+            : elements_(std::move(elements)), params_(params) {
+            if (params_.max_size && params_.min_size > *params_.max_size) {
+                throw std::invalid_argument("Cannot have max_size < min_size");
+            }
+            if (params_.unique && !detail::is_equality_comparable<T>::value) {
+                throw std::invalid_argument(
+                    "vectors(..., {.unique = true}) requires an "
+                    "equality-comparable element type");
+            }
+        }
+
+        std::vector<T> do_draw(const TestCase& tc) const override {
+            namespace hi = hegel::internal;
+            hi::start_span(tc, hi::SpanLabel::List);
+            hi::CollectionHandle collection(
+                tc, params_.min_size,
+                detail::collection_max_size(params_.max_size));
+            std::vector<T> result;
+            while (collection.more(tc)) {
+                T element = elements_.do_draw(tc);
+                if constexpr (detail::is_equality_comparable<T>::value) {
+                    if (params_.unique &&
+                        std::find(result.begin(), result.end(), element) !=
+                            result.end()) {
+                        collection.reject(tc, "duplicate element");
+                        continue;
+                    }
+                }
+                result.push_back(std::move(element));
+            }
+            hi::stop_span(tc);
+            return result;
+        }
+
+      private:
+        Generator<T> elements_;
+        VectorsParams params_;
+    };
+
+    // Concrete IGenerator for sets(). Duplicate elements are rejected back
+    // to the engine so it draws a replacement.
+    template <typename T> class SetsGenerator : public IGenerator<std::set<T>> {
+      public:
+        SetsGenerator(Generator<T> elements, SetsParams params = {})
+            : elements_(std::move(elements)), params_(params) {
+            if (params_.max_size && params_.min_size > *params_.max_size) {
+                throw std::invalid_argument("Cannot have max_size < min_size");
+            }
+        }
+
+        std::set<T> do_draw(const TestCase& tc) const override {
+            namespace hi = hegel::internal;
+            hi::start_span(tc, hi::SpanLabel::Set);
+            hi::CollectionHandle collection(
+                tc, params_.min_size,
+                detail::collection_max_size(params_.max_size));
+            std::set<T> result;
+            while (collection.more(tc)) {
+                if (!result.insert(elements_.do_draw(tc)).second) {
+                    collection.reject(tc, "duplicate element");
+                }
+            }
+            hi::stop_span(tc);
+            return result;
+        }
+
+      private:
+        Generator<T> elements_;
+        SetsParams params_;
+    };
+
+    // Concrete IGenerator for maps(). Draws the key first and only draws a
+    // value once the key is known to be fresh; duplicate keys are rejected
+    // back to the engine.
+    template <typename K, typename V>
+    class MapsGenerator : public IGenerator<std::map<K, V>> {
+      public:
+        MapsGenerator(Generator<K> keys, Generator<V> values,
+                      MapsParams params = {})
+            : keys_(std::move(keys)), values_(std::move(values)),
+              params_(params) {
+            if (params_.max_size && params_.min_size > *params_.max_size) {
+                throw std::invalid_argument("Cannot have max_size < min_size");
+            }
+        }
+
+        std::map<K, V> do_draw(const TestCase& tc) const override {
+            namespace hi = hegel::internal;
+            hi::start_span(tc, hi::SpanLabel::Map);
+            hi::CollectionHandle collection(
+                tc, params_.min_size,
+                detail::collection_max_size(params_.max_size));
+            std::map<K, V> result;
+            while (collection.more(tc)) {
+                K key = keys_.do_draw(tc);
+                if (result.find(key) != result.end()) {
+                    collection.reject(tc, "duplicate key");
+                    continue;
+                }
+                result.emplace(std::move(key), values_.do_draw(tc));
+            }
+            hi::stop_span(tc);
+            return result;
+        }
+
+      private:
+        Generator<K> keys_;
+        Generator<V> values_;
+        MapsParams params_;
+    };
+    /// @endcond
+
+    /// @name Collections
     /// @{
 
     /**
@@ -69,40 +209,8 @@ namespace hegel::generators {
     template <typename T>
     Generator<std::vector<T>> vectors(Generator<T> elements,
                                       VectorsParams params = {}) {
-        if (params.max_size && params.min_size > *params.max_size) {
-            throw std::invalid_argument("Cannot have max_size < min_size");
-        }
-
-        if (elements.schema()) {
-            hegel::internal::json::json schema = {
-                {"type", "list"},
-                {"elements", *elements.schema()},
-                {"min_size", params.min_size},
-                {"unique", params.unique}};
-
-            if (params.max_size)
-                schema["max_size"] = *params.max_size;
-
-            return from_schema<std::vector<T>>(std::move(schema));
-        }
-
-        size_t max_size = params.max_size.value_or(100);
-
-        auto length_gen = integers<size_t>(
-            {.min_value = params.min_size, .max_value = max_size});
-
-        return from_function<std::vector<T>>(
-            [elements, length_gen](const TestCase& tc) {
-                size_t len = length_gen.do_draw(tc);
-                std::vector<T> result;
-                result.reserve(len);
-
-                for (size_t i = 0; i < len; ++i) {
-                    result.push_back(elements.do_draw(tc));
-                }
-
-                return result;
-            });
+        return Generator<std::vector<T>>(
+            new VectorsGenerator<T>(std::move(elements), params));
     }
 
     /**
@@ -120,60 +228,22 @@ namespace hegel::generators {
      */
     template <typename T>
     Generator<std::set<T>> sets(Generator<T> elements, SetsParams params = {}) {
-        if (params.max_size && params.min_size > *params.max_size) {
-            throw std::invalid_argument("Cannot have max_size < min_size");
-        }
-
-        if (elements.schema()) {
-            hegel::internal::json::json schema = {
-                {"type", "list"},
-                {"elements", *elements.schema()},
-                {"min_size", params.min_size},
-                {"unique", true}};
-
-            if (params.max_size)
-                schema["max_size"] = *params.max_size;
-
-            auto vec_gen = from_schema<std::vector<T>>(std::move(schema));
-
-            return from_function<std::set<T>>([vec_gen](const TestCase& tc) {
-                auto vec = vec_gen.do_draw(tc);
-                return std::set<T>(vec.begin(), vec.end());
-            });
-        }
-
-        size_t max_size = params.max_size.value_or(20);
-        auto length_gen = integers<size_t>(
-            {.min_value = params.min_size, .max_value = max_size});
-
-        return from_function<std::set<T>>([elements,
-                                           length_gen](const TestCase& tc) {
-            size_t target_len = length_gen.do_draw(tc);
-            std::set<T> result;
-
-            size_t attempts = 0;
-            while (result.size() < target_len && attempts < target_len * 10) {
-                result.insert(elements.do_draw(tc));
-                ++attempts;
-            }
-
-            return result;
-        });
+        return Generator<std::set<T>>(
+            new SetsGenerator<T>(std::move(elements), params));
     }
 
     /**
-     * @brief Generate dictionaries (maps) with configurable key and value
-     * types.
+     * @brief Generate maps with configurable key and value types.
      *
      * @code{.cpp}
      * // String keys
-     * auto strDict = dictionaries(text(), integers<int>());
+     * auto strMap = maps(text(), integers<int>());
      *
      * // Integer keys
-     * auto intDict = dictionaries(integers<int>(), text());
+     * auto intMap = maps(integers<int>(), text());
      *
      * // With size bounds
-     * auto bounded = dictionaries(text(), integers<int>(), {.min_size = 1,
+     * auto bounded = maps(text(), integers<int>(), {.min_size = 1,
      * .max_size = 3});
      * @endcode
      *
@@ -185,72 +255,14 @@ namespace hegel::generators {
      * @return Generator producing maps
      */
     template <typename K, typename V>
-    Generator<std::map<K, V>> dictionaries(Generator<K> keys,
-                                           Generator<V> values,
-                                           DictionariesParams params = {}) {
-        if (params.max_size && params.min_size > *params.max_size) {
-            throw std::invalid_argument("Cannot have max_size < min_size");
-        }
-
-        if (keys.schema() && values.schema()) {
-            hegel::internal::json::json schema = {
-                {"type", "dict"},
-                {"keys", *keys.schema()},
-                {"values", *values.schema()},
-                {"min_size", params.min_size}};
-
-            if (params.max_size)
-                schema["max_size"] = *params.max_size;
-
-            // Wire format is [[key, value], ...], deserialize as vector of
-            // pairs
-            auto vec_gen =
-                from_schema<std::vector<std::pair<K, V>>>(std::move(schema));
-
-            return from_function<std::map<K, V>>([vec_gen](const TestCase& tc) {
-                auto pairs = vec_gen.do_draw(tc);
-                return std::map<K, V>(pairs.begin(), pairs.end());
-            });
-        }
-
-        size_t max_size = params.max_size.value_or(20);
-        auto length_gen = integers<size_t>(
-            {.min_value = params.min_size, .max_value = max_size});
-
-        return from_function<std::map<K, V>>(
-            [keys, values, length_gen](const TestCase& tc) {
-                size_t len = length_gen.do_draw(tc);
-                std::map<K, V> result;
-
-                while (result.size() < len) {
-                    K key = keys.do_draw(tc);
-                    V value = values.do_draw(tc);
-                    result[std::move(key)] = std::move(value);
-                }
-
-                return result;
-            });
+    Generator<std::map<K, V>> maps(Generator<K> keys, Generator<V> values,
+                                   MapsParams params = {}) {
+        return Generator<std::map<K, V>>(new MapsGenerator<K, V>(
+            std::move(keys), std::move(values), params));
     }
 
     /// @cond INTERNAL
     namespace detail {
-
-        template <typename... Gens>
-        auto make_tuple_schema(const Gens&... gens)
-            -> std::optional<hegel::internal::json::json> {
-            bool all_have_schemas = (gens.schema().has_value() && ...);
-            if (!all_have_schemas)
-                return std::nullopt;
-
-            hegel::internal::json::json elements =
-                hegel::internal::json::json::array();
-            (elements.push_back(*gens.schema()), ...);
-
-            hegel::internal::json::json schema = {{"type", "tuple"},
-                                                  {"elements", elements}};
-
-            return schema;
-        }
 
         template <typename Tuple, typename GenTuple, size_t... Is>
         Tuple draw_tuple_impl(const GenTuple& gens, std::index_sequence<Is...>,
@@ -259,6 +271,29 @@ namespace hegel::generators {
         }
 
     } // namespace detail
+
+    // Concrete IGenerator for tuples(). Draws each element in order inside
+    // one tuple span.
+    template <typename... Ts>
+    class TuplesGenerator : public IGenerator<std::tuple<Ts...>> {
+      public:
+        using ResultTuple = std::tuple<Ts...>;
+
+        explicit TuplesGenerator(Generator<Ts>... gens)
+            : gens_(std::move(gens)...) {}
+
+        ResultTuple do_draw(const TestCase& tc) const override {
+            namespace hi = hegel::internal;
+            hi::start_span(tc, hi::SpanLabel::Tuple);
+            ResultTuple result = detail::draw_tuple_impl<ResultTuple>(
+                gens_, std::index_sequence_for<Ts...>{}, tc);
+            hi::stop_span(tc);
+            return result;
+        }
+
+      private:
+        std::tuple<Generator<Ts>...> gens_;
+    };
     /// @endcond
 
     /**
@@ -277,20 +312,65 @@ namespace hegel::generators {
      */
     template <typename... Ts>
     Generator<std::tuple<Ts...>> tuples(Generator<Ts>... gens) {
-        using ResultTuple = std::tuple<Ts...>;
+        return Generator<std::tuple<Ts...>>(
+            new TuplesGenerator<Ts...>(std::move(gens)...));
+    }
 
-        auto maybe_schema = detail::make_tuple_schema(gens...);
+    /// @cond INTERNAL
+    // Concrete IGenerator for arrays(). Draws exactly N elements from one
+    // element generator inside a single tuple span (fixed arity, not the
+    // engine-managed collection protocol vectors() uses).
+    template <typename T, size_t N>
+    class ArrayGenerator : public IGenerator<std::array<T, N>> {
+      public:
+        explicit ArrayGenerator(Generator<T> element)
+            : element_(std::move(element)) {}
 
-        if (maybe_schema) {
-            return from_schema<ResultTuple>(std::move(*maybe_schema));
+        std::array<T, N> do_draw(const TestCase& tc) const override {
+            namespace hi = hegel::internal;
+            hi::start_span(tc, hi::SpanLabel::Tuple);
+            std::array<T, N> result =
+                draw_all(tc, std::make_index_sequence<N>{});
+            hi::stop_span(tc);
+            return result;
         }
 
-        auto gen_tuple = std::make_tuple(std::move(gens)...);
+      private:
+        // Braced-init evaluates its elements left to right, so the N draws
+        // happen in order; the comma operator consumes each index.
+        template <size_t... Is>
+        std::array<T, N> draw_all(const TestCase& tc,
+                                  std::index_sequence<Is...>) const {
+            return std::array<T, N>{
+                (static_cast<void>(Is), element_.do_draw(tc))...};
+        }
 
-        return from_function<ResultTuple>([gen_tuple](const TestCase& tc) {
-            return detail::draw_tuple_impl<ResultTuple>(
-                gen_tuple, std::index_sequence_for<Ts...>{}, tc);
-        });
+        Generator<T> element_;
+    };
+    /// @endcond
+
+    /**
+     * @brief Generate fixed-size arrays.
+     *
+     * Draws exactly @p N elements from @p element, producing a
+     * @c std::array<T, N>. Unlike vectors(), the length is fixed at compile
+     * time. @p N cannot be deduced, so specify it explicitly.
+     *
+     * @code{.cpp}
+     * auto rgb = arrays<int, 3>(integers<int>({.min_value = 0, .max_value =
+     * 255}));
+     * // Draws std::array<int, 3>
+     * @endcode
+     *
+     * @tparam T Element type
+     * @tparam N Number of elements
+     * @param element Generator for each element
+     * @return Generator producing std::array<T, N>
+     */
+    template <typename T, size_t N>
+    Generator<std::array<T, N>> arrays(Generator<T> element) {
+        return Generator<std::array<T, N>>(
+            new ArrayGenerator<T, N>(std::move(element)));
     }
 
     /// @}

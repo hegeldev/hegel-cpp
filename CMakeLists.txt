@@ -1,159 +1,87 @@
 cmake_minimum_required(VERSION 3.14)
-project(hegel-cpp VERSION 0.2.0 LANGUAGES CXX)
+project(hegel-cpp VERSION 0.11.4 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(HEGEL_BUILD_TESTS "Build unit tests" ON)
-option(HEGEL_BUILD_CONFORMANCE "Build conformance test binary" ON)
+# don't build tests when consumed via add_subdirectory/FetchContent
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(_hegel_default_tests ON)
+else()
+    set(_hegel_default_tests OFF)
+endif()
+
+option(HEGEL_BUILD_TESTS "Build unit tests" ${_hegel_default_tests})
 option(HEGEL_BUILD_DOCS "Build documentation" OFF)
 option(HEGEL_COVERAGE "Build with coverage instrumentation" OFF)
 
+# Sanitizers to build with, as a -fsanitize argument (e.g. "address,undefined"
+# or "thread"). Empty disables. address+undefined and thread are separate,
+# mutually exclusive builds; see the `check-sanitizers` just recipe.
+set(HEGEL_SANITIZE "" CACHE STRING "Sanitizers to build with (-fsanitize value)")
+
+# default_generator (type-directed derivation) uses reflect-cpp, which requires
+# C++20. Turn this OFF to drop reflect-cpp and consume hegel from C++17; you
+# lose default_generator but everything else still works.
+option(HEGEL_REFLECTION "Enable reflect-cpp powered default_generator (requires C++20)" ON)
+
+# The library builds at C++20; with HEGEL_REFLECTION=OFF the public headers are
+# also C++17-consumable (verified by a standalone C++17 consumer in CI), and the
+# hegel target advertises cxx_std_17 so C++17 consumers are accepted.
+set(CMAKE_CXX_STANDARD 20)
+
 if(HEGEL_COVERAGE)
-    add_compile_options(--coverage -fprofile-arcs -ftest-coverage)
-    add_link_options(--coverage)
+    add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+    add_link_options(-fprofile-instr-generate)
+    # Lets test binaries that die via abort() (uncaught exceptions) flush
+    # their profile data manually; see tests/subject_main.cpp.
+    add_compile_definitions(HEGEL_COVERAGE_BUILD)
 endif()
 
-# In order:
-# * Prefer `hegel` on PATH
-# * If not found, install hegel with uv
-#    * Prefer `uv` on PATH
-#    * If not found, install uv from installer
-#
-# All artifacts are installed to `CMAKE_BINARY_DIR/_deps/hegel`.
-
-set(HEGEL_PYTHON_VERSION "3.13")
-set(HEGEL_INSTALL_DIR "${CMAKE_BINARY_DIR}/_deps/hegel")
-
-find_program(HEGEL_ON_PATH hegel)
-
-if(HEGEL_ON_PATH)
-  message(STATUS "found hegel on path: ${HEGEL_ON_PATH}")
-  set(HEGEL_BINARY_PATH "${HEGEL_ON_PATH}")
-else()
-  set(HEGEL_VENV_DIR "${HEGEL_INSTALL_DIR}/.venv")
-  set(HEGEL_BINARY_PATH "${HEGEL_VENV_DIR}/bin/hegel")
-
-  if(EXISTS "${HEGEL_BINARY_PATH}")
-    message(STATUS "found hegel: ${HEGEL_BINARY_PATH}")
-  else()
-    find_program(UV_ON_PATH uv)
-
-    if(UV_ON_PATH)
-      message(STATUS "found uv on PATH: ${UV_ON_PATH}")
-      set(UV_EXECUTABLE "${UV_ON_PATH}")
-    else()
-      set(UV_EXECUTABLE "${HEGEL_INSTALL_DIR}/uv")
-
-      if(EXISTS "${UV_EXECUTABLE}")
-        message(STATUS "found uv: ${UV_EXECUTABLE}")
-      else()
-        message(STATUS "installing uv")
-
-        file(MAKE_DIRECTORY "${HEGEL_INSTALL_DIR}")
-
-        execute_process(
-          COMMAND sh -c "curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=${HEGEL_INSTALL_DIR} UV_NO_MODIFY_PATH=1 sh"
-          RESULT_VARIABLE UV_INSTALL_RESULT
-        )
-        if(NOT UV_INSTALL_RESULT EQUAL 0)
-          message(FATAL_ERROR "uv install script failed")
-        endif()
-        if(NOT EXISTS "${UV_EXECUTABLE}")
-          message(FATAL_ERROR "uv not found at ${UV_EXECUTABLE} after installation")
-        endif()
-      endif()
-    endif()
-
-    message(STATUS "using uv: ${UV_EXECUTABLE}")
-
-    message(STATUS "creating venv at ${HEGEL_VENV_DIR}")
-
-    execute_process(
-      COMMAND ${UV_EXECUTABLE} venv --python ${HEGEL_PYTHON_VERSION} ${HEGEL_VENV_DIR}
-      RESULT_VARIABLE UV_VENV_RESULT
-    )
-    if(NOT UV_VENV_RESULT EQUAL 0)
-      message(FATAL_ERROR "failed to create venv")
-    endif()
-
-    message(STATUS "installing hegel")
-
-    # Prefer local checkout in external/hegel if present
-    set(HEGEL_LOCAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/hegel")
-    if(EXISTS "${HEGEL_LOCAL_DIR}/pyproject.toml")
-      message(STATUS "using local hegel from ${HEGEL_LOCAL_DIR}")
-      set(HEGEL_INSTALL_SOURCE "${HEGEL_LOCAL_DIR}")
-    else()
-      set(HEGEL_INSTALL_SOURCE "git+https://github.com/hegeldev/hegel-core.git")
-    endif()
-
-    execute_process(
-      COMMAND ${UV_EXECUTABLE} pip install ${HEGEL_INSTALL_SOURCE}
-              --python ${HEGEL_VENV_DIR}/bin/python
-      RESULT_VARIABLE HEGEL_INSTALL_RESULT
-    )
-    if(NOT HEGEL_INSTALL_RESULT EQUAL 0)
-      message(FATAL_ERROR "failed to install hegel")
-    endif()
-    if(NOT EXISTS "${HEGEL_BINARY_PATH}")
-      message(FATAL_ERROR "hegel not found after installation: ${HEGEL_BINARY_PATH}")
-    endif()
-  endif()
+if(HEGEL_SANITIZE)
+    add_compile_options(-fsanitize=${HEGEL_SANITIZE} -fno-omit-frame-pointer -g)
+    add_link_options(-fsanitize=${HEGEL_SANITIZE})
 endif()
 
-message(STATUS "using hegel: ${HEGEL_BINARY_PATH}")
+# Acquire libhegel (Hegel's native engine, called in-process via its C ABI)
+# and expose it as the imported target hegel::libhegel.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/libhegel.cmake)
 
-# =============================================================================
-# Dependencies via FetchContent
-# =============================================================================
+# spawn()/Worker in the public headers use std::thread / std::future.
+find_package(Threads REQUIRED)
 
 include(FetchContent)
 
-# Fetch reflect-cpp
-FetchContent_Declare(
-    reflectcpp
-    GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
-    GIT_TAG v0.22.0
-)
+if(HEGEL_REFLECTION)
+    FetchContent_Declare(
+        reflectcpp
+        GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
+        GIT_TAG v0.22.0
+    )
 
-# reflect-cpp options - we use rfl::json for schema derivation and type conversion
-set(REFLECTCPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_BSON OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_CBOR OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_FLEXBUFFERS OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_MSGPACK OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_TOML OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_UBJSON OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_XML OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_YAML OFF CACHE BOOL "" FORCE)
-set(REFLECTCPP_INSTALL ON)
+    set(REFLECTCPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_BSON OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_CBOR OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_FLEXBUFFERS OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_MSGPACK OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_TOML OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_UBJSON OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_XML OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_YAML OFF CACHE BOOL "" FORCE)
+    set(REFLECTCPP_INSTALL ON)
+endif()
 
-set(NLOHMANN_JSON_VERSION "3.12.0" CACHE STRING "nlohmann/json version tag")
-FetchContent_Declare(
-    nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v${NLOHMANN_JSON_VERSION}
-)
-
-FetchContent_MakeAvailable(reflectcpp nlohmann_json)
-
-# =============================================================================
-# Main library target
-# =============================================================================
+if(HEGEL_REFLECTION)
+    FetchContent_MakeAvailable(reflectcpp)
+endif()
 
 add_library(hegel
   STATIC
     src/hegel.cpp
     src/generators.cpp
     src/test_case.cpp
-    src/protocol.cpp
-    src/connection.cpp
-    src/crc32.cpp
-    src/json.cpp
-    src/utils.cpp
+    src/engine.cpp
 )
 target_include_directories(hegel PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -161,19 +89,28 @@ target_include_directories(hegel PUBLIC
 
     PRIVATE
         src
-        $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libhegel>
 )
 target_link_libraries(hegel
-  PUBLIC reflectcpp
-)
-target_compile_features(hegel PUBLIC cxx_std_20)
-target_compile_definitions(hegel PUBLIC
-    HEGEL_DEFAULT_PATH="${HEGEL_BINARY_PATH}"
+  PUBLIC
+    # libhegel resolves the hegel_* symbols. Linked only in the build tree;
+    # installed consumers get it re-created by hegelConfig.cmake (which points
+    # at the dylib shipped beside the static lib).
+    $<BUILD_INTERFACE:hegel::libhegel>
+    # spawn()/Worker run test bodies on std::thread; PUBLIC so consumers link it.
+    Threads::Threads
 )
 
-# =============================================================================
-# Tests with Google Test
-# =============================================================================
+if(HEGEL_REFLECTION)
+    target_link_libraries(hegel PUBLIC reflectcpp)
+    target_compile_definitions(hegel PUBLIC HEGEL_HAS_REFLECTION=1)
+    # reflect-cpp requires C++20.
+    target_compile_features(hegel PUBLIC cxx_std_20)
+else()
+    target_compile_definitions(hegel PUBLIC HEGEL_HAS_REFLECTION=0)
+    # Without reflect-cpp the public headers are C++17-compatible.
+    target_compile_features(hegel PUBLIC cxx_std_17)
+endif()
 
 if(HEGEL_BUILD_TESTS)
     set(INSTALL_GTEST OFF CACHE BOOL "Disable installation of googletest" FORCE)
@@ -181,25 +118,11 @@ if(HEGEL_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
-
-# =============================================================================
-# Conformance Tests
-# =============================================================================
-
-if(HEGEL_BUILD_CONFORMANCE)
-    add_subdirectory(tests/conformance/cpp)
-endif()
-
-# =============================================================================
-# Installation
-# =============================================================================
-
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
   include(GNUInstallDirs)
   include(CMakePackageConfigHelpers)
 
-  # Install the library
   install(TARGETS hegel
     EXPORT hegelTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -207,40 +130,43 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   )
 
-  # Install headers
+  # Ship libhegel beside the static archive. The static lib's hegel_* symbols
+  # are resolved against this shared library when a consumer links the final
+  # executable; hegelConfig.cmake re-creates the imported target pointing here.
+  install(FILES "${HEGEL_LIBHEGEL_RESOLVED}"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RENAME "${HEGEL_LIBHEGEL_LOCAL_NAME}"
+  )
+
   install(DIRECTORY include/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
-  # Install CMake config files
   install(EXPORT hegelTargets
       FILE hegelTargets.cmake
       NAMESPACE hegel::
       DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
   )
 
-  # Generate package config file
   configure_package_config_file(
       ${CMAKE_CURRENT_SOURCE_DIR}/cmake/hegelConfig.cmake.in
       ${CMAKE_CURRENT_BINARY_DIR}/hegelConfig.cmake
       INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
+      PATH_VARS CMAKE_INSTALL_LIBDIR
   )
 
-  # Generate version file
   write_basic_package_version_file(
       ${CMAKE_CURRENT_BINARY_DIR}/hegelConfigVersion.cmake
       VERSION ${PROJECT_VERSION}
       COMPATIBILITY SameMajorVersion
   )
 
-  # Install config files
   install(FILES
       ${CMAKE_CURRENT_BINARY_DIR}/hegelConfig.cmake
       ${CMAKE_CURRENT_BINARY_DIR}/hegelConfigVersion.cmake
       DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hegel
   )
 
-  # Install docs (only when they were actually built)
   if(HEGEL_BUILD_DOCS)
     install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs
         TYPE DOC
@@ -248,10 +174,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   endif()
 
 endif()
-
-# =============================================================================
-# Documentation
-# =============================================================================
 
 if(HEGEL_BUILD_DOCS)
     find_package(Doxygen REQUIRED)

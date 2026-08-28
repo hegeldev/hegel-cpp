@@ -1,0 +1,13 @@
+Starting phase: Generate
+state = 0
+Step 1: step
+  auto amount = 1;
+state = 1
+Step 2: step
+  auto amount = 1;
+state = 2
+Step 3: step
+  auto amount = 1;
+state = 3
+Ending phase: Generate
+

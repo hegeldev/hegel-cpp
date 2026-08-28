@@ -1,0 +1,9 @@
+--- Failure: FailureReport.MultipleFailuresOffReportsOne ([location]) ---
+Falsified after 2 test cases (0 discarded):
+
+  auto draw_1 = 10;
+
+Exception: std::runtime_error: even bug with x=10
+rerun with: hegel::test(test_fn, settings, {"[blob]"})
+--- rethrown: even bug with x=10
+

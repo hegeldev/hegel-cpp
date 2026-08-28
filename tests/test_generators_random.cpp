@@ -1,0 +1,34 @@
+// Random-source generators: randoms() / true randoms, usable as a standard
+// library RNG.
+
+#include <gtest/gtest.h>
+
+#include <hegel/hegel.h>
+
+namespace gs = hegel::generators;
+
+TEST(Random, RandomsGenerate) {
+    hegel::test([](hegel::TestCase& tc) {
+        auto rng = tc.draw(gs::randoms());
+        std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
+        uint64_t v = dist(rng);
+        EXPECT_TRUE(v >= 0 && v <= UINT64_MAX);
+    });
+}
+
+TEST(Random, TrueRandomsGenerate) {
+    hegel::test([](hegel::TestCase& tc) {
+        auto rng = tc.draw(gs::randoms({.use_true_random = true}));
+        std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
+        uint64_t v = dist(rng);
+        EXPECT_TRUE(v >= 0 && v <= UINT64_MAX);
+    });
+}
+
+TEST(Random, TestRejectionSamplingDist) {
+    hegel::test([](hegel::TestCase& tc) {
+        auto rng = tc.draw(gs::randoms({.use_true_random = true}));
+        std::normal_distribution<double> dist(0.0, 1.0);
+        EXPECT_NO_THROW(dist(rng));
+    });
+}

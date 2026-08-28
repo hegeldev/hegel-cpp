@@ -1,24 +1,74 @@
 #pragma once
 
-/**
- * @file combinators.h
- * @brief Combinator generator functions: sampled_from, one_of, variant,
- * optional
- */
-
+#include <cstdint>
+#include <initializer_list>
+#include <memory>
+#include <optional>
+#include <stdexcept>
+#include <string>
+#include <tuple>
 #include <variant>
+#include <vector>
 
 #include "hegel/core.h"
-#include "hegel/generators/numeric.h"
-#include "hegel/generators/primitives.h"
 
 namespace hegel::generators {
 
-    /// @name Combinator Strategies
+    /// @cond INTERNAL
+    // Concrete IGenerator for sampled_from(). Draws an index into the
+    // captured `elements_` vector and returns that element.
+    template <typename T> class SampledFromGenerator : public IGenerator<T> {
+      public:
+        explicit SampledFromGenerator(std::vector<T> elements)
+            : elements_(std::move(elements)) {
+            if (elements_.empty()) {
+                throw std::invalid_argument(
+                    "sampled_from requires a non-empty vector");
+            }
+        }
+
+        T do_draw(const TestCase& tc) const override {
+            int64_t index = hegel::internal::draw_integer(
+                tc, 0, static_cast<int64_t>(elements_.size() - 1));
+            return elements_[static_cast<size_t>(index)];
+        }
+
+      private:
+        std::vector<T> elements_;
+    };
+
+    // Concrete IGenerator for one_of(). Draws a branch index inside a
+    // one_of span, then delegates to that branch.
+    template <typename T> class OneOfGenerator : public IGenerator<T> {
+      public:
+        explicit OneOfGenerator(std::vector<Generator<T>> gens)
+            : gens_(std::move(gens)) {
+            if (gens_.empty()) {
+                throw std::invalid_argument(
+                    "one_of requires a non-empty vector of generators");
+            }
+        }
+
+        T do_draw(const TestCase& tc) const override {
+            namespace hi = hegel::internal;
+            hi::start_span(tc, hi::SpanLabel::OneOf);
+            int64_t index =
+                hi::draw_integer(tc, 0, static_cast<int64_t>(gens_.size() - 1));
+            T result = gens_[static_cast<size_t>(index)].do_draw(tc);
+            hi::stop_span(tc);
+            return result;
+        }
+
+      private:
+        std::vector<Generator<T>> gens_;
+    };
+    /// @endcond
+
+    /// @name Misc
     /// @{
 
     /**
-     * @brief Sample uniformly from a fixed set of values.
+     * @brief Sample from a fixed set of values.
      *
      * @code{.cpp}
      * auto color = sampled_from({"red", "green", "blue"});
@@ -27,42 +77,18 @@ namespace hegel::generators {
      *
      * @tparam T Element type
      * @param elements Vector of values to sample from (must not be empty)
-     * @return Generator that picks uniformly from elements
+     * @return Generator that picks from elements
      */
     template <typename T>
     Generator<T> sampled_from(const std::vector<T>& elements) {
-        if (elements.empty()) {
-            throw std::invalid_argument(
-                "sampled_from requires a non-empty vector");
-        }
-
-        if constexpr (std::is_same_v<T, bool> ||
-                      std::is_same_v<T, std::nullptr_t> ||
-                      std::is_integral_v<T> || std::is_floating_point_v<T> ||
-                      std::is_same_v<T, std::string>) {
-            hegel::internal::json::json arr =
-                hegel::internal::json::json::array();
-            for (const auto& e : elements)
-                arr.push_back(e);
-            hegel::internal::json::json schema = {{"type", "sampled_from"},
-                                                  {"values", arr}};
-            return from_schema<T>(std::move(schema));
-        } else {
-            auto index_gen = integers<size_t>(
-                {.min_value = 0, .max_value = elements.size() - 1});
-
-            return from_function<T>([elements, index_gen](const TestCase& tc) {
-                size_t idx = index_gen.do_draw(tc);
-                return elements[idx];
-            });
-        }
+        return Generator<T>(new SampledFromGenerator<T>(elements));
     }
 
     /**
-     * @brief Sample uniformly from a fixed set of values (initializer list).
+     * @brief Sample from a fixed set of values (initializer list).
      * @tparam T Element type
      * @param elements Values to sample from (must not be empty)
-     * @return Generator that picks uniformly from elements
+     * @return Generator that picks from elements
      */
     template <typename T>
     Generator<T> sampled_from(std::initializer_list<T> elements) {
@@ -70,9 +96,9 @@ namespace hegel::generators {
     }
 
     /**
-     * @brief Sample uniformly from a fixed set of C-string literals.
+     * @brief Sample from a fixed set of C-string literals.
      * @param elements String literals to sample from (must not be empty)
-     * @return Generator of std::string picking uniformly from elements
+     * @return Generator of std::string picking from elements
      */
     inline Generator<std::string>
     sampled_from(std::initializer_list<const char*> elements) {
@@ -84,30 +110,10 @@ namespace hegel::generators {
         return sampled_from(strings);
     }
 
-    /// @cond INTERNAL
-    namespace detail {
+    /// @}
 
-        template <typename T>
-        auto make_one_of_schema(const std::vector<Generator<T>>& gens)
-            -> std::optional<hegel::internal::json::json> {
-            for (const auto& gen : gens) {
-                if (!gen.schema())
-                    return std::nullopt;
-            }
-
-            hegel::internal::json::json one_of_arr =
-                hegel::internal::json::json::array();
-            for (const auto& gen : gens) {
-                one_of_arr.push_back(*gen.schema());
-            }
-
-            hegel::internal::json::json schema = {{"type", "one_of"},
-                                                  {"generators", one_of_arr}};
-            return schema;
-        }
-
-    } // namespace detail
-    /// @endcond
+    /// @name Combinators
+    /// @{
 
     /**
      * @brief Choose from multiple generators of the same type.
@@ -126,31 +132,14 @@ namespace hegel::generators {
      * @return Generator that delegates to a randomly chosen generator
      */
     template <typename T> Generator<T> one_of(std::vector<Generator<T>> gens) {
-        if (gens.empty()) {
-            throw std::invalid_argument(
-                "one_of requires a non-empty vector of generators");
-        }
-
-        auto maybe_schema = detail::make_one_of_schema(gens);
-
-        if (maybe_schema) {
-            return from_schema<T>(std::move(*maybe_schema));
-        }
-
-        auto index_gen =
-            integers<size_t>({.min_value = 0, .max_value = gens.size() - 1});
-
-        return from_function<T>([gens, index_gen](const TestCase& tc) {
-            size_t idx = index_gen.do_draw(tc);
-            return gens[idx].do_draw(tc);
-        });
+        return Generator<T>(new OneOfGenerator<T>(std::move(gens)));
     }
 
     /**
-     * @brief Choose uniformly from a list of generators (initializer list).
+     * @brief Choose from a list of generators (initializer list).
      * @tparam T Value type produced by each generator
      * @param gens Generators to choose from (must not be empty)
-     * @return Generator that picks uniformly from gens and forwards do_draw
+     * @return Generator that picks from gens and forwards do_draw
      */
     template <typename T>
     Generator<T> one_of(std::initializer_list<Generator<T>> gens) {
@@ -165,16 +154,67 @@ namespace hegel::generators {
                                   const TestCase& tc) {
             if constexpr (I < std::tuple_size_v<GenTuple>) {
                 if (idx == I) {
-                    return std::get<I>(gens).do_draw(tc);
+                    return Variant{std::in_place_index<I>,
+                                   std::get<I>(gens).do_draw(tc)};
                 }
                 return draw_variant_impl<Variant, GenTuple, I + 1>(gens, idx,
                                                                    tc);
             } else {
-                return Variant{};
+                // Unreachable: idx is always in [0, N), so an earlier branch
+                // matches before the recursion bottoms out.
+                return Variant{}; // GCOVR_EXCL_LINE
             }
         }
 
     } // namespace detail
+
+    // Concrete IGenerator for variant(). Draws a branch index inside a
+    // one_of span; branches can have heterogeneous types.
+    template <typename... Ts>
+    class VariantGenerator : public IGenerator<std::variant<Ts...>> {
+      public:
+        using Result = std::variant<Ts...>;
+
+        explicit VariantGenerator(Generator<Ts>... gens)
+            : gens_(std::move(gens)...) {}
+
+        Result do_draw(const TestCase& tc) const override {
+            namespace hi = hegel::internal;
+            constexpr size_t N = sizeof...(Ts);
+            hi::start_span(tc, hi::SpanLabel::OneOf);
+            int64_t index =
+                hi::draw_integer(tc, 0, static_cast<int64_t>(N - 1));
+            Result result = detail::draw_variant_impl<Result, decltype(gens_)>(
+                gens_, static_cast<size_t>(index), tc);
+            hi::stop_span(tc);
+            return result;
+        }
+
+      private:
+        std::tuple<Generator<Ts>...> gens_;
+    };
+
+    // Concrete IGenerator for optional(). A boolean draw inside an
+    // optional span gates presence; false shrinks toward nullopt.
+    template <typename T>
+    class OptionalGenerator : public IGenerator<std::optional<T>> {
+      public:
+        explicit OptionalGenerator(Generator<T> gen) : gen_(std::move(gen)) {}
+
+        std::optional<T> do_draw(const TestCase& tc) const override {
+            namespace hi = hegel::internal;
+            hi::start_span(tc, hi::SpanLabel::Optional);
+            std::optional<T> result;
+            if (hi::draw_boolean(tc, 0.5)) {
+                result = gen_.do_draw(tc);
+            }
+            hi::stop_span(tc);
+            return result;
+        }
+
+      private:
+        Generator<T> gen_;
+    };
     /// @endcond
 
     /**
@@ -193,19 +233,8 @@ namespace hegel::generators {
      */
     template <typename... Ts>
     Generator<std::variant<Ts...>> variant(Generator<Ts>... gens) {
-        using ResultVariant = std::variant<Ts...>;
-        constexpr size_t N = sizeof...(Ts);
-
-        auto gen_tuple = std::make_tuple(std::move(gens)...);
-        auto index_gen = integers<size_t>({.min_value = 0, .max_value = N - 1});
-
-        return from_function<ResultVariant>(
-            [gen_tuple, index_gen](const TestCase& tc) {
-                size_t idx = index_gen.do_draw(tc);
-                return detail::draw_variant_impl<ResultVariant,
-                                                 decltype(gen_tuple)>(gen_tuple,
-                                                                      idx, tc);
-            });
+        return Generator<std::variant<Ts...>>(
+            new VariantGenerator<Ts...>(std::move(gens)...));
     }
 
     /**
@@ -225,18 +254,103 @@ namespace hegel::generators {
      */
     template <typename T>
     Generator<std::optional<T>> optional(Generator<T> gen) {
-        auto bool_gen = booleans();
-
-        return from_function<std::optional<T>>(
-            [gen, bool_gen](const TestCase& tc) -> std::optional<T> {
-                bool is_none = bool_gen.do_draw(tc);
-                if (is_none) {
-                    return std::nullopt;
-                }
-                return gen.do_draw(tc);
-            });
+        return Generator<std::optional<T>>(
+            new OptionalGenerator<T>(std::move(gen)));
     }
 
     /// @}
+
+    /// @cond INTERNAL
+    // Generator that delegates to an implementation supplied later through a
+    // shared slot. Handed out by DeferredGeneratorDefinition::generator().
+    template <typename T> class DeferredGenerator : public IGenerator<T> {
+      public:
+        explicit DeferredGenerator(
+            std::shared_ptr<std::optional<Generator<T>>> slot)
+            : slot_(std::move(slot)) {}
+
+        T do_draw(const TestCase& tc) const override {
+            if (!*slot_) {
+                throw std::runtime_error(
+                    "deferred generator drawn before set() was called");
+            }
+            return (*slot_)->do_draw(tc);
+        }
+
+      private:
+        std::shared_ptr<std::optional<Generator<T>>> slot_;
+    };
+    /// @endcond
+
+    /**
+     * @brief A forward reference to a generator whose definition is provided
+     *        later.
+     *
+     * Created by deferred(). Call generator() to obtain handles that can be
+     * embedded in other generators before the implementation is known, then
+     * call set() to install it. This enables self-recursive and mutually
+     * recursive generators.
+     *
+     * @tparam T Value type produced by the eventual generator.
+     */
+    template <typename T> class DeferredGeneratorDefinition {
+      public:
+        DeferredGeneratorDefinition()
+            : slot_(std::make_shared<std::optional<Generator<T>>>()) {}
+
+        /**
+         * @brief Return a handle that delegates to whatever is later passed to
+         *        set(). May be called multiple times. Drawing from it before
+         * set() is called throws.
+         *
+         * @return A Generator that delegates to the implementation installed by
+         *   set().
+         */
+        Generator<T> generator() const {
+            return Generator<T>(new DeferredGenerator<T>(slot_));
+        }
+
+        /**
+         * @brief Set the implementation for this deferred generator.
+         *
+         * All handles previously returned by generator() delegate to @p gen.
+         * May be called only once. A second call throws. Drawing from a handle
+         * before set() is called throws.
+         *
+         * @param gen The generator to install as the implementation.
+         */
+        void set(Generator<T> gen) {
+            if (*slot_) {
+                throw std::runtime_error(
+                    "deferred generator set() called more than once");
+            }
+            *slot_ = std::move(gen);
+        }
+
+      private:
+        std::shared_ptr<std::optional<Generator<T>>> slot_;
+    };
+
+    /**
+     * @brief Create a deferred generator definition for forward references.
+     *
+     * @tparam T Value type produced by the eventual generator.
+     * @return A DeferredGeneratorDefinition whose generator() handles can be
+     *   used before set() supplies the implementation.
+     *
+     * @code{.cpp}
+     * struct Tree { int leaf; std::vector<Tree> children; };
+     * auto tree = gs::deferred<Tree>();
+     * auto leaf = gs::integers<int>().map([](int v) { return Tree{v, {}}; });
+     * auto branch = gs::compose([tree](const hegel::TestCase& tc) {
+     *     return Tree{0, {tc.draw(tree.generator()),
+     * tc.draw(tree.generator())}};
+     * });
+     * tree.set(gs::one_of<Tree>({leaf, branch}));
+     * @endcode
+     */
+    template <typename T> DeferredGeneratorDefinition<T> deferred() {
+        return DeferredGeneratorDefinition<T>();
+    }
 
 } // namespace hegel::generators

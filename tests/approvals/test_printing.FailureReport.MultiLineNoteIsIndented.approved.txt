@@ -1,0 +1,10 @@
+--- Failure: FailureReport.MultiLineNoteIsIndented ([location]) ---
+Falsified after 1 test case (0 discarded):
+
+  first line
+  second line
+
+Exception: std::runtime_error: boom
+rerun with: hegel::test(test_fn, settings, {"[blob]"})
+--- rethrown: boom
+
