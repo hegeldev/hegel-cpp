@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -578,6 +579,262 @@ namespace hegel::stateful {
             }
         }
     }
+    /// @}
+
+    /// @name Concurrent stateful testing
+    /// @{
+
+    template <typename T> class ConcurrentVariablesGenerator;
+
+    /**
+     * @brief A thread-safe pool of previously generated values for a
+     * @ref ConcurrentStateMachine.
+     *
+     * It behaves like @ref Pool but every operation is safe to call from the
+     * worker threads that a concurrent run drives at the same time, and
+     * @ref add takes the drawing test case as its first argument because each
+     * worker draws through its own handle.
+     *
+     * Draw from it with @ref values_reusable and @ref values_consumed, the
+     * same names the sequential @ref Pool uses.
+     *
+     * A @ref ConcurrentPool is neither copyable nor movable.
+     *
+     * @tparam T The type of variables in the pool.
+     */
+    template <typename T> class ConcurrentPool {
+      public:
+        /**
+         * @brief Creates an empty pool tied to a test case.
+         *
+         * @param tc The test case tied to the pool
+         */
+        explicit ConcurrentPool(const TestCase& tc) : pool_handle_(tc) {}
+
+        /**
+         * @brief Adds @p element to the pool. Overload for copying lvalues.
+         *
+         * @param tc The test case the calling worker draws through
+         * @param element The element to add to the pool
+         */
+        void add(const TestCase& tc, const T& element) {
+            int64_t var_id = pool_handle_.add(tc);
+            std::lock_guard<std::mutex> lock(mutex_);
+            pool_.emplace(var_id, element);
+        }
+
+        /**
+         * @brief Adds @p element to the pool. Overload for moving rvalues.
+         *
+         * @param tc The test case the calling worker draws through
+         * @param element The element to add to the pool
+         */
+        void add(const TestCase& tc, T&& element) {
+            int64_t var_id = pool_handle_.add(tc);
+            std::lock_guard<std::mutex> lock(mutex_);
+            pool_.emplace(var_id, std::move(element));
+        }
+
+        /**
+         * @brief Returns the number of variables in the pool.
+         *
+         * @return The number of variables in the pool
+         */
+        std::size_t size() const {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return pool_.size();
+        }
+
+        ConcurrentPool(const ConcurrentPool&) = delete;
+
+      private:
+        hegel::internal::PoolHandle pool_handle_;
+        mutable std::mutex mutex_;
+        std::map<int64_t, T> pool_;
+
+        friend class ConcurrentVariablesGenerator<T>;
+    };
+
+    /// @cond INTERNAL
+    // Concrete IGenerator that draws from a ConcurrentPool.
+    template <typename T>
+    class ConcurrentVariablesGenerator : public IGenerator<T> {
+      public:
+        explicit ConcurrentVariablesGenerator(ConcurrentPool<T>& p,
+                                              bool consume)
+            : p_(p), consume_(consume) {}
+
+        T do_draw(const TestCase& tc) const override {
+            int64_t variable = p_.pool_handle_.draw_variable(tc, consume_);
+
+            // The engine picks a variable id it holds, so the client map holds
+            // it too; at() throws if the two ever diverge.
+            std::lock_guard<std::mutex> lock(p_.mutex_);
+            if (consume_) {
+                T val = std::move(p_.pool_.at(variable));
+                p_.pool_.erase(variable);
+                return val;
+            }
+            return p_.pool_.at(variable);
+        }
+
+      private:
+        ConcurrentPool<T>& p_;
+        bool consume_;
+    };
+    /// @endcond
+
+    /**
+     * @brief Returns a value from a @ref ConcurrentPool and removes it.
+     *
+     * @tparam T Element type
+     * @param p The pool to draw from
+     * @return An element of the pool
+     */
+    template <typename T> Generator<T> values_consumed(ConcurrentPool<T>& p) {
+        return Generator<T>(new ConcurrentVariablesGenerator<T>(p, true));
+    }
+
+    /**
+     * @brief Returns a value from a @ref ConcurrentPool without removing it.
+     *
+     * @tparam T Element type
+     * @param p The pool to draw from
+     * @return An element of the pool
+     */
+    template <typename T> Generator<T> values_reusable(ConcurrentPool<T>& p) {
+        return Generator<T>(new ConcurrentVariablesGenerator<T>(p, false));
+    }
+
+    /**
+     * @brief A rule for a @ref ConcurrentStateMachine.
+     *
+     * It is like @ref Rule but each rule also names a concurrency group.
+     * Rules of the same group may run at the same time on different workers;
+     * rules of different groups never overlap. A rule declared without a
+     * group name joins the default (unnamed) group.
+     *
+     * @tparam T The state-machine type the rule acts on
+     */
+    template <typename T> class ConcurrentRule {
+      public:
+        /**
+         * @brief Declares a rule in the default group.
+         *
+         * @param name name of the rule
+         * @param step function that performs one application of the rule
+         */
+        ConcurrentRule(std::string name,
+                       std::function<void(TestCase&, T&)> step)
+            : name_(std::move(name)), step_(std::move(step)) {}
+
+        /**
+         * @brief Declares a rule in a named concurrency group.
+         *
+         * @param name name of the rule
+         * @param group name of the concurrency group
+         * @param step function that performs one application of the rule
+         */
+        ConcurrentRule(std::string name, std::string group,
+                       std::function<void(TestCase&, T&)> step)
+            : name_(std::move(name)), group_(std::move(group)),
+              step_(std::move(step)) {}
+
+        /**
+         * @brief Returns the name of the rule.
+         *
+         * @return const std::string&
+         */
+        const std::string& name() const { return name_; }
+        /**
+         * @brief Returns the name of the rule's concurrency group.
+         *
+         * @return const std::string&
+         */
+        const std::string& group() const { return group_; }
+        /**
+         * @brief Returns the underlying step function of the rule.
+         *
+         * @return const std::function<void(TestCase&, T&)>&
+         */
+        const std::function<void(TestCase&, T&)>& step() const { return step_; }
+
+      private:
+        std::string name_;
+        std::string group_;
+        std::function<void(TestCase&, T&)> step_;
+    };
+
+    /**
+     * @brief An invariant for a @ref ConcurrentStateMachine.
+     *
+     * It is like @ref Invariant. The predicate must throw when the invariant
+     * is violated, and must read the machine's state in a thread-safe way.
+     *
+     * @tparam T The state-machine type the invariant checks
+     */
+    template <typename T> class ConcurrentInvariant {
+      public:
+        /**
+         * @brief Declare a new invariant.
+         *
+         * @param name name of the invariant
+         * @param invariant predicate that throws when the invariant is
+         * violated
+         */
+        ConcurrentInvariant(std::string name,
+                            std::function<void(const T&)> invariant)
+            : name_(std::move(name)), invariant_(std::move(invariant)) {}
+
+        /**
+         * @brief Returns the name of the invariant.
+         *
+         * @return const std::string&
+         */
+        const std::string& name() const { return name_; }
+        /**
+         * @brief Returns the predicate of the invariant.
+         *
+         * @return const std::function<void(const T&)>&
+         */
+        const std::function<void(const T&)>& invariant() const {
+            return invariant_;
+        }
+
+      private:
+        std::string name_;
+        std::function<void(const T&)> invariant_;
+    };
+
+    /**
+     * @brief Base class for a concurrent state machine.
+     *
+     * Derive from it with the deriving type as @p Derived and define
+     *
+     * @code{.cpp}
+        std::vector<ConcurrentRule<Derived>> rules();
+     * @endcode
+     *
+     * returning the actions the test may apply. Optionally override
+     * @ref invariants to add predicates. Unlike @ref StateMachine, a
+     * concurrent machine holds its own state as members, so the rules and the
+     * invariants must read and mutate it in a thread-safe way.
+     *
+     * @tparam Derived The deriving state-machine type
+     */
+    template <typename Derived> class ConcurrentStateMachine {
+      public:
+        /**
+         * @brief Invariants checked as the machine runs. Override to add them.
+         * Defaults to none.
+         *
+         * @return std::vector<ConcurrentInvariant<Derived>>
+         */
+        std::vector<ConcurrentInvariant<Derived>> invariants() { return {}; }
+
+      protected:
+        ~ConcurrentStateMachine() = default;
+    };
     /// @}
 
 } // namespace hegel::stateful

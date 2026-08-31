@@ -3,9 +3,13 @@
 
 #include <ApprovalTests.hpp>
 
+#include <atomic>
+#include <mutex>
+
 #include "common/approvals.h"
 
 namespace gs = hegel::generators;
+namespace hs = hegel::stateful;
 
 using ApprovalTests::Approvals;
 using hegel::tests::common::scrub_report;
@@ -53,6 +57,54 @@ TEST(Pools, DrawFromEmptyPool) {
     hegel::test([](hegel::TestCase& tc) {
         hegel::stateful::Pool<int> pool = hegel::stateful::Pool<int>(tc);
         tc.draw(hegel::stateful::values_reusable(pool));
+        // should not error just a test case rejection
+    });
+}
+
+TEST(ConcurrentPools, PoolsRoundTrip) {
+    hegel::test([](hegel::TestCase& tc) {
+        hs::ConcurrentPool<int64_t> pool(tc);
+        std::set<int> original_set =
+            tc.draw(gs::sets(gs::integers<int>(), {.max_size = 10}));
+
+        for (int num : original_set) {
+            int64_t value = num;
+            pool.add(tc, value);
+        }
+
+        std::set<int64_t> expected(original_set.begin(), original_set.end());
+        std::set<int64_t> returned;
+        for (size_t i = 0; i < original_set.size(); i++) {
+            returned.insert(tc.draw(hs::values_consumed(pool)));
+        }
+
+        assert(returned == expected);
+    });
+}
+
+TEST(ConcurrentPools, PoolsNoConsume) {
+    hegel::test([](hegel::TestCase& tc) {
+        hs::ConcurrentPool<int64_t> pool(tc);
+        uint8_t sz = tc.draw(gs::integers<uint8_t>());
+        std::set<int> original_set =
+            tc.draw(gs::sets(gs::integers<int>(), {.max_size = sz}));
+
+        for (int num : original_set) {
+            pool.add(tc, static_cast<int64_t>(num));
+        }
+
+        for (size_t i = 0; i < original_set.size(); i++) {
+            tc.draw(hs::values_reusable(pool));
+        }
+
+        assert(pool.size() == original_set.size());
+    });
+}
+
+TEST(ConcurrentPools, DrawFromEmptyPool) {
+    hegel::test([](hegel::TestCase& tc) {
+        hs::ConcurrentPool<int64_t> pool(tc);
+        tc.draw(hs::values_reusable(pool));
         // should not error just a test case rejection
     });
 }
@@ -298,11 +350,13 @@ namespace {
         std::vector<hs::ConcurrentRule<ConcurrentCounter>> rules() {
             return {
                 hs::ConcurrentRule<ConcurrentCounter>(
-                    "increment", [](hegel::TestCase&, ConcurrentCounter& m) {
+                    "increment",
+                    [](hegel::TestCase&, ConcurrentCounter& m) {
                         m.value.fetch_add(1, std::memory_order_seq_cst);
                     }),
                 hs::ConcurrentRule<ConcurrentCounter>(
-                    "decrement", [](hegel::TestCase& tc, ConcurrentCounter& m) {
+                    "decrement",
+                    [](hegel::TestCase& tc, ConcurrentCounter& m) {
                         tc.assume(m.value.load(std::memory_order_seq_cst) > 0);
                         m.value.fetch_sub(1, std::memory_order_seq_cst);
                     }),
@@ -346,7 +400,8 @@ namespace {
                         m.log.push_back("one");
                     }),
                 hs::ConcurrentRule<Grouped>(
-                    "anonymous", [](hegel::TestCase&, Grouped& m) {
+                    "anonymous",
+                    [](hegel::TestCase&, Grouped& m) {
                         std::lock_guard<std::mutex> lock(m.mutex);
                         m.log.push_back("anonymous");
                     }),
@@ -373,22 +428,23 @@ namespace {
         std::vector<hs::ConcurrentRule<PoolMachine>> rules() {
             return {
                 hs::ConcurrentRule<PoolMachine>(
-                    "add", [](hegel::TestCase& tc, PoolMachine& m) {
+                    "add",
+                    [](hegel::TestCase& tc, PoolMachine& m) {
                         m.pool.add(
                             tc, m.next.fetch_add(1, std::memory_order_seq_cst));
                     }),
                 hs::ConcurrentRule<PoolMachine>(
-                    "reuse", [](hegel::TestCase& tc, PoolMachine& m) {
-                        int64_t value =
-                            tc.draw(hs::values_reusable(m.pool));
+                    "reuse",
+                    [](hegel::TestCase& tc, PoolMachine& m) {
+                        int64_t value = tc.draw(hs::values_reusable(m.pool));
                         if (value < 0) {
                             throw std::runtime_error("negative pooled value");
                         }
                     }),
                 hs::ConcurrentRule<PoolMachine>(
-                    "consume", [](hegel::TestCase& tc, PoolMachine& m) {
-                        int64_t value =
-                            tc.draw(hs::values_consumed(m.pool));
+                    "consume",
+                    [](hegel::TestCase& tc, PoolMachine& m) {
+                        int64_t value = tc.draw(hs::values_consumed(m.pool));
                         if (value < 0) {
                             throw std::runtime_error("negative pooled value");
                         }
@@ -408,16 +464,16 @@ namespace {
 
     struct Boom : hs::ConcurrentStateMachine<Boom> {
         std::vector<hs::ConcurrentRule<Boom>> rules() {
-            return {hs::ConcurrentRule<Boom>(
-                "boom", [](hegel::TestCase& tc, Boom&) {
-                    int64_t value = tc.draw(hegel::generators::integers<int64_t>());
-                    throw std::runtime_error("concurrent boom " +
-                                             std::to_string(value));
-                })};
+            return {hs::ConcurrentRule<Boom>("boom", [](hegel::TestCase& tc,
+                                                        Boom&) {
+                int64_t value = tc.draw(hegel::generators::integers<int64_t>());
+                throw std::runtime_error("concurrent boom " +
+                                         std::to_string(value));
+            })};
         }
     };
 
     struct NoRules : hs::ConcurrentStateMachine<NoRules> {
         std::vector<hs::ConcurrentRule<NoRules>> rules() { return {}; }
     };
-}
+} // namespace
