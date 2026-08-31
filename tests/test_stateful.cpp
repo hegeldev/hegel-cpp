@@ -290,3 +290,134 @@ TEST(Stateful, StatePrintingCanBeDisabled) {
     Approvals::verify(capture_counter_failure({.print_state = false}),
                       scrub_report());
 }
+
+namespace {
+    struct ConcurrentCounter : hs::ConcurrentStateMachine<ConcurrentCounter> {
+        std::atomic<int64_t> value{0};
+
+        std::vector<hs::ConcurrentRule<ConcurrentCounter>> rules() {
+            return {
+                hs::ConcurrentRule<ConcurrentCounter>(
+                    "increment", [](hegel::TestCase&, ConcurrentCounter& m) {
+                        m.value.fetch_add(1, std::memory_order_seq_cst);
+                    }),
+                hs::ConcurrentRule<ConcurrentCounter>(
+                    "decrement", [](hegel::TestCase& tc, ConcurrentCounter& m) {
+                        tc.assume(m.value.load(std::memory_order_seq_cst) > 0);
+                        m.value.fetch_sub(1, std::memory_order_seq_cst);
+                    }),
+            };
+        }
+
+        std::vector<hs::ConcurrentInvariant<ConcurrentCounter>> invariants() {
+            return {hs::ConcurrentInvariant<ConcurrentCounter>(
+                "non_negative", [](const ConcurrentCounter& m) {
+                    if (m.value.load(std::memory_order_seq_cst) < 0) {
+                        throw std::runtime_error("counter became negative");
+                    }
+                })};
+        }
+    };
+
+    struct Grouped : hs::ConcurrentStateMachine<Grouped> {
+        mutable std::mutex mutex;
+        std::vector<std::string> log;
+
+        std::vector<hs::ConcurrentRule<Grouped>> rules() {
+            return {
+                hs::ConcurrentRule<Grouped>(
+                    "alpha", "letters",
+                    [](hegel::TestCase&, Grouped& m) {
+                        std::lock_guard<std::mutex> lock(m.mutex);
+                        m.log.push_back("alpha");
+                    }),
+                hs::ConcurrentRule<Grouped>(
+                    "beta", "letters",
+                    [](hegel::TestCase& tc, Grouped& m) {
+                        int8_t n = tc.draw(gs::integers<int8_t>());
+                        tc.assume(n != 0);
+                        std::lock_guard<std::mutex> lock(m.mutex);
+                        m.log.push_back("beta");
+                    }),
+                hs::ConcurrentRule<Grouped>(
+                    "one", "numbers",
+                    [](hegel::TestCase&, Grouped& m) {
+                        std::lock_guard<std::mutex> lock(m.mutex);
+                        m.log.push_back("one");
+                    }),
+                hs::ConcurrentRule<Grouped>(
+                    "anonymous", [](hegel::TestCase&, Grouped& m) {
+                        std::lock_guard<std::mutex> lock(m.mutex);
+                        m.log.push_back("anonymous");
+                    }),
+            };
+        }
+
+        std::vector<hs::ConcurrentInvariant<Grouped>> invariants() {
+            return {hs::ConcurrentInvariant<Grouped>(
+                "log_is_bounded", [](const Grouped& m) {
+                    std::lock_guard<std::mutex> lock(m.mutex);
+                    if (m.log.size() > 100000) {
+                        throw std::runtime_error("log grew without bound");
+                    }
+                })};
+        }
+    };
+
+    struct PoolMachine : hs::ConcurrentStateMachine<PoolMachine> {
+        hs::ConcurrentPool<int64_t> pool;
+        std::atomic<int64_t> next{0};
+
+        explicit PoolMachine(hegel::TestCase& tc) : pool(tc) {}
+
+        std::vector<hs::ConcurrentRule<PoolMachine>> rules() {
+            return {
+                hs::ConcurrentRule<PoolMachine>(
+                    "add", [](hegel::TestCase& tc, PoolMachine& m) {
+                        m.pool.add(
+                            tc, m.next.fetch_add(1, std::memory_order_seq_cst));
+                    }),
+                hs::ConcurrentRule<PoolMachine>(
+                    "reuse", [](hegel::TestCase& tc, PoolMachine& m) {
+                        int64_t value =
+                            tc.draw(hs::values_reusable(m.pool));
+                        if (value < 0) {
+                            throw std::runtime_error("negative pooled value");
+                        }
+                    }),
+                hs::ConcurrentRule<PoolMachine>(
+                    "consume", [](hegel::TestCase& tc, PoolMachine& m) {
+                        int64_t value =
+                            tc.draw(hs::values_consumed(m.pool));
+                        if (value < 0) {
+                            throw std::runtime_error("negative pooled value");
+                        }
+                    }),
+            };
+        }
+
+        std::vector<hs::ConcurrentInvariant<PoolMachine>> invariants() {
+            return {hs::ConcurrentInvariant<PoolMachine>(
+                "pool_is_bounded", [](const PoolMachine& m) {
+                    if (m.pool.size() > 100000) {
+                        throw std::runtime_error("pool grew without bound");
+                    }
+                })};
+        }
+    };
+
+    struct Boom : hs::ConcurrentStateMachine<Boom> {
+        std::vector<hs::ConcurrentRule<Boom>> rules() {
+            return {hs::ConcurrentRule<Boom>(
+                "boom", [](hegel::TestCase& tc, Boom&) {
+                    int64_t value = tc.draw(hegel::generators::integers<int64_t>());
+                    throw std::runtime_error("concurrent boom " +
+                                             std::to_string(value));
+                })};
+        }
+    };
+
+    struct NoRules : hs::ConcurrentStateMachine<NoRules> {
+        std::vector<hs::ConcurrentRule<NoRules>> rules() { return {}; }
+    };
+}
