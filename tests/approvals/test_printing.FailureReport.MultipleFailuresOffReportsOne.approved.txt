@@ -1,5 +1,5 @@
 --- Failure: FailureReport.MultipleFailuresOffReportsOne ([location]) ---
-Falsified after 2 test cases (0 discarded):
+Falsified after 6 test cases (0 discarded):
 
   auto draw_1 = 10;
 

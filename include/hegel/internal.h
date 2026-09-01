@@ -102,7 +102,7 @@ namespace hegel::internal {
         hegel_pool_t* handle_ = nullptr;
     };
 
-    inline constexpr int64_t state_machine_done = -1;
+    inline constexpr int64_t state_machine_done = INT64_MIN;
     class StateMachineHandle {
       public:
         StateMachineHandle(const TestCase& tc,
@@ -112,8 +112,12 @@ namespace hegel::internal {
         StateMachineHandle(const StateMachineHandle&) = delete;
         StateMachineHandle& operator=(const StateMachineHandle&) = delete;
 
-        // Returns the index of the next rule to run, or state_machine_done
-        // once the engine's step budget for this test case is used up.
+        // Starts the next round: returns the current concurrency group id, or
+        // state_machine_done once the whole state machine is finished. Call on
+        // the root handle at every join point, including before the first rule.
+        int64_t next_group(const TestCase& tc);
+        // Returns the index of the next rule to run this round, or
+        // state_machine_done once the round's rule budget is used up.
         int64_t next_rule(const TestCase& tc);
         // Report that an assumption failed in the last rule, so it does not
         // count against the step budget.
