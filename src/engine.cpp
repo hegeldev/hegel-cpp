@@ -525,6 +525,10 @@ namespace hegel::internal {
                       HEGEL_LABEL_ENUM_VARIANT);
         static_assert(static_cast<uint64_t>(SpanLabel::StatefulRule) ==
                       HEGEL_LABEL_STATEFUL_RULE);
+        static_assert(static_cast<uint64_t>(SpanLabel::Concurrency) ==
+                      HEGEL_LABEL_CONCURRENCY);
+        static_assert(static_cast<uint64_t>(SpanLabel::Recursive) ==
+                      HEGEL_LABEL_RECURSIVE);
         static_assert(state_machine_done == HEGEL_STATE_MACHINE_DONE);
 
         // Two's-complement little-endian encoding of a uint64_t for the
@@ -695,11 +699,17 @@ namespace hegel::internal {
         std::vector<char*> invariant_name_cstrings =
             to_cstrings(invariant_names);
 
+        // A sequential machine: every rule shares one concurrency group and
+        // the level is fixed at 1, so no entropy is drawn for it.
+        std::vector<int64_t> rule_groups(rule_names.size(), 0);
+        int64_t concurrency = 0;
         scope.raise_for_rc(hegel_new_state_machine(
                                scope.ctx, scope.tc, rule_name_cstrings.data(),
-                               rule_names.size(),
+                               rule_groups.data(), rule_names.size(),
                                invariant_name_cstrings.data(),
-                               invariant_names.size(), &handle_),
+                               invariant_names.size(),
+                               /*min_concurrency=*/1, /*max_concurrency=*/1,
+                               &handle_, &concurrency),
                            "hegel_new_state_machine");
     }
 
@@ -707,20 +717,33 @@ namespace hegel::internal {
         hegel_state_machine_free(impl::thread_context(), handle_);
     }
 
+    int64_t StateMachineHandle::next_group(const TestCase& tc) {
+        impl::DrawScope scope(tc);
+        int64_t group_id;
+
+        scope.raise_for_rc(hegel_state_machine_next_group(scope.ctx, scope.tc,
+                                                          handle_, &group_id),
+                           "hegel_state_machine_next_group");
+        return group_id;
+    }
+
     int64_t StateMachineHandle::next_rule(const TestCase& tc) {
         impl::DrawScope scope(tc);
         int64_t rule_idx;
 
-        scope.raise_for_rc(hegel_state_machine_next_rule(scope.ctx, scope.tc,
-                                                         handle_, &rule_idx),
-                           "hegel_state_machine_next_rule");
+        // Sequential machine: the single worker has index 0.
+        scope.raise_for_rc(
+            hegel_state_machine_next_rule(scope.ctx, scope.tc, handle_,
+                                          /*worker_index=*/0, &rule_idx),
+            "hegel_state_machine_next_rule");
         return rule_idx;
     }
 
     void StateMachineHandle::rule_rejected(const TestCase& tc) {
         impl::DrawScope scope(tc);
         scope.raise_for_rc(
-            hegel_state_machine_rule_rejected(scope.ctx, scope.tc, handle_),
+            hegel_state_machine_rule_rejected(scope.ctx, scope.tc, handle_,
+                                              /*worker_index=*/0),
             "hegel_state_machine_rule_rejected");
     }
 

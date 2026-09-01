@@ -47,7 +47,9 @@ namespace hegel::internal {
         Mapped = 13,
         SampledFrom = 14,
         EnumVariant = 15,
-        StatefulRule = 31
+        StatefulRule = 31,
+        Concurrency = 34,
+        Recursive = 35
     };
 
     // Open / close a labeled span around a group of draws so the shrinker
@@ -102,7 +104,7 @@ namespace hegel::internal {
         hegel_pool_t* handle_ = nullptr;
     };
 
-    inline constexpr int64_t state_machine_done = -1;
+    inline constexpr int64_t state_machine_done = INT64_MIN;
     class StateMachineHandle {
       public:
         StateMachineHandle(const TestCase& tc,
@@ -112,8 +114,12 @@ namespace hegel::internal {
         StateMachineHandle(const StateMachineHandle&) = delete;
         StateMachineHandle& operator=(const StateMachineHandle&) = delete;
 
-        // Returns the index of the next rule to run, or state_machine_done
-        // once the engine's step budget for this test case is used up.
+        // Start the next round: make the per-round stop decision and pick the
+        // current concurrency group. Returns the group id, or
+        // state_machine_done once the whole state machine is finished.
+        int64_t next_group(const TestCase& tc);
+        // Returns the index of the next rule to run this round, or
+        // state_machine_done once the round's rule budget is used up.
         int64_t next_rule(const TestCase& tc);
         // Report that an assumption failed in the last rule, so it does not
         // count against the step budget.
