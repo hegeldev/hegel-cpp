@@ -1,4 +1,5 @@
 Starting phase: Generate
+Running test case
 auto draw_1 = 1;
 auto draw_2 = 2;
 Ending phase: Generate

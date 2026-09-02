@@ -1,4 +1,5 @@
 Starting phase: Generate
+Running test case
 auto count = 5;
 Ending phase: Generate
 

@@ -1,4 +1,5 @@
 Starting phase: Generate
+Running test case
 auto x_1 = 3;
 Ending phase: Generate
 

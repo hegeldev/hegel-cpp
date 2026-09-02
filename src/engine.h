@@ -52,8 +52,6 @@ namespace hegel::impl {
                                             hegel_settings_t* s, uint32_t mask);
     void settings_set_phases(hegel_context_t* ctx, hegel_settings_t* s,
                              uint32_t phases);
-    void settings_set_mode(hegel_context_t* ctx, hegel_settings_t* s,
-                           hegel_mode_t mode);
     void settings_set_backend(hegel_context_t* ctx, hegel_settings_t* s,
                               hegel_backend_t backend);
     hegel_settings_t* settings_new(hegel_context_t* ctx);

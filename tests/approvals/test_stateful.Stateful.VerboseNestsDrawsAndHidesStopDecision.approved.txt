@@ -1,15 +1,16 @@
 Starting phase: Generate
+Running test case
 Initial invariant check.
 state = 0
 Step 1: step
-  auto amount = 1;
-state = 1
+  auto amount = 4;
+state = 4
 Step 2: step
-  auto amount = 1;
-state = 2
+  auto amount = 9;
+state = 13
 Step 3: step
-  auto amount = 1;
-state = 3
+  auto amount = 9;
+state = 22
 Final invariant check.
 Ending phase: Generate
 
