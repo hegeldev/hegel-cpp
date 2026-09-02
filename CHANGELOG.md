@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.0 - 2026-09-02
+
+`Mode`, `Mode::SingleTestCase`, and `Settings::mode` have been removed.
+
 ## 0.11.6 - 2026-09-02
 
 This patch adds the `HEGEL_THROW_SITE` CMake option (default `ON`). Hegel
