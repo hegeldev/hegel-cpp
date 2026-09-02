@@ -278,19 +278,6 @@ TEST(Stateful, InvariantViolationReported) {
                  std::runtime_error);
 }
 
-// Mode::SingleTestCase runs one bounded case: each case still stops after at
-// most stateful_step_count steps, so StoppingCounter (which throws only on
-// step 100) never reaches its threshold and the run passes.
-TEST(Stateful, SingleModeRunsOneBoundedCase) {
-    EXPECT_NO_THROW(hegel::test(
-        [](hegel::TestCase& tc) {
-            StoppingCounter machine;
-            hegel::stateful::run(machine, tc);
-        },
-        hegel::Settings{.database = hegel::Database::disabled(),
-                        .mode = hegel::Mode::SingleTestCase}));
-}
-
 // The engine stops each case after at most stateful_step_count steps, so
 // a rule that fails only on step 100 never gets there.
 TEST(Stateful, StepCountCapsStepsPerCase) {

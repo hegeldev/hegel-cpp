@@ -431,13 +431,8 @@ namespace hegel {
         // Translate hegel::Settings onto a fresh hegel_settings_t handle.
         void apply_settings(hegel_context_t* ctx, hegel_settings_t* s,
                             const Settings& settings) {
-            // Mode::SingleTestCase produces exactly one test case with no
-            // shrinking. The engine has no dedicated setting for this, so it
-            // is built from the ordinary knobs: cap generation at one case
-            // and drop the Shrink phase below.
-            bool single = settings.mode == Mode::SingleTestCase;
-            impl::settings_set_test_cases(
-                ctx, s, single ? 1 : settings.test_cases.value_or(100));
+            impl::settings_set_test_cases(ctx, s,
+                                          settings.test_cases.value_or(100));
             impl::settings_set_stateful_step_count(
                 ctx, s, settings.stateful_step_count);
 
@@ -521,9 +516,6 @@ namespace hegel {
                     phases |= HEGEL_PHASE_SHRINK;
                     break;
                 }
-            }
-            if (single) {
-                phases &= ~static_cast<uint32_t>(HEGEL_PHASE_SHRINK);
             }
             impl::settings_set_phases(ctx, s, phases);
 
