@@ -190,13 +190,15 @@ namespace hegel::generators {
         }
 
         /// ISO 8601 `HH:MM:SS[.ffffff]` — the fractional part is present
-        /// iff the microsecond is nonzero, matching `isoformat()`.
+        /// iff the microsecond is nonzero, matching `isoformat()`. The engine
+        /// reports sub-second time in nanoseconds; the value is reduced to
+        /// microsecond resolution for the output.
         std::string format_time(const hegel_time_t& t) {
             char buf[24];
-            if (t.microsecond != 0) {
+            unsigned microsecond = t.nanosecond / 1000;
+            if (microsecond != 0) {
                 std::snprintf(buf, sizeof(buf), "%02u:%02u:%02u.%06u", t.hour,
-                              t.minute, t.second,
-                              static_cast<unsigned>(t.microsecond));
+                              t.minute, t.second, microsecond);
             } else {
                 std::snprintf(buf, sizeof(buf), "%02u:%02u:%02u", t.hour,
                               t.minute, t.second);
