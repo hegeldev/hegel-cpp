@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -259,6 +260,37 @@ TEST(CompositeFallback, SampledFromStringLiterals) {
             EXPECT_TRUE(s == "red" || s == "green" || s == "blue");
         },
         fast());
+}
+
+TEST(CompositeFallback, VectorsWithFunctionBackedUniqueElement) {
+    hegel::test(
+        [](hegel::TestCase& tc) {
+            auto v = tc.draw(gs::vectors(
+                always_even(), {.min_size = 1, .max_size = 5, .unique = true}));
+            EXPECT_GE(v.size(), 1u);
+            EXPECT_LE(v.size(), 5u);
+            std::set<int> seen;
+            for (int x : v) {
+                EXPECT_EQ(x % 2, 0) << "vector element should be even";
+                EXPECT_TRUE(seen.insert(x).second) << "elements must be unique";
+            }
+        },
+        fast());
+}
+
+TEST(CompositeFallback, UnsatisfiableUniqueVectorIsRejected) {
+    hegel::test(
+        [](hegel::TestCase& tc) {
+            // Only two possible values (0, 2) survive the even filter, but at
+            // least five unique elements are required.
+            (void)tc.draw(gs::vectors(
+                gs::integers<int>({.min_value = 0, .max_value = 3})
+                    .filter([](const int& x) { return x % 2 == 0; }),
+                {.min_size = 5, .unique = true}));
+        },
+        hegel::Settings{.test_cases = 10,
+                        .database = hegel::Database::disabled(),
+                        .suppress_health_check = hegel::all_health_checks()});
 }
 
 TEST(CompositeFallback, UnsatisfiableUniqueMapIsRejected) {
