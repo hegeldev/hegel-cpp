@@ -38,9 +38,29 @@
 #if defined(__APPLE__) || defined(__ELF__)
 #include <dlfcn.h>
 #endif
-// needed to wrap __cxa_throw
+
+// HEGEL_HAS_THROW_SITE — whether a failure report names the source position
+// of the throw that failed a test case. The wrapper below records that
+// position, then forwards to the real __cxa_throw through
+// dlsym(RTLD_NEXT, ...). The forwarding needs the C++ runtime to be a shared
+// library; a statically linked runtime also defines __cxa_throw in an object
+// the link always pulls in, and the two definitions collide. The CMake build
+// sets the macro to 0 for HEGEL_THROW_SITE=OFF; a report then names the
+// exception type without the site. When unset, the macro follows the
+// availability of RTLD_NEXT.
+#ifndef HEGEL_HAS_THROW_SITE
 #if defined(RTLD_NEXT)
 #define HEGEL_HAS_THROW_SITE 1
+#else
+#define HEGEL_HAS_THROW_SITE 0
+#endif
+#endif
+
+#if HEGEL_HAS_THROW_SITE && !defined(RTLD_NEXT)
+#error "HEGEL_HAS_THROW_SITE=1 requires dlsym(RTLD_NEXT, ...)"
+#endif
+
+#if HEGEL_HAS_THROW_SITE
 
 namespace {
     // The return address of the innermost throw this thread made. One per
@@ -218,17 +238,19 @@ namespace hegel {
             return out;
         }
 
+#if HEGEL_HAS_THROW_SITE
         std::string to_hex(uintptr_t value) {
             std::array<char, 2 * sizeof(uintptr_t)> buf;
             auto [ptr, ec] =
                 std::to_chars(buf.data(), buf.data() + buf.size(), value, 16);
             return std::string(buf.data(), ptr);
         }
+#endif
 
         // Return the most recent throw in a thread as "<binary>+0x<offset
         // from its load address>".
         std::string last_throw_site() {
-#if defined(HEGEL_HAS_THROW_SITE)
+#if HEGEL_HAS_THROW_SITE
             // cache sites to prevent repeated lookups during shrinking
             static thread_local std::map<const void*, std::string> sites;
             auto known = sites.find(last_throw_address);

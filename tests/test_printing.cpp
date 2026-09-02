@@ -54,6 +54,9 @@ TEST(Output, FailingScenariosExitNonZero) {
 // the binary loads at a different address. A throw site holds an offset from
 // its enclosing function, so it survives ASLR and repeats run to run.
 TEST(Output, ThrowSitesGroupTheSameWayInEveryProcess) {
+#ifdef HEGEL_TESTS_NO_THROW_SITE
+    GTEST_SKIP() << "HEGEL_THROW_SITE=OFF compiles throw-site capture out";
+#endif
     for (int run = 0; run < 3; run++) {
         SubprocessResult r = run_scenario("throw_sites");
         EXPECT_NE(r.exit_code, 0);
@@ -187,6 +190,22 @@ TEST(FailureReport, MultiLineNoteIsIndented) {
 }
 
 namespace {
+    std::string capture_two_throw_sites_report() {
+        return capture_failure_report(
+            [](hegel::TestCase& tc) {
+                int32_t x = tc.draw(gs::integers<int32_t>());
+                if (x >= 10 && x % 2 == 0) {
+                    throw std::runtime_error("even bug with x=" +
+                                             std::to_string(x));
+                }
+                if (x >= 10 && x % 2 != 0) {
+                    throw std::runtime_error("odd bug with x=" +
+                                             std::to_string(x));
+                }
+            },
+            hegel::Settings{.report_multiple_failures = true});
+    }
+
     class Tagged : public std::runtime_error, public hegel::FailureOrigin {
       public:
         Tagged(std::string tag, const std::string& message)
@@ -198,25 +217,17 @@ namespace {
     };
 } // namespace
 
-// Two `throw`s of one type are two bugs. The site each was thrown from is
-// part of its origin, so the two shrink separately and the run reports both.
-TEST(FailureReport, ThrowSitesAreDistinctBugs) {
-    std::string out = capture_failure_report(
-        [](hegel::TestCase& tc) {
-            int32_t x = tc.draw(gs::integers<int32_t>());
-            if (x >= 10 && x % 2 == 0) {
-                throw std::runtime_error("even bug with x=" +
-                                         std::to_string(x));
-            }
-            if (x >= 10 && x % 2 != 0) {
-                throw std::runtime_error("odd bug with x=" + std::to_string(x));
-            }
-        },
-        hegel::Settings{.report_multiple_failures = true});
-    EXPECT_TRUE(out.find("Failure 1 of 2") != std::string::npos) << out;
-    EXPECT_TRUE(out.find("even bug with x=10") != std::string::npos) << out;
-    EXPECT_TRUE(out.find("odd bug with x=11") != std::string::npos) << out;
+#ifdef HEGEL_TESTS_NO_THROW_SITE
+// Without throw-site capture, throws of one type collapse into one failure.
+TEST(FailureReport, ThrowSitesDisabled) {
+    Approvals::verify(capture_two_throw_sites_report(), scrub_report());
 }
+#else
+// With throw-site capture, the two sites are distinct origins
+TEST(FailureReport, ThrowSitesEnabled) {
+    Approvals::verify(capture_two_throw_sites_report(), scrub_report());
+}
+#endif
 
 // A site holds no generated values, so every value that reaches one `throw`
 // is the same bug.

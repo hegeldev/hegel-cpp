@@ -1,0 +1,18 @@
+--- Failure: FailureReport.ThrowSitesEnabled ([location]) ---
+Falsified after 6 test cases (0 discarded):
+
+Failure 1 of 2:
+
+  auto draw_1 = 11;
+
+Exception: std::runtime_error: odd bug with x=11
+rerun with: hegel::test(test_fn, settings, {"[blob]"})
+
+Failure 2 of 2:
+
+  auto draw_1 = 10;
+
+Exception: std::runtime_error: even bug with x=10
+rerun with: hegel::test(test_fn, settings, {"[blob]"})
+--- rethrown: Hegel test failed with 2 distinct failures
+

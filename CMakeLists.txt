@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(hegel-cpp VERSION 0.11.5 LANGUAGES CXX)
+project(hegel-cpp VERSION 0.11.6 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -24,6 +24,15 @@ set(HEGEL_SANITIZE "" CACHE STRING "Sanitizers to build with (-fsanitize value)"
 # C++20. Turn this OFF to drop reflect-cpp and consume hegel from C++17; you
 # lose default_generator but everything else still works.
 option(HEGEL_REFLECTION "Enable reflect-cpp powered default_generator (requires C++20)" ON)
+
+# Failure reports name the source position of the throw that failed a test
+# case. The capture wraps __cxa_throw and forwards to the real one through
+# dlsym(RTLD_NEXT, ...), which requires the C++ runtime to be a shared
+# library. Turn this OFF for a toolchain that links the C++ runtime statically
+# (e.g. -static-libstdc++, or a hermetic libc++abi.a): there the wrapper
+# collides with the runtime's own definition at link time. Reports then name
+# the exception type without the throw site.
+option(HEGEL_THROW_SITE "Name throw sites in failure reports (requires a shared C++ runtime)" ON)
 
 # The library builds at C++20; with HEGEL_REFLECTION=OFF the public headers are
 # also C++17-consumable (verified by a standalone C++17 consumer in CI), and the
@@ -110,6 +119,12 @@ else()
     target_compile_definitions(hegel PUBLIC HEGEL_HAS_REFLECTION=0)
     # Without reflect-cpp the public headers are C++17-compatible.
     target_compile_features(hegel PUBLIC cxx_std_17)
+endif()
+
+if(NOT HEGEL_THROW_SITE)
+    # src/hegel.cpp compiles the __cxa_throw wrapper out. PRIVATE: no public
+    # header reads the macro.
+    target_compile_definitions(hegel PRIVATE HEGEL_HAS_THROW_SITE=0)
 endif()
 
 if(HEGEL_BUILD_TESTS)

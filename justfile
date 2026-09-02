@@ -8,6 +8,9 @@ build:
 
 check-tests: build
     ctest --test-dir build/tests --output-on-failure -j{{ jobs }}
+    cmake -B build/throw-site-off ${CMAKE_FLAGS:-} -DHEGEL_THROW_SITE=OFF
+    cmake --build build/throw-site-off -j{{ jobs }}
+    ctest --test-dir build/throw-site-off/tests --output-on-failure -j{{ jobs }}
 
 # Build + run the suite under sanitizers. address+undefined and thread are
 # separate, mutually exclusive builds. Verifies handle-ownership (no leak /

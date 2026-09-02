@@ -155,6 +155,10 @@ if(HEGEL_APPROVAL_TESTS)
         PRIVATE
             HEGEL_SUBJECT_BIN="$<TARGET_FILE:subject>"
     )
+    if(NOT HEGEL_THROW_SITE)
+        target_compile_definitions(test_printing
+            PRIVATE HEGEL_TESTS_NO_THROW_SITE)
+    endif()
     gtest_discover_tests(test_printing)
 endif()
 
