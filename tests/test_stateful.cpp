@@ -278,17 +278,6 @@ TEST(Stateful, InvariantViolationReported) {
                  std::runtime_error);
 }
 
-TEST(Stateful, SingleModeRunsUntilRuleStops) {
-    EXPECT_THROW(hegel::test(
-                     [](hegel::TestCase& tc) {
-                         StoppingCounter machine;
-                         hegel::stateful::run(machine, tc);
-                     },
-                     hegel::Settings{.database = hegel::Database::disabled(),
-                                     .mode = hegel::Mode::SingleTestCase}),
-                 std::runtime_error);
-}
-
 // The engine stops each case after at most stateful_step_count steps, so
 // a rule that fails only on step 100 never gets there.
 TEST(Stateful, StepCountCapsStepsPerCase) {

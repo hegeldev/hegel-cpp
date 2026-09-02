@@ -94,15 +94,6 @@ namespace hegel {
     }
 
     /**
-     * @brief How much of a run the engine performs.
-     */
-    enum class Mode {
-        TestRun,        ///< Full property-test run. The default.
-        SingleTestCase, ///< Produce exactly one test case and stop, with no
-                        ///< shrinking. Useful for exploratory probes.
-    };
-
-    /**
      * @brief Source of randomness the engine draws from.
      */
     enum class Backend {
@@ -236,9 +227,6 @@ namespace hegel {
         /// disabled (e.g. drop Phase::Shrink to keep failing examples
         /// unshrunk). An empty vector produces a run that does nothing.
         std::vector<Phase> phases = all_phases();
-
-        /// How much of a run to perform. Defaults to Mode::TestRun.
-        Mode mode = Mode::TestRun;
 
         /// Randomness backend. Defaults to Backend::Auto; picking an explicit
         /// backend overrides the automatic detection.

@@ -129,11 +129,6 @@ namespace hegel::impl {
         check_rc(ctx, hegel_settings_set_phases(ctx, s, phases));
     }
 
-    void settings_set_mode(hegel_context_t* ctx, hegel_settings_t* s,
-                           hegel_mode_t mode) {
-        check_rc(ctx, hegel_settings_set_mode(ctx, s, mode));
-    }
-
     void settings_set_backend(hegel_context_t* ctx, hegel_settings_t* s,
                               hegel_backend_t backend) {
         check_rc(ctx, hegel_settings_set_backend(ctx, s, backend));

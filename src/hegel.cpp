@@ -519,17 +519,6 @@ namespace hegel {
             }
             impl::settings_set_phases(ctx, s, phases);
 
-            hegel_mode_t mode = HEGEL_MODE_TEST_RUN;
-            switch (settings.mode) {
-            case Mode::TestRun:
-                mode = HEGEL_MODE_TEST_RUN;
-                break;
-            case Mode::SingleTestCase:
-                mode = HEGEL_MODE_SINGLE_TEST_CASE;
-                break;
-            }
-            impl::settings_set_mode(ctx, s, mode);
-
             hegel_backend_t backend = HEGEL_BACKEND_AUTO;
             switch (settings.backend) {
             case Backend::Auto:

@@ -23,11 +23,8 @@ using hegel::tests::common::scrub_report;
 namespace gs = hegel::generators;
 
 namespace {
-    // One test case, no shrinking, no database — the C++ analog of
-    // test_clone.ml's `single_settings`.
-    hegel::Settings single() {
-        return {.database = hegel::Database::disabled(),
-                .mode = hegel::Mode::SingleTestCase};
+    hegel::Settings one_case() {
+        return {.test_cases = 1, .database = hegel::Database::disabled()};
     }
 
     gs::Generator<int> small_int() {
@@ -50,7 +47,7 @@ TEST(Clone, DrawsAndParentStaysUsable) {
             cloned = worker.draw(small_int());
             parent = tc.draw(small_int());
         },
-        single());
+        one_case());
     EXPECT_GE(parent, 0);
     EXPECT_LE(parent, 9);
     EXPECT_GE(cloned, 0);
@@ -70,7 +67,7 @@ TEST(Clone, ConcurrentTwoThreads) {
             EXPECT_GE(main_value, 0);
             EXPECT_LE(main_value, 9);
         },
-        single());
+        one_case());
     EXPECT_GE(worker_value, 0);
     EXPECT_LE(worker_value, 9);
 }
@@ -86,9 +83,9 @@ TEST(Clone, ReproducibleUnderSeed) {
                 int c = tc.clone().draw(small_int());
                 drawn = {p, c};
             },
-            hegel::Settings{.seed = 42,
-                            .database = hegel::Database::disabled(),
-                            .mode = hegel::Mode::SingleTestCase});
+            hegel::Settings{.test_cases = 1,
+                            .seed = 42,
+                            .database = hegel::Database::disabled()});
         return drawn;
     };
     EXPECT_EQ(run(), run());
@@ -103,7 +100,7 @@ TEST(Clone, CloneOfCloneDraws) {
             hegel::TestCase c2 = c1.clone();
             value = c2.draw(small_int());
         },
-        single());
+        one_case());
     EXPECT_GE(value, 0);
     EXPECT_LE(value, 9);
 }
@@ -120,7 +117,7 @@ TEST(Clone, SpawnJoinReturnsValue) {
             main_value = tc.draw(small_int());
             worker_value = worker.join();
         },
-        single());
+        one_case());
     EXPECT_GE(main_value, 0);
     EXPECT_LE(main_value, 9);
     EXPECT_GE(worker_value, 0);
@@ -145,7 +142,7 @@ TEST(Clone, SpawnJoinReraises) {
             }
             (void)tc.draw(small_int());
         },
-        single());
+        one_case());
     EXPECT_TRUE(raised);
 }
 
@@ -160,7 +157,7 @@ TEST(Clone, MoveAssignTransfersStream) {
             a = std::move(b);
             value = a.draw(small_int());
         },
-        single());
+        one_case());
     EXPECT_GE(value, 0);
     EXPECT_LE(value, 9);
 }
@@ -179,7 +176,7 @@ TEST(Clone, WorkerDestructorJoinsIfNotJoined) {
             });
             // Leaves scope without join(); the destructor joins the thread.
         },
-        single());
+        one_case());
     EXPECT_GE(worker_value, 0);
     EXPECT_LE(worker_value, 9);
 }

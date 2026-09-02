@@ -334,18 +334,6 @@ TEST(Settings, GenerateOnlyPhaseRunsFullBudget) {
     EXPECT_EQ(count, 100);
 }
 
-TEST(Settings, SingleTestCaseModeRunsOneCase) {
-    int count = 0;
-    hegel::test(
-        [&count](hegel::TestCase& tc) {
-            tc.draw(gs::integers<int>());
-            count++;
-        },
-        Settings{.database = Database::disabled(),
-                 .mode = hegel::Mode::SingleTestCase});
-    EXPECT_EQ(count, 1);
-}
-
 TEST(Settings, UrandomBackendRuns) {
     int count = 0;
     hegel::test(
