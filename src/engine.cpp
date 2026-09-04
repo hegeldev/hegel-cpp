@@ -416,7 +416,7 @@ namespace hegel::impl {
         hegel_time_t value{};
         scope.raise_for_rc(
             hegel_generate_time(scope.ctx, scope.tc, hegel_time_t{0, 0, 0, 0},
-                                hegel_time_t{23, 59, 59, 999999}, &value),
+                                hegel_time_t{23, 59, 59, 999999999}, &value),
             "hegel_generate_time");
         return value;
     }
@@ -425,7 +425,7 @@ namespace hegel::impl {
         DrawScope scope(tc);
         hegel_datetime_t value{};
         hegel_datetime_t min_value{{1, 1, 1}, {0, 0, 0, 0}};
-        hegel_datetime_t max_value{{9999, 12, 31}, {23, 59, 59, 999999}};
+        hegel_datetime_t max_value{{9999, 12, 31}, {23, 59, 59, 999999999}};
         scope.raise_for_rc(hegel_generate_datetime(scope.ctx, scope.tc,
                                                    min_value, max_value,
                                                    &value),
