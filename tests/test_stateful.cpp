@@ -64,8 +64,12 @@ TEST(Pools, PoolsNoConsume) {
 TEST(Pools, DrawFromEmptyPool) {
     hegel::test([](hegel::TestCase& tc) {
         hegel::stateful::Pool<int> pool = hegel::stateful::Pool<int>(tc);
-        tc.draw(hegel::stateful::values_reusable(pool));
-        // should not error just a test case rejection
+        // Drawing from an empty reusable pool rejects the case rather than
+        // raising a hard error. Gate on a boolean so some cases stay valid
+        // and the run is satisfiable.
+        if (tc.draw(gs::booleans())) {
+            tc.draw(hegel::stateful::values_reusable(pool));
+        }
     });
 }
 
