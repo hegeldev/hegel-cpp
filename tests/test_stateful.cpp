@@ -62,10 +62,15 @@ TEST(Pools, PoolsNoConsume) {
 }
 
 TEST(Pools, DrawFromEmptyPool) {
+    // A draw from an empty pool rejects the case. Add a value on some cases so
+    // the run keeps a valid path; the remaining cases exercise the empty-pool
+    // rejection. A run whose only outcome is rejection is unsatisfiable.
     hegel::test([](hegel::TestCase& tc) {
         hegel::stateful::Pool<int> pool = hegel::stateful::Pool<int>(tc);
+        if (tc.draw(gs::booleans())) {
+            pool.add(tc.draw(gs::integers<int>()));
+        }
         tc.draw(hegel::stateful::values_reusable(pool));
-        // should not error just a test case rejection
     });
 }
 
