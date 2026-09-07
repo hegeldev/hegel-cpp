@@ -416,7 +416,7 @@ namespace hegel::impl {
         hegel_time_t value{};
         scope.raise_for_rc(
             hegel_generate_time(scope.ctx, scope.tc, hegel_time_t{0, 0, 0, 0},
-                                hegel_time_t{23, 59, 59, 999999}, &value),
+                                hegel_time_t{23, 59, 59, 999999999}, &value),
             "hegel_generate_time");
         return value;
     }
@@ -425,7 +425,7 @@ namespace hegel::impl {
         DrawScope scope(tc);
         hegel_datetime_t value{};
         hegel_datetime_t min_value{{1, 1, 1}, {0, 0, 0, 0}};
-        hegel_datetime_t max_value{{9999, 12, 31}, {23, 59, 59, 999999}};
+        hegel_datetime_t max_value{{9999, 12, 31}, {23, 59, 59, 999999999}};
         scope.raise_for_rc(hegel_generate_datetime(scope.ctx, scope.tc,
                                                    min_value, max_value,
                                                    &value),
@@ -700,10 +700,12 @@ namespace hegel::internal {
         std::vector<char*> invariant_name_cstrings =
             to_cstrings(invariant_names);
 
+        // invariant_always_check is passed as nullptr (all-false): every
+        // invariant is sampled at its join points, none is forced.
         scope.raise_for_rc(hegel_new_state_machine(
                                scope.ctx, scope.tc, rule_name_cstrings.data(),
                                rule_groups.data(), rule_names.size(),
-                               invariant_name_cstrings.data(),
+                               invariant_name_cstrings.data(), nullptr,
                                invariant_names.size(), min_concurrency,
                                max_concurrency, &handle_, &concurrency_),
                            "hegel_new_state_machine");
