@@ -793,13 +793,13 @@ typedef struct {
 
 /*
  A drawn time of day: `hour` in `[0, 23]`, `minute` and `second` in
- `[0, 59]`, `microsecond` in `[0, 999999]`.
+ `[0, 59]`, `nanosecond` in `[0, 999999999]`.
  */
 typedef struct {
     uint8_t hour;
     uint8_t minute;
     uint8_t second;
-    uint32_t microsecond;
+    uint32_t nanosecond;
 } hegel_time_t;
 
 /*
@@ -865,6 +865,12 @@ const char* hegel_context_last_error(const hegel_context_t* ctx);
  When a CI environment is detected (via `CI`, `GITHUB_ACTIONS`, and
  similar variables) the defaults change: the database is disabled and
  derandomization is enabled. Override either with the explicit setters.
+
+ When running inside Antithesis (detected via `ANTITHESIS_OUTPUT_DIR`)
+ the database is disabled and every health check is skipped. The database
+ can still be enabled with `hegel_settings_set_database`; the health
+ checks cannot be re-enabled, since Antithesis's thread pausing would trip
+ wall-clock checks such as `TooSlow` spuriously.
  */
 hegel_result_t hegel_settings_new(hegel_context_t* ctx,
                                   hegel_settings_t** out_settings);
@@ -1856,7 +1862,7 @@ hegel_result_t hegel_generate_date(hegel_context_t* ctx, hegel_test_case_t* tc,
 /*
  Parameters:
  `min_value` / `max_value`: Inclusive bounds. Pass all-zeros and
-   `{23, 59, 59, 999999}` for the full day.
+   `{23, 59, 59, 999999999}` for the full day.
 
  Returns `HEGEL_OK` or `HEGEL_E_STOP_TEST`.
 
