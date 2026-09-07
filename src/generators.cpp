@@ -193,10 +193,10 @@ namespace hegel::generators {
         /// iff the microsecond is nonzero, matching `isoformat()`.
         std::string format_time(const hegel_time_t& t) {
             char buf[24];
-            if (t.microsecond != 0) {
+            unsigned microsecond = static_cast<unsigned>(t.nanosecond / 1000);
+            if (microsecond != 0) {
                 std::snprintf(buf, sizeof(buf), "%02u:%02u:%02u.%06u", t.hour,
-                              t.minute, t.second,
-                              static_cast<unsigned>(t.microsecond));
+                              t.minute, t.second, microsecond);
             } else {
                 std::snprintf(buf, sizeof(buf), "%02u:%02u:%02u", t.hour,
                               t.minute, t.second);
