@@ -120,8 +120,8 @@ namespace hegel::generators {
     /**
      * @brief Generate times of day.
      *
-     * Generates a time between 00:00:00 and 23:59:59.999999 and returns the
-     * ISO 8601 serialization (`HH:MM:SS[.ffffff]`). Values shrink towards
+     * Generates a time between 00:00:00 and 23:59:59.999999999 and returns the
+     * ISO 8601 serialization (`HH:MM:SS[.fffffffff]`). Values shrink towards
      * midnight. No timezone component is requested; generated values are naive.
      *
      * @return Generator producing ISO 8601 time strings.
@@ -132,8 +132,8 @@ namespace hegel::generators {
      * @brief Generate datetimes.
      *
      * Generates datetimes between January 01, 0001 at 00:00:00 and December 31,
-     * 9999 at 23:59:59.999999 and returns the ISO 8601 serialization
-     * (`YYYY-MM-DDTHH:MM:SS[.ffffff]`).
+     * 9999 at 23:59:59.999999999 and returns the ISO 8601 serialization
+     * (`YYYY-MM-DDTHH:MM:SS[.fffffffff]`).
      * No timezone is requested; generated values are naive. Examples from this
      * strategy shrink towards midnight on January 1st 2000.
      *
