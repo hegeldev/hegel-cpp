@@ -62,11 +62,17 @@ TEST(Pools, PoolsNoConsume) {
 }
 
 TEST(Pools, DrawFromEmptyPool) {
-    hegel::test([](hegel::TestCase& tc) {
-        hegel::stateful::Pool<int> pool = hegel::stateful::Pool<int>(tc);
-        tc.draw(hegel::stateful::values_reusable(pool));
-        // should not error just a test case rejection
-    });
+    // A draw from an empty pool rejects the case rather than erroring. Draw a
+    // value first so the case is not empty (an entirely dataless test is
+    // unsatisfiable), and suppress the health checks, because every case
+    // rejects at the pool draw.
+    hegel::test(
+        [](hegel::TestCase& tc) {
+            (void)tc.draw(gs::integers<int>());
+            hegel::stateful::Pool<int> pool = hegel::stateful::Pool<int>(tc);
+            tc.draw(hegel::stateful::values_reusable(pool));
+        },
+        hegel::Settings{.suppress_health_check = hegel::all_health_checks()});
 }
 
 namespace {

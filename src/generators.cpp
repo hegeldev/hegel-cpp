@@ -189,14 +189,14 @@ namespace hegel::generators {
             return buf;
         }
 
-        /// ISO 8601 `HH:MM:SS[.ffffff]` — the fractional part is present
-        /// iff the microsecond is nonzero, matching `isoformat()`.
+        /// ISO 8601 `HH:MM:SS[.fffffffff]` — the fractional part is present
+        /// iff the nanosecond is nonzero.
         std::string format_time(const hegel_time_t& t) {
             char buf[24];
-            if (t.microsecond != 0) {
-                std::snprintf(buf, sizeof(buf), "%02u:%02u:%02u.%06u", t.hour,
+            if (t.nanosecond != 0) {
+                std::snprintf(buf, sizeof(buf), "%02u:%02u:%02u.%09u", t.hour,
                               t.minute, t.second,
-                              static_cast<unsigned>(t.microsecond));
+                              static_cast<unsigned>(t.nanosecond));
             } else {
                 std::snprintf(buf, sizeof(buf), "%02u:%02u:%02u", t.hour,
                               t.minute, t.second);
