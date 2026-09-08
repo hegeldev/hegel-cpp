@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.1 - 2026-09-08
+
+This patch bumps our pinned `libhegel` ([hegel-rust](hegeldev/hegel-rust)) from [0.35.0](https://github.com/hegeldev/hegel-rust/releases/tag/v0.35.0) to [0.37.5](https://github.com/hegeldev/hegel-rust/releases/tag/v0.37.5).
+
 ## 0.12.0 - 2026-09-02
 
 `Mode`, `Mode::SingleTestCase`, and `Settings::mode` have been removed.
