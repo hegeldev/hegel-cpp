@@ -116,8 +116,10 @@ TEST(FindFloats, MinimalInfiniteFloatIsPositive) {
 }
 
 TEST(FindFloats, CanMinimalInfiniteNegativeFloat) {
-    double x = minimal<double>(gs::floats<double>(),
-                               [](double v) { return v < -kMaxD; });
+    // A wider budget than the default: with libhegel 0.37.7 the seed=1
+    // sequence reaches negative infinity later than 100 cases.
+    double x = minimal<double>(
+        gs::floats<double>(), [](double v) { return v < -kMaxD; }, 1000);
     EXPECT_TRUE(std::isinf(x) && x < 0.0);
 }
 

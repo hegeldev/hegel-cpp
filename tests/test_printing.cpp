@@ -168,10 +168,12 @@ TEST(FailureReport, MacroDefinedTestGetsAnnotationRerunHint) {
 }
 
 TEST(FailureReport, DiscardedCasesAreCounted) {
-    int calls = 0;
-    std::string out = capture_failure_report([&calls](hegel::TestCase& tc) {
-        (void)tc.draw(gs::integers<int32_t>());
-        if (++calls <= 3) {
+    // Reject on a stable property of the drawn value so the same generated
+    // data always yields the same outcome: an even draw is discarded, an odd
+    // draw fails. A counter over calls would make replays diverge.
+    std::string out = capture_failure_report([](hegel::TestCase& tc) {
+        auto x = tc.draw(gs::integers<int32_t>());
+        if (x % 2 == 0) {
             tc.reject();
         }
         throw std::runtime_error("boom");
