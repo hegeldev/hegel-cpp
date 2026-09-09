@@ -167,13 +167,13 @@ TEST(FailureReport, MacroDefinedTestGetsAnnotationRerunHint) {
     Approvals::verify(out, scrub_blob());
 }
 
+// The discard decision depends only on the drawn value, so the same value
+// always gives the same outcome. A body that flipped between reject and throw
+// for one value would read as flaky to the engine.
 TEST(FailureReport, DiscardedCasesAreCounted) {
-    int calls = 0;
-    std::string out = capture_failure_report([&calls](hegel::TestCase& tc) {
-        (void)tc.draw(gs::integers<int32_t>());
-        if (++calls <= 3) {
-            tc.reject();
-        }
+    std::string out = capture_failure_report([](hegel::TestCase& tc) {
+        auto x = tc.draw(gs::integers<int32_t>());
+        tc.assume(x % 2 != 0);
         throw std::runtime_error("boom");
     });
     Approvals::verify(out, scrub_report());

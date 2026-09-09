@@ -1,5 +1,5 @@
 --- Failure: FailureReport.DiscardedCasesAreCounted ([location]) ---
-Falsified after 1 test case (3 discarded):
+Falsified after 1 test case (1 discarded):
 
   auto draw_1 = 1;
 
