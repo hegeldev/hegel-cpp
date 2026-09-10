@@ -168,12 +168,13 @@ TEST(FailureReport, MacroDefinedTestGetsAnnotationRerunHint) {
 }
 
 TEST(FailureReport, DiscardedCasesAreCounted) {
-    int calls = 0;
-    std::string out = capture_failure_report([&calls](hegel::TestCase& tc) {
-        (void)tc.draw(gs::integers<int32_t>());
-        if (++calls <= 3) {
-            tc.reject();
-        }
+    // Rejecting on a property of the drawn value keeps each case's outcome a
+    // function of its generated data. The engine flags a run whose outcome
+    // flips on replay as flaky, so the discard decision must not depend on an
+    // external call counter.
+    std::string out = capture_failure_report([](hegel::TestCase& tc) {
+        auto x = tc.draw(gs::integers<int32_t>());
+        tc.assume(x % 2 != 0);
         throw std::runtime_error("boom");
     });
     Approvals::verify(out, scrub_report());
