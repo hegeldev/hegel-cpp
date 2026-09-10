@@ -168,12 +168,13 @@ TEST(FailureReport, MacroDefinedTestGetsAnnotationRerunHint) {
 }
 
 TEST(FailureReport, DiscardedCasesAreCounted) {
-    int calls = 0;
-    std::string out = capture_failure_report([&calls](hegel::TestCase& tc) {
-        (void)tc.draw(gs::integers<int32_t>());
-        if (++calls <= 3) {
-            tc.reject();
-        }
+    std::string out = capture_failure_report([](hegel::TestCase& tc) {
+        int32_t x = tc.draw(gs::integers<int32_t>());
+        // Discard on a property of the drawn value so a replay of the same
+        // data always makes the same choice; the engine probes small values
+        // first and discards them, so several cases drop before the first
+        // failure, which the report counts.
+        tc.assume(x > 1000000);
         throw std::runtime_error("boom");
     });
     Approvals::verify(out, scrub_report());
