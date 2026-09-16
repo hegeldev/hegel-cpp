@@ -9,6 +9,7 @@
 
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -48,6 +49,9 @@ namespace hegel::impl::test_case {
         int draw_depth = 0;
         std::map<std::string, int> draw_name_counts;
         std::set<std::string> taken_display_names;
+        // Settings::stateful_step_count for this run, read when the case
+        // creates a state machine.
+        int64_t stateful_step_count = 50;
 
         // Releases the owned libhegel handle. The owning TestCase's
         // unique_ptr runs this on scope exit.

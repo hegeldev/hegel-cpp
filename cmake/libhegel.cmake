@@ -11,11 +11,12 @@
 # pin and per-platform mapping are then ignored.
 
 # libhegel release the bundled C header matches. Keep in sync with
-# libhegel/hegel.h.
-set(HEGEL_LIBHEGEL_VERSION "0.37.5"
-    CACHE STRING "libhegel (hegeltest) release version to download")
+# libhegel/hegel.h. hegel-rust tags a libhegel release `libhegel-v<version>`;
+# its plain `v<version>` tags belong to a different crate.
+set(HEGEL_LIBHEGEL_VERSION "0.42.4"
+    CACHE STRING "libhegel release version to download")
 set(HEGEL_LIBHEGEL_BASE_URL
-    "https://github.com/hegeldev/hegel-rust/releases/download/v${HEGEL_LIBHEGEL_VERSION}")
+    "https://github.com/hegeldev/hegel-rust/releases/download/libhegel-v${HEGEL_LIBHEGEL_VERSION}")
 
 set(_hegel_header_dir "${CMAKE_CURRENT_SOURCE_DIR}/libhegel")
 

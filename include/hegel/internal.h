@@ -2,6 +2,7 @@
 
 #include "test_case.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <exception>
 #include <optional>
@@ -30,25 +31,25 @@ namespace hegel::internal {
      * any other engine failure.
      */
 
-    // Span labels understood by the engine's shrinker. Values mirror the
-    // C ABI's hegel_label_t (static_asserted in src/engine.cpp).
-    enum class SpanLabel : uint64_t {
-        List = 1,
-        ListElement = 2,
-        Set = 3,
-        SetElement = 4,
-        Map = 5,
-        MapEntry = 6,
-        Tuple = 7,
-        OneOf = 8,
-        Optional = 9,
-        FlatMap = 11,
-        Filter = 12,
-        Mapped = 13,
-        SampledFrom = 14,
-        EnumVariant = 15,
-        StatefulRule = 31
+    // The kinds of compound draw the generators open spans around. The
+    // engine identifies a span only by its label: spans with the same label
+    // come from the same kind of generator, which makes them candidates for
+    // swapping and reordering when it shrinks. src/engine.cpp derives one
+    // stable label per kind from a name.
+    enum class SpanLabel {
+        List,
+        Set,
+        Map,
+        Tuple,
+        OneOf,
+        Optional,
+        FlatMap,
+        Filter,
+        Mapped,
+        StatefulRule,
     };
+    inline constexpr std::size_t span_label_count =
+        static_cast<std::size_t>(SpanLabel::StatefulRule) + 1;
 
     // Open / close a labeled span around a group of draws so the shrinker
     // can treat them as a unit. stop_span(tc, true) marks the span rejected

@@ -13,6 +13,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <arpa/inet.h>
@@ -83,11 +84,6 @@ namespace hegel::impl {
         check_rc(ctx, hegel_settings_set_test_cases(ctx, s, test_cases));
     }
 
-    void settings_set_stateful_step_count(hegel_context_t* ctx,
-                                          hegel_settings_t* s, int64_t n) {
-        check_rc(ctx, hegel_settings_set_stateful_step_count(ctx, s, n));
-    }
-
     void settings_set_verbosity(hegel_context_t* ctx, hegel_settings_t* s,
                                 hegel_verbosity_t verbosity) {
         check_rc(ctx, hegel_settings_set_verbosity(ctx, s, verbosity));
@@ -142,6 +138,8 @@ namespace hegel::impl {
 
     hegel_run_t* run_start(hegel_context_t* ctx, hegel_settings_t* s) {
         hegel_run_t* run = nullptr;
+        // A NULL output callback (and user data) keeps engine output on
+        // stderr.
         check_rc(ctx, hegel_run_start(ctx, s, nullptr, nullptr, &run));
         return run;
     }
@@ -150,6 +148,8 @@ namespace hegel::impl {
                                            hegel_settings_t* s,
                                            const char* blob) {
         hegel_test_case_t* tc = nullptr;
+        // A NULL output callback (and user data) keeps engine output on
+        // stderr.
         check_rc(ctx, hegel_test_case_from_blob(ctx, s, blob, nullptr, nullptr,
                                                 &tc));
         return tc;
@@ -231,6 +231,20 @@ namespace hegel::impl {
     }
 
     // GCOVR_EXCL_STOP
+
+    void settings_set_test_location(hegel_context_t* ctx, hegel_settings_t* s,
+                                    const char* file, uint32_t begin_line,
+                                    const char* class_name,
+                                    const char* function) {
+        check_rc(ctx, hegel_settings_set_test_location(ctx, s, file, begin_line,
+                                                       class_name, function));
+    }
+
+    uint64_t label_from_name(hegel_context_t* ctx, const char* name) {
+        uint64_t label = 0;
+        check_rc(ctx, hegel_label_from_name(ctx, name, &label));
+        return label;
+    }
 
     namespace {
         struct DrawScope {
@@ -347,6 +361,8 @@ namespace hegel::impl {
         return make_string_generator(
             "from_regex",
             [&](hegel_context_t* ctx, hegel_string_generator_t** out) {
+                // A NULL alphabet lets padding and wildcards draw from all
+                // of Unicode; from_regex() exposes no alphabet.
                 return hegel_string_generator_regex(ctx, pattern, fullmatch,
                                                     nullptr, out);
             });
@@ -498,37 +514,35 @@ namespace hegel::internal {
 
     namespace {
 
-        // The public SpanLabel enum mirrors the C ABI's label values so the
-        // public headers don't need the C header.
-        static_assert(static_cast<uint64_t>(SpanLabel::List) ==
-                      HEGEL_LABEL_LIST);
-        static_assert(static_cast<uint64_t>(SpanLabel::ListElement) ==
-                      HEGEL_LABEL_LIST_ELEMENT);
-        static_assert(static_cast<uint64_t>(SpanLabel::Set) == HEGEL_LABEL_SET);
-        static_assert(static_cast<uint64_t>(SpanLabel::SetElement) ==
-                      HEGEL_LABEL_SET_ELEMENT);
-        static_assert(static_cast<uint64_t>(SpanLabel::Map) == HEGEL_LABEL_MAP);
-        static_assert(static_cast<uint64_t>(SpanLabel::MapEntry) ==
-                      HEGEL_LABEL_MAP_ENTRY);
-        static_assert(static_cast<uint64_t>(SpanLabel::Tuple) ==
-                      HEGEL_LABEL_TUPLE);
-        static_assert(static_cast<uint64_t>(SpanLabel::OneOf) ==
-                      HEGEL_LABEL_ONE_OF);
-        static_assert(static_cast<uint64_t>(SpanLabel::Optional) ==
-                      HEGEL_LABEL_OPTIONAL);
-        static_assert(static_cast<uint64_t>(SpanLabel::FlatMap) ==
-                      HEGEL_LABEL_FLAT_MAP);
-        static_assert(static_cast<uint64_t>(SpanLabel::Filter) ==
-                      HEGEL_LABEL_FILTER);
-        static_assert(static_cast<uint64_t>(SpanLabel::Mapped) ==
-                      HEGEL_LABEL_MAPPED);
-        static_assert(static_cast<uint64_t>(SpanLabel::SampledFrom) ==
-                      HEGEL_LABEL_SAMPLED_FROM);
-        static_assert(static_cast<uint64_t>(SpanLabel::EnumVariant) ==
-                      HEGEL_LABEL_ENUM_VARIANT);
-        static_assert(static_cast<uint64_t>(SpanLabel::StatefulRule) ==
-                      HEGEL_LABEL_STATEFUL_RULE);
         static_assert(state_machine_done == HEGEL_STATE_MACHINE_DONE);
+
+        // The name each SpanLabel derives its engine label from, in
+        // enumerator order. The `hegel-cpp.` prefix keeps the names clear
+        // of the engine's own `hegel.<kind>` labels.
+        constexpr std::array<const char*, span_label_count> span_label_names = {
+            "hegel-cpp.list",          "hegel-cpp.set",    "hegel-cpp.map",
+            "hegel-cpp.tuple",         "hegel-cpp.one_of", "hegel-cpp.optional",
+            "hegel-cpp.flat_map",      "hegel-cpp.filter", "hegel-cpp.mapped",
+            "hegel-cpp.stateful.rule",
+        };
+        static_assert(span_label_names[static_cast<size_t>(SpanLabel::List)] ==
+                      std::string_view("hegel-cpp.list"));
+        static_assert(
+            span_label_names[static_cast<size_t>(SpanLabel::StatefulRule)] ==
+            std::string_view("hegel-cpp.stateful.rule"));
+
+        // The engine label of `label`, derived once per process.
+        uint64_t span_label_value(SpanLabel label) {
+            static const std::array<uint64_t, span_label_count> labels = [] {
+                std::array<uint64_t, span_label_count> values{};
+                hegel_context_t* ctx = impl::thread_context();
+                for (size_t i = 0; i < values.size(); ++i) {
+                    values[i] = impl::label_from_name(ctx, span_label_names[i]);
+                }
+                return values;
+            }();
+            return labels[static_cast<size_t>(label)];
+        }
 
         // Two's-complement little-endian encoding of a uint64_t for the
         // engine's big-integer draw: 9 bytes so the top bit is never read
@@ -555,7 +569,7 @@ namespace hegel::internal {
     void start_span(const TestCase& tc, SpanLabel label) {
         impl::DrawScope scope(tc);
         scope.raise_for_rc(
-            hegel_start_span(scope.ctx, scope.tc, static_cast<uint64_t>(label)),
+            hegel_start_span(scope.ctx, scope.tc, span_label_value(label)),
             "hegel_start_span");
     }
 
@@ -702,13 +716,15 @@ namespace hegel::internal {
 
         // A NULL `invariant_always_check` array leaves every invariant
         // sampled at its default probability; the public API exposes no
-        // always-check flag.
+        // always-check flag. The step budget is Settings::stateful_step_count,
+        // carried on the test case.
         scope.raise_for_rc(hegel_new_state_machine(
                                scope.ctx, scope.tc, rule_name_cstrings.data(),
                                rule_groups.data(), rule_names.size(),
                                invariant_name_cstrings.data(), nullptr,
                                invariant_names.size(), min_concurrency,
-                               max_concurrency, &handle_, &concurrency_),
+                               max_concurrency, tc.data()->stateful_step_count,
+                               &handle_, &concurrency_),
                            "hegel_new_state_machine");
     }
 

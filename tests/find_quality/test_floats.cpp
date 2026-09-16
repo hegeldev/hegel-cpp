@@ -115,9 +115,11 @@ TEST(FindFloats, MinimalInfiniteFloatIsPositive) {
     EXPECT_EQ(x, kInf);
 }
 
+// About 3% of unbounded draws are -inf. The seed-1 stream of libhegel
+// 0.42.4 has none in its first 100 cases, so this runs more.
 TEST(FindFloats, CanMinimalInfiniteNegativeFloat) {
-    double x = minimal<double>(gs::floats<double>(),
-                               [](double v) { return v < -kMaxD; });
+    double x = minimal<double>(
+        gs::floats<double>(), [](double v) { return v < -kMaxD; }, 500);
     EXPECT_TRUE(std::isinf(x) && x < 0.0);
 }
 

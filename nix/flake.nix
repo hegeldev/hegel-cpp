@@ -25,19 +25,19 @@
       # Prebuilt libhegel (Hegel's native engine) release. Keep the version and
       # hashes in sync with cmake/libhegel.cmake and libhegel/hegel.h. Hashes
       # are the SHA-256 sidecars published next to each release asset.
-      libhegelVersion = "0.37.5";
+      libhegelVersion = "0.42.4";
       libhegelAssets = {
         "x86_64-linux" = {
           asset = "libhegel-linux-amd64.so";
-          sha256 = "4ea6c9609e8d91b97ed41ae316b5772ded424f4a12f98c51bd4246818d6ec58e";
+          sha256 = "60fa1b48f83def125d0d6904bf4351c0022572b52be252ded756aab9e0990682";
         };
         "aarch64-linux" = {
           asset = "libhegel-linux-arm64.so";
-          sha256 = "f1ab270f45ed502d1fd89729c6cc8d8ac43b8b6bdbea1e706bf3c81824debf16";
+          sha256 = "b3a8f8041dff28c3657329bb6ecc01d506b1333f76e349efedf18ab555cf4042";
         };
         "aarch64-darwin" = {
           asset = "libhegel-darwin-arm64.dylib";
-          sha256 = "297178eaadfba5b15ab5ee7db72f78a65b214c5b791bcb68aa839b2f68e2caa2";
+          sha256 = "560b6f2b5e724fa6c7300ee52c6c37a2a7ce94cd2d225d6a3ae7ca0adc0e23e8";
         };
       };
 
@@ -57,7 +57,7 @@
           version = libhegelVersion;
 
           src = pkgs.fetchurl {
-            url = "https://github.com/hegeldev/hegel-rust/releases/download/v${libhegelVersion}/${info.asset}";
+            url = "https://github.com/hegeldev/hegel-rust/releases/download/libhegel-v${libhegelVersion}/${info.asset}";
             inherit (info) sha256;
           };
           dontUnpack = true;

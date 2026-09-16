@@ -50,6 +50,7 @@ namespace hegel {
         cloned->output_mutex = data_->output_mutex;
         cloned->buffer_output = data_->buffer_output;
         cloned->output_lines = data_->output_lines;
+        cloned->stateful_step_count = data_->stateful_step_count;
         return TestCase(std::move(cloned));
     }
 

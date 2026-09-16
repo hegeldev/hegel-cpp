@@ -167,13 +167,13 @@ TEST(FailureReport, MacroDefinedTestGetsAnnotationRerunHint) {
     Approvals::verify(out, scrub_blob());
 }
 
+// The discards depend on the drawn data alone: a case the engine replays
+// with the same choices must reach the same verdict, or it reports the test
+// as flaky.
 TEST(FailureReport, DiscardedCasesAreCounted) {
-    int calls = 0;
-    std::string out = capture_failure_report([&calls](hegel::TestCase& tc) {
-        (void)tc.draw(gs::integers<int32_t>());
-        if (++calls <= 3) {
-            tc.reject();
-        }
+    std::string out = capture_failure_report([](hegel::TestCase& tc) {
+        int32_t x = tc.draw(gs::integers<int32_t>());
+        tc.assume(x % 2 != 0);
         throw std::runtime_error("boom");
     });
     Approvals::verify(out, scrub_report());
