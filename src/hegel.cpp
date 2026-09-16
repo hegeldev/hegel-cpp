@@ -349,7 +349,7 @@ namespace hegel {
         // Replays one counterexample. `in_report` wraps the replay's output in
         // a framed report's body: it opens with a blank line and is indented.
         BodyOutcome replay_failure(hegel_context_t* ctx, hegel_settings_t* s,
-                                   const char* blob, Verbosity verbosity,
+                                   const char* blob, const Settings& settings,
                                    bool in_report,
                                    const std::function<void(TestCase&)>& fn,
                                    bool* printed_output = nullptr) {
@@ -365,8 +365,9 @@ namespace hegel {
             // TU stays clean under a C++17 (HEGEL_REFLECTION=OFF) build.
             TestCase tc_obj(std::unique_ptr<impl::test_case::TestCaseData>(
                 new impl::test_case::TestCaseData{
-                    handle, /*is_final=*/true, verbosity,
+                    handle, /*is_final=*/true, settings.verbosity,
                     /*note_indent=*/in_report ? 1 : 0, in_report}));
+            tc_obj.data()->stateful_step_count = settings.stateful_step_count;
             BodyOutcome outcome = run_body(fn, tc_obj);
             if (printed_output != nullptr) {
                 *printed_output = *tc_obj.data()->printed_output;
@@ -428,13 +429,18 @@ namespace hegel {
             }
         }
 
-        // Translate hegel::Settings onto a fresh hegel_settings_t handle.
+        // Translate hegel::Settings onto a fresh hegel_settings_t handle. A
+        // field left unset keeps the value the engine's settings profile
+        // gave the handle.
         void apply_settings(hegel_context_t* ctx, hegel_settings_t* s,
                             const Settings& settings) {
-            impl::settings_set_test_cases(ctx, s,
-                                          settings.test_cases.value_or(100));
-            impl::settings_set_stateful_step_count(
-                ctx, s, settings.stateful_step_count);
+            if (settings.stateful_step_count < 1) {
+                throw std::invalid_argument(
+                    "Settings::stateful_step_count must be at least 1");
+            }
+            if (settings.test_cases.has_value()) {
+                impl::settings_set_test_cases(ctx, s, *settings.test_cases);
+            }
 
             hegel_verbosity_t v = HEGEL_VERBOSITY_NORMAL;
             switch (settings.verbosity) {
@@ -519,19 +525,37 @@ namespace hegel {
             }
             impl::settings_set_phases(ctx, s, phases);
 
-            hegel_backend_t backend = HEGEL_BACKEND_AUTO;
             switch (settings.backend) {
             case Backend::Auto:
-                backend = HEGEL_BACKEND_AUTO;
+                // The settings profile picks the backend.
                 break;
             case Backend::Default:
-                backend = HEGEL_BACKEND_DEFAULT;
+                impl::settings_set_backend(ctx, s, HEGEL_BACKEND_DEFAULT);
                 break;
             case Backend::Urandom:
-                backend = HEGEL_BACKEND_URANDOM;
+                impl::settings_set_backend(ctx, s, HEGEL_BACKEND_URANDOM);
                 break;
             }
-            impl::settings_set_backend(ctx, s, backend);
+        }
+
+        // Record where the test lives, so the engine can report the run's
+        // verdict to Antithesis under `<class>::<function>`. A GoogleTest
+        // name (`Suite.Name`) splits into the two; any other name is scoped
+        // by its file, like the default database key.
+        void apply_test_location(hegel_context_t* ctx, hegel_settings_t* s,
+                                 const TestLocation& location) {
+            std::string class_name = location.file;
+            std::string function = location.name;
+            size_t dot = location.name.find('.');
+            if (dot != std::string::npos) {
+                class_name = location.name.substr(0, dot);
+                function = location.name.substr(dot + 1);
+            }
+            uint32_t line =
+                location.line < 0 ? 0 : static_cast<uint32_t>(location.line);
+            impl::settings_set_test_location(ctx, s, location.file.c_str(),
+                                             line, class_name.c_str(),
+                                             function.c_str());
         }
 
         // Replays one counterexample as the body of a failure section and
@@ -552,7 +576,7 @@ namespace hegel {
             bool quiet = settings.verbosity == Verbosity::Quiet;
             bool printed_output = false;
             BodyOutcome outcome =
-                replay_failure(ctx, s, blob, settings.verbosity,
+                replay_failure(ctx, s, blob, settings,
                                /*in_report=*/!quiet, test_fn, &printed_output);
             if (outcome.status != HEGEL_STATUS_INTERESTING) {
                 // GCOVR_EXCL_START
@@ -572,9 +596,9 @@ namespace hegel {
                            const std::vector<std::string>& failure_blobs) {
             // multiple blobs are accepted for bookkeeping, but only the first
             // one is run like in the other Hegel libraries
-            BodyOutcome outcome = replay_failure(
-                ctx, s, failure_blobs.front().c_str(), settings.verbosity,
-                /*in_report=*/false, test_fn);
+            BodyOutcome outcome =
+                replay_failure(ctx, s, failure_blobs.front().c_str(), settings,
+                               /*in_report=*/false, test_fn);
 
             if (outcome.exception == nullptr) {
                 throw std::runtime_error(
@@ -609,12 +633,13 @@ namespace hegel {
                 if (handle == nullptr) {
                     break;
                 }
-                bool nondeterministic =
-                    impl::test_case_is_nondeterministic(ctx, handle);
                 auto data = std::unique_ptr<impl::test_case::TestCaseData>(
                     new impl::test_case::TestCaseData{
                         handle, /*is_final=*/false, settings.verbosity});
+                bool nondeterministic =
+                    impl::test_case_is_nondeterministic(ctx, handle);
                 data->buffer_output = nondeterministic;
+                data->stateful_step_count = settings.stateful_step_count;
                 TestCase tc_obj(std::move(data));
                 BodyOutcome outcome = run_body(test_fn, tc_obj);
                 if (nondeterministic &&
@@ -783,6 +808,9 @@ namespace hegel {
             settings_guard.s = impl::settings_new(ctx);
             hegel_settings_t* s = settings_guard.s;
             apply_settings(ctx, s, settings);
+            if (location.has_value()) {
+                apply_test_location(ctx, s, *location);
+            }
 
             if (failure_blobs.empty()) {
                 run_from_engine(test_fn, ctx, s, settings, location,

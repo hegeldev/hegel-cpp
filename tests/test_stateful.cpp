@@ -301,7 +301,7 @@ TEST(Stateful, StepCountBelowOneThrows) {
                      },
                      hegel::Settings{.database = hegel::Database::disabled(),
                                      .stateful_step_count = 0}),
-                 std::runtime_error);
+                 std::invalid_argument);
 }
 
 TEST(Stateful, PoolAsState) {

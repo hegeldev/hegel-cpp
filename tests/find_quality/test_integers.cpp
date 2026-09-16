@@ -3,13 +3,21 @@
 #include "common/utils.h"
 
 #include <cstdint>
-#include <cstdlib>
 #include <limits>
 #include <vector>
 
 using hegel::tests::common::find_any;
 using hegel::tests::common::minimal;
 namespace gs = hegel::generators;
+
+namespace {
+    // |x| without overflow: the engine draws INT64_MIN, which std::abs
+    // cannot represent.
+    uint64_t magnitude(int64_t x) {
+        return x < 0 ? uint64_t{0} - static_cast<uint64_t>(x)
+                     : static_cast<uint64_t>(x);
+    }
+} // namespace
 
 TEST(FindIntegers, CanProduceZero) {
     find_any<int64_t>(gs::integers<int64_t>(),
@@ -18,7 +26,7 @@ TEST(FindIntegers, CanProduceZero) {
 
 TEST(FindIntegers, CanProduceLargeMagnitudeIntegers) {
     find_any<int64_t>(gs::integers<int64_t>(),
-                      [](int64_t x) { return std::abs(x) > 1000; });
+                      [](int64_t x) { return magnitude(x) > 1000; });
 }
 
 TEST(FindIntegers, CanProduceLargePositiveIntegers) {
@@ -43,7 +51,7 @@ TEST(FindIntegers, IntegersAreSometimesZero) {
 
 TEST(FindIntegers, IntegersAreOftenSmall) {
     find_any<int64_t>(gs::integers<int64_t>(),
-                      [](int64_t x) { return std::abs(x) <= 100; });
+                      [](int64_t x) { return magnitude(x) <= 100; });
 }
 
 // TODO XFAIL'd until this issue is fixed:
@@ -53,7 +61,7 @@ TEST(FindIntegers, IntegersAreOftenSmall) {
 TEST(FindIntegers, IntegersAreOftenSmallButNotThatSmall) {
     try {
         find_any<int64_t>(gs::integers<int64_t>(), [](int64_t x) {
-            int64_t a = std::abs(x);
+            uint64_t a = magnitude(x);
             return a >= 50 && a <= 255;
         });
     } catch (const std::runtime_error& e) {

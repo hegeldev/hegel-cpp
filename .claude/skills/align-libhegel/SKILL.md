@@ -29,9 +29,10 @@ The layers, and what an ABI change usually touches:
   `hegel::internal`) — the template-visible draw primitives
   (`draw_integer`, `draw_float`, `draw_boolean`, spans) and the RAII handle
   classes over engine-owned compound-draw objects (`CollectionHandle`,
-  `PoolHandle`, `StateMachineHandle`), plus the `SpanLabel` mirror of
-  `hegel_label_t` and `state_machine_done` mirroring
-  `HEGEL_STATE_MACHINE_DONE`.
+  `PoolHandle`, `StateMachineHandle`), plus the `SpanLabel` enumeration of
+  span kinds (each derives its engine label from a `hegel-cpp.<kind>` name
+  through `hegel_label_from_name` in `src/engine.cpp`) and
+  `state_machine_done` mirroring `HEGEL_STATE_MACHINE_DONE`.
 - **`src/test_case.{h,cpp}`** — `TestCaseData` (owns the
   `hegel_test_case_t*`, freed in its destructor) and the `TestCase` method
   implementations. Touch when the test-case lifecycle or ownership changes.
@@ -128,11 +129,12 @@ The pin lives in **three files that must move together**, rewritten by
   the release tag and reformatted with `uvx clang-format` to repo style
 - `nix/flake.nix` — `libhegelVersion` plus each platform asset's SHA-256
 
-The release **tag is `v<VERSION>`** (note the `v` prefix — the raw path
-without it 404s):
+The release **tag is `libhegel-v<VERSION>`** (hegel-rust's plain
+`v<VERSION>` tags belong to the `hegeltest` crate, whose version differs;
+the raw path with the wrong tag 404s or serves another release's header):
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/hegeldev/hegel-rust/v<VERSION>/hegel-c/include/hegel.h
+curl -sSL https://raw.githubusercontent.com/hegeldev/hegel-rust/libhegel-v<VERSION>/hegel-c/include/hegel.h
 ```
 
 **Diff the header before touching any code.** The bump commit already
@@ -205,12 +207,12 @@ Categorize each change in the `libhegel/hegel.h` diff:
   real caller decision.
 - **New or renumbered enum values** — the two places the build does not
   fully check:
-  - `SpanLabel` (`include/hegel/internal.h`) mirrors `hegel_label_t` by
-    value and is `static_assert`ed against the C constants in
-    `src/engine.cpp` (as is `state_machine_done` ==
-    `HEGEL_STATE_MACHINE_DONE`). A renumbering trips the asserts; a **new**
-    `HEGEL_LABEL_*` you start using needs both the enum entry and a new
-    `static_assert`.
+  - `SpanLabel` (`include/hegel/internal.h`) lists the span kinds the
+    generators open; `span_label_names` in `src/engine.cpp` gives each one
+    the name its engine label is derived from (`hegel_label_from_name`,
+    computed once per process). A new kind needs both the enumerator and
+    its name, in enumerator order. `state_machine_done` is
+    `static_assert`ed against `HEGEL_STATE_MACHINE_DONE`.
   - The `Settings` mapping switches in `src/hegel.cpp` translate the public
     enums (`Verbosity`, `Phase`, `Mode`, `Backend`, `HealthCheck` in
     `include/hegel/settings.h`) to `HEGEL_*` constants by explicit `switch`
@@ -291,8 +293,8 @@ edit anything — this is a read-only verification.
 
 1. Read the pinned version from cmake/libhegel.cmake (HEGEL_LIBHEGEL_VERSION).
 2. Fetch the matching upstream header:
-   curl -sSL https://raw.githubusercontent.com/hegeldev/hegel-rust/v<VERSION>/hegel-c/include/hegel.h
-   (note the `v` prefix on the tag) and confirm the vendored libhegel/hegel.h
+   curl -sSL https://raw.githubusercontent.com/hegeldev/hegel-rust/libhegel-v<VERSION>/hegel-c/include/hegel.h
+   (the tag is `libhegel-v<VERSION>`) and confirm the vendored libhegel/hegel.h
    declares the same functions with the same signatures (the vendored copy is
    clang-formatted, so compare declarations, not bytes).
 3. Extract every `hegel_*` function declared in the header.
@@ -309,8 +311,9 @@ edit anything — this is a read-only verification.
    check a comment at the call site explains the absorption. An undocumented
    absorbed parameter is a BURIED-DEFAULT — flag it.
 7. Check the mirrored constants: every SpanLabel enumerator in
-   include/hegel/internal.h has a static_assert against its HEGEL_LABEL_*
-   value in src/engine.cpp, state_machine_done matches
+   include/hegel/internal.h has a name in src/engine.cpp's span_label_names
+   (in enumerator order) that its label is derived from with
+   hegel_label_from_name, state_machine_done matches
    HEGEL_STATE_MACHINE_DONE, and the Settings switches in src/hegel.cpp
    cover every enumerator of the public enums they translate.
 

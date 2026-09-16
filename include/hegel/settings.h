@@ -97,8 +97,8 @@ namespace hegel {
      * @brief Source of randomness the engine draws from.
      */
     enum class Backend {
-        Auto,    ///< Choose automatically (the default): Urandom when running
-                 ///< inside Antithesis, Default otherwise.
+        Auto,    ///< Leave the choice to the engine's settings profile (the
+                 ///< default): Urandom inside Antithesis, Default otherwise.
         Default, ///< Expand a single seeded PRNG. Runs are reproducible from
                  ///< the seed and shrinking / replay work as usual.
         Urandom, ///< Read fresh entropy from `/dev/urandom` on every draw.
@@ -185,9 +185,17 @@ namespace hegel {
 
     /**
      * @brief Configuration options for hegel::test().
+     *
+     * A field left at its default takes the value of the engine's settings
+     * profile: the engine resolves its `default` profile from
+     * `hegel_set_default_profile`, the `HEGEL_DEFAULT_PROFILE` environment
+     * variable, and a `hegel.toml` in the working directory or an ancestor,
+     * else from the detected environment (`workload` inside Antithesis, `ci`
+     * on a CI server, `development` otherwise).
      */
     struct Settings {
-        /// Number of test cases to run. Defaults to 100.
+        /// Number of test cases to run. Unset (the default) uses the engine
+        /// profile's value, which is 100 unless a `hegel.toml` changes it.
         std::optional<uint64_t> test_cases;
 
         /// Verbosity level. Defaults to Verbosity::Normal.
@@ -220,7 +228,8 @@ namespace hegel {
         /// Unset (the default) disables persistence and Reuse-phase replay.
         std::optional<std::string> database_key;
 
-        /// Health checks to suppress for this test.
+        /// Health checks to suppress for this test. Empty (the default) uses
+        /// the engine profile's set: none locally, `TooSlow` on a CI server.
         std::vector<HealthCheck> suppress_health_check;
 
         /// Phases to run. Defaults to all phases; phases left out are
@@ -229,12 +238,13 @@ namespace hegel {
         std::vector<Phase> phases = all_phases();
 
         /// Randomness backend. Defaults to Backend::Auto; picking an explicit
-        /// backend overrides the automatic detection.
+        /// backend overrides the engine profile's choice.
         Backend backend = Backend::Auto;
 
         /// The maximum number of steps a stateful test case attempts. Each
         /// case runs at least one step and at most this many. Must be at
-        /// least 1.
+        /// least 1; hegel::test() rejects other values with
+        /// std::invalid_argument.
         int64_t stateful_step_count = 50;
     };
 } // namespace hegel

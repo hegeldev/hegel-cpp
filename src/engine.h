@@ -34,8 +34,6 @@ namespace hegel::impl {
 
     void settings_set_test_cases(hegel_context_t* ctx, hegel_settings_t* s,
                                  uint64_t test_cases);
-    void settings_set_stateful_step_count(hegel_context_t* ctx,
-                                          hegel_settings_t* s, int64_t n);
     void settings_set_verbosity(hegel_context_t* ctx, hegel_settings_t* s,
                                 hegel_verbosity_t verbosity);
     void settings_set_seed(hegel_context_t* ctx, hegel_settings_t* s,
@@ -54,7 +52,17 @@ namespace hegel::impl {
                              uint32_t phases);
     void settings_set_backend(hegel_context_t* ctx, hegel_settings_t* s,
                               hegel_backend_t backend);
+    /// Where the test lives. Inside Antithesis the engine reports the run's
+    /// verdict under `<class_name>::<function>`; elsewhere it is unused.
+    void settings_set_test_location(hegel_context_t* ctx, hegel_settings_t* s,
+                                    const char* file, uint32_t begin_line,
+                                    const char* class_name,
+                                    const char* function);
+    /// A handle initialized from the engine's default settings profile.
     hegel_settings_t* settings_new(hegel_context_t* ctx);
+
+    /// The span label for a generator kind: a stable hash of `name`.
+    uint64_t label_from_name(hegel_context_t* ctx, const char* name);
 
     hegel_run_t* run_start(hegel_context_t* ctx, hegel_settings_t* s);
     hegel_test_case_t* test_case_from_blob(hegel_context_t* ctx,
