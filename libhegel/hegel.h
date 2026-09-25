@@ -719,6 +719,23 @@ const char* hegel_context_last_error(const hegel_context_t* ctx);
  directory or the nearest ancestor, and registered programmatically with
  `hegel_settings_register_profile`; use `hegel_settings_new_for_profile`
  to resolve one by name.
+
+ Whichever profile a handle starts from, `base` included, the settings
+ environment variables are applied over it before the handle is
+ returned, so they win over every profile and `hegel.toml` while the
+ setters called on the handle afterwards win over them:
+
+ - `HEGEL_TEST_CASES`: a positive integer, the `test_cases` value.
+ - `HEGEL_DATABASE`: `disabled` turns the database off; any other value
+   is its path.
+ - `HEGEL_STATISTICS`: anything but `0` turns `show_statistics` on.
+ - `HEGEL_SEED`: an integer fixes the seed; `none` clears one.
+ - `HEGEL_DERANDOMIZE` and `HEGEL_PRINT_BLOB`: `true`, `1` or `yes`, or
+   `false`, `0` or `no`.
+
+ An empty variable is ignored. A malformed one makes this function (and
+ `hegel_settings_new_for_profile`) fail with `HEGEL_E_INVALID_ARG` and a
+ message naming the variable.
  */
 hegel_result_t hegel_settings_new(hegel_context_t* ctx,
                                   hegel_settings_t** out_settings);
@@ -730,14 +747,16 @@ hegel_result_t hegel_settings_new(hegel_context_t* ctx,
    registered with `hegel_settings_register_profile`.
  `out_settings`: Receives a handle initialized from that profile.
 
- Returns `HEGEL_OK`, or `HEGEL_E_INVALID_ARG` when the profile is unknown
- or a `hegel.toml` is malformed. Read the message with
- `hegel_context_last_error`.
+ Returns `HEGEL_OK`, or `HEGEL_E_INVALID_ARG` when the profile is unknown,
+ a `hegel.toml` is malformed, or a settings environment variable is
+ malformed. Read the message with `hegel_context_last_error`.
 
  Selecting a profile by name does not change what the default profile is:
  the named profile still implicitly extends `default` (see
  `hegel_settings_new`), so it layers over the environment's profile —
- except `base`, which is always the plain base settings.
+ except `base`, which is always the plain base settings. The settings
+ environment variables listed under `hegel_settings_new` apply to the
+ result either way.
  */
 hegel_result_t hegel_settings_new_for_profile(hegel_context_t* ctx,
                                               const char* name,
@@ -1620,7 +1639,10 @@ hegel_result_t hegel_pool_free(hegel_context_t* ctx, hegel_pool_t* pool);
  Register a *state machine* for engine-owned stateful (rule-based)
  testing, sequential or concurrent: `num_rules` rules — each assigned to
  a concurrency group by `rule_groups`, an array of group ids parallel to
- `rule_names` — and `num_invariants` invariants, with names as
+ `rule_names`, and given a selection weight by `rule_weights`, an array
+ of `num_rules` finite, strictly positive doubles parallel to
+ `rule_names` (NULL for all-equal weights) — and `num_invariants`
+ invariants, with names as
  NUL-terminated UTF-8, plus concurrency bounds. `invariant_always_check`
  is an array of `num_invariants` flags parallel to `invariant_names`
  (NULL for all-false): `hegel_state_machine_should_check_invariant`
@@ -1646,7 +1668,11 @@ hegel_result_t hegel_pool_free(hegel_context_t* ctx, hegel_pool_t* pool);
 
  The engine owns rule selection — including swarm testing, where each
  worker enables a random subset of rules (at least one per group) and
- selection draws only from that subset. The caller drives execution in
+ selection draws only from that subset, with probability proportional
+ to `rule_weights` among the enabled rules of the current group. A
+ rule's realized frequency therefore depends on which other rules its
+ worker has enabled: the weights are a guide, not a guarantee. The
+ caller drives execution in
  rounds: on the root test-case handle it asks
  `hegel_state_machine_next_group` whether another round should run, then
  each worker asks `hegel_state_machine_next_rule` which rule to run and
@@ -1694,13 +1720,13 @@ hegel_result_t hegel_pool_free(hegel_context_t* ctx, hegel_pool_t* pool);
  exhausted (the caller should abort the body and call
  `hegel_mark_complete` with `HEGEL_STATUS_OVERRUN`). Returns
  `HEGEL_E_INVALID_ARG` if `num_rules` is zero, an entry of `rule_groups`
- is `HEGEL_STATE_MACHINE_DONE`, `min_concurrency < 1`,
- `max_concurrency < min_concurrency`, `step_count < 1`, or on null /
- non-UTF-8 names.
+ is `HEGEL_STATE_MACHINE_DONE`, an entry of `rule_weights` is not finite
+ and positive, `min_concurrency < 1`, `max_concurrency < min_concurrency`,
+ `step_count < 1`, or on null / non-UTF-8 names.
  */
 hegel_result_t hegel_new_state_machine(
     hegel_context_t* ctx, hegel_test_case_t* tc, const char* const* rule_names,
-    const int64_t* rule_groups, size_t num_rules,
+    const int64_t* rule_groups, const double* rule_weights, size_t num_rules,
     const char* const* invariant_names, const bool* invariant_always_check,
     size_t num_invariants, int64_t min_concurrency, int64_t max_concurrency,
     int64_t step_count, hegel_state_machine_t** out_state_machine,
