@@ -4,11 +4,11 @@ auto draw_1 = 0;
 auto draw_1 = 0;
 Running test case
 SENTINEL_NOTE
-auto draw_1 = 511;
-auto draw_1 = -8;
+auto draw_1 = 217;
+auto draw_1 = -40993461;
 Running test case
 SENTINEL_NOTE
-auto draw_1 = -369804;
-auto draw_1 = -31;
+auto draw_1 = 39434;
+auto draw_1 = -139949015;
 Ending phase: Generate
 
