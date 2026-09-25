@@ -714,13 +714,15 @@ namespace hegel::internal {
         std::vector<char*> invariant_name_cstrings =
             to_cstrings(invariant_names);
 
-        // A NULL `invariant_always_check` array leaves every invariant
-        // sampled at its default probability; the public API exposes no
-        // always-check flag. The step budget is Settings::stateful_step_count,
-        // carried on the test case.
+        // A NULL `rule_weights` array selects every rule with equal weight;
+        // the public API exposes no per-rule weight. A NULL
+        // `invariant_always_check` array leaves every invariant sampled at
+        // its default probability; the public API exposes no always-check
+        // flag. The step budget is Settings::stateful_step_count, carried on
+        // the test case.
         scope.raise_for_rc(hegel_new_state_machine(
                                scope.ctx, scope.tc, rule_name_cstrings.data(),
-                               rule_groups.data(), rule_names.size(),
+                               rule_groups.data(), nullptr, rule_names.size(),
                                invariant_name_cstrings.data(), nullptr,
                                invariant_names.size(), min_concurrency,
                                max_concurrency, tc.data()->stateful_step_count,
