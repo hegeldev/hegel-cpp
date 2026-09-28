@@ -210,3 +210,66 @@ TEST(GTestMacros, PassingAssertionsRaiseNothing) {
     EXPECT_EQ(out.rethrown, "<no exception>");
     EXPECT_FALSE(contains(out.report, "Falsified")) << out.report;
 }
+
+namespace {
+    int runs_on_broken_machine = 0;
+
+    struct BreaksOnFirstStep
+        : hegel::stateful::StateMachine<BreaksOnFirstStep, int> {
+        bool broken = false;
+
+        BreaksOnFirstStep()
+            : hegel::stateful::StateMachine<BreaksOnFirstStep, int>(
+                  {.initial_state = 0}) {}
+
+        std::vector<hegel::stateful::Rule<BreaksOnFirstStep>> rules() {
+            return {hegel::stateful::Rule<BreaksOnFirstStep>(
+                "break", [](hegel::TestCase&, BreaksOnFirstStep& m) {
+                    if (m.broken) {
+                        runs_on_broken_machine++;
+                    }
+                    m.broken = true;
+                    ASSERT_TRUE(false) << "the machine is broken";
+                })};
+        }
+
+        std::vector<hegel::stateful::Invariant<BreaksOnFirstStep>>
+        invariants() {
+            return {hegel::stateful::Invariant<BreaksOnFirstStep>(
+                "not broken", [](const BreaksOnFirstStep& m) {
+                    if (m.broken) {
+                        runs_on_broken_machine++;
+                    }
+                })};
+        }
+    };
+
+} // namespace
+
+// Regression test for https://github.com/hegeldev/hegel-cpp/issues/138.
+// No rule or invariant runs after a fatal failure.
+TEST(GTestMacros, FailedAssertInAStatefulRuleEndsTheCase) {
+    runs_on_broken_machine = 0;
+    RunResult out = run(
+        [](hegel::TestCase& tc) {
+            BreaksOnFirstStep machine;
+            hegel::stateful::run(machine, tc);
+        },
+        hegel::Settings{.test_cases = 20});
+    EXPECT_EQ(runs_on_broken_machine, 0);
+}
+
+// A catch-all handler in the body stops the fatal failure from ending the
+// case early, but the case still fails on the assertion.
+TEST(GTestMacros, CatchAllInTheBodyDoesNotHideAFailedAssert) {
+    RunResult out = run(
+        [](hegel::TestCase& tc) {
+            (void)tc.draw("x", small_int());
+            try {
+                ASSERT_TRUE(false) << "swallowed";
+            } catch (...) {
+            }
+        },
+        hegel::Settings{.test_cases = 5});
+    EXPECT_TRUE(contains(out.rethrown, "swallowed")) << out.rethrown;
+}

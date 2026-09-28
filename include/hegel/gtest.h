@@ -23,6 +23,8 @@
  * fails and it names the enclosing test, which heads the failure report and
  * scopes the example database, so counterexamples persist and replay per test.
  *
+ * A failed `ASSERT_*` ends the whole test case. `EXPECT_*` continues as usual.
+ *
  * The integration is always on where GoogleTest is. Hegel must see a failed
  * assertion to fail the test case that ran it.
  */
@@ -33,6 +35,7 @@
 #include "hegel.h"
 
 #include <functional>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -92,8 +95,8 @@ namespace hegel {
                 std::string origin;
             };
 
-            inline Failures
-            collect_failures(const testing::TestPartResultArray& recorded) {
+            inline void
+            raise_failures(const testing::TestPartResultArray& recorded) {
                 Failures out;
                 for (int i = 0; i < recorded.size(); i++) {
                     const testing::TestPartResult& part =
@@ -108,31 +111,57 @@ namespace hegel {
                     out.message += position(part) + ": " + part.message();
                     out.origin += position(part);
                 }
-                return out;
+
+                if (!out.message.empty()) {
+                    throw GTestFailure("hegel::GTestFailure at " + out.origin,
+                                       out.message);
+                }
             }
 
-            // Runs one test-case body and collects GoogleTest assertions, then
-            // raises them as one exception.
-            inline void run_case(const std::function<void()>& body) {
-                if (testing::UnitTest::GetInstance()->current_test_info() ==
-                    nullptr) {
-                    body();
-                    return;
+            // Thrown when an assertion fails fatally.
+            struct FatalFailure {};
+
+            // Records the assertions of one test case. Without this, ASSERT_*
+            // returns only from the function it is in and the test case
+            // continues.
+            class Reporter : public testing::ScopedFakeTestPartResultReporter {
+              public:
+                explicit Reporter(testing::TestPartResultArray* recorded)
+                    : ScopedFakeTestPartResultReporter(
+                          INTERCEPT_ONLY_CURRENT_THREAD, recorded) {}
+
+                void ReportTestPartResult(
+                    // override makes ASSERT_* instantly throw
+                    const testing::TestPartResult& result) override {
+                    ScopedFakeTestPartResultReporter::ReportTestPartResult(
+                        result);
+                    if (result.fatally_failed()) {
+                        throw FatalFailure{};
+                    }
                 }
+            };
+
+            // Runs one test-case body and collects GoogleTest assertions, then
+            // raises them as one exception. A fatal failure stops the body
+            // immediately.
+            inline void run_case(const std::function<void()>& body) {
                 testing::TestPartResultArray recorded;
                 {
-                    testing::ScopedFakeTestPartResultReporter reporter(
-                        testing::ScopedFakeTestPartResultReporter::
-                            INTERCEPT_ONLY_CURRENT_THREAD,
-                        &recorded);
-                    body();
+                    // Outside a GoogleTest test, no assertion is recorded.
+                    std::optional<Reporter> reporter;
+                    if (testing::UnitTest::GetInstance()->current_test_info() !=
+                        nullptr) {
+                        reporter.emplace(&recorded);
+                    }
+                    try {
+                        body();
+                        // NOLINTNEXTLINE(bugprone-empty-catch)
+                    } catch (const FatalFailure&) {
+                        // The failure is in recorded. Continue to
+                        // raise_failures below.
+                    }
                 }
-                Failures failures = collect_failures(recorded);
-                if (!failures.message.empty()) {
-                    throw GTestFailure("hegel::GTestFailure at " +
-                                           failures.origin,
-                                       failures.message);
-                }
+                raise_failures(recorded);
             }
 
         } // namespace gtest_hooks
