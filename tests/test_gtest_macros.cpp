@@ -246,7 +246,6 @@ namespace {
 
 } // namespace
 
-
 // Regression test for https://github.com/hegeldev/hegel-cpp/issues/138.
 // No rule or invariant runs after a fatal failure.
 TEST(GTestMacros, FailedAssertInAStatefulRuleEndsTheCase) {
