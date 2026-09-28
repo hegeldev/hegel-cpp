@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.1 - 2026-09-28
+
+This patch fixes stateful tests continuing after a rule fails a GoogleTest `ASSERT_*` ([#138](https://github.com/hegeldev/hegel-cpp/issues/138)). A `ASSERT_*` failure now ends the test case.
+
 ## 0.13.0 - 2026-09-16
 
 This release bumps our pinned `libhegel` ([hegel-rust](hegeldev/hegel-rust)) from [0.37.5](https://github.com/hegeldev/hegel-rust/releases/tag/libhegel-v0.37.5) to [0.42.4](https://github.com/hegeldev/hegel-rust/releases/tag/libhegel-v0.42.4). hegel-rust now tags libhegel releases `libhegel-v<version>`, and the build downloads the engine from that tag.
