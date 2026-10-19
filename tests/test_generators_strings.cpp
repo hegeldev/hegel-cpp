@@ -61,6 +61,19 @@ TEST(Formats, DrawAll) {
                         .database = hegel::Database::disabled()});
 }
 
+// Every character of a text() drawn with an alphabet comes from that alphabet.
+TEST(Formats, AlphabetRestrictsCharacters) {
+    const std::string alphabet = "ab ~.-_%";
+    hegel::test(
+        [&](hegel::TestCase& tc) {
+            auto s = tc.draw(gs::text({.alphabet = alphabet}));
+            EXPECT_EQ(s.find_first_not_of(alphabet), std::string::npos)
+                << "drew " << s;
+        },
+        hegel::Settings{.test_cases = 200,
+                        .database = hegel::Database::disabled()});
+}
+
 // alphabet cannot be combined with individual character-filtering options.
 TEST(Formats, AlphabetWithCharFilteringThrows) {
     EXPECT_THROW(gs::text({.codec = "ascii", .alphabet = "abc"}),

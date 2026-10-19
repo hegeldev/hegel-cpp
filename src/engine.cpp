@@ -335,14 +335,20 @@ namespace hegel::impl {
         auto chars = [](const std::string* s) {
             return s ? reinterpret_cast<const uint8_t*>(s->data()) : nullptr;
         };
+        // The engine reads a NULL list as "no restriction". data() of an empty
+        // vector can be NULL, so an empty list gets a non-NULL pointer.
+        static const char* const empty_list[] = {nullptr};
+        auto list = [](const std::vector<const char*>& v) {
+            return v.empty() ? empty_list : v.data();
+        };
         return make_string_generator(
             "text", [&](hegel_context_t* ctx, hegel_string_generator_t** out) {
                 return hegel_string_generator_text(
                     ctx, params.min_size, params.max_size, params.codec,
                     params.min_codepoint, params.max_codepoint,
-                    params.categories ? categories.data() : nullptr,
+                    params.categories ? list(categories) : nullptr,
                     categories.size(),
-                    params.exclude_categories ? exclude_categories.data()
+                    params.exclude_categories ? list(exclude_categories)
                                               : nullptr,
                     exclude_categories.size(), chars(params.include_characters),
                     params.include_characters
