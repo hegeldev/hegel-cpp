@@ -1,8 +1,0 @@
-Starting phase: Generate
-auto x_1 = 3;
-Running test case
-auto x_1 = 3;
-Running test case
-auto x_1 = 3;
-Ending phase: Generate
-
