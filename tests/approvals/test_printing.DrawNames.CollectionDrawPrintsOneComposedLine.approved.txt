@@ -1,5 +1,0 @@
-Starting phase: Generate
-Running test case
-auto draw_1 = std::vector<int>{5, 5};
-Ending phase: Generate
-
