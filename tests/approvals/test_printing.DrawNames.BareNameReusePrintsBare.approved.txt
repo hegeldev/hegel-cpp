@@ -1,6 +1,0 @@
-Starting phase: Generate
-Running test case
-auto x = 1;
-auto x = 2;
-Ending phase: Generate
-
